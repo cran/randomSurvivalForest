@@ -1,0 +1,10 @@
+useDynLib(randomSurvivalForest)
+
+export(rsf.news, 
+       rsf,
+       Survrsf,
+       plot.error,
+       plot.ensemble,
+       plot.proximity,
+       plot.variable,
+       print.rsf)
