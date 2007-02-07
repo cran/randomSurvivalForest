@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -55,19 +55,48 @@
 //**********************************************************************
 
 #include <R_ext/Print.h>
+#include <Rdefines.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <float.h>
 #include <time.h>
+#ifndef TRUE
 #define TRUE   0x01
+#endif
+#ifndef FALSE
 #define FALSE  0x00
+#endif
 #define ACTIVE 0x02
 #define DL0_TRACE 0x01
 #define DL1_TRACE 0x02
 #define DL2_TRACE 0x04
 #define DL3_TRACE 0x08
 #define EPSILON 1.0e-7
+#define MUP_PROX 0x01
+#define MUP_TREE 0x02
+#define MUP_PERF 0x04
+#define MUP_VIMP 0x08
+#define RSF_OUTP_ID   0  
+#define RSF_STRG_ID   1  
+#define RSF_FENS_ID   2  
+#define RSF_OENS_ID   3  
+#define RSF_PERF_ID   4  
+#define RSF_LEAF_ID   5  
+#define RSF_PROX_ID   6  
+#define RSF_VIMP_ID   7  
+#define RSF_TREE_ID   8  
+#define RSF_NODE_ID   9  
+#define RSF_PARM_ID  10  
+#define RSF_SPLT_PT  11  
+#define RSF_SEED_ID  12  
+#define RSF_SEXP_CNT 13  
+#define RSF_GROW 0x10
+#define RSF_PRED 0x20
+#define LOG_RANK        1
+#define CONSERVE_EVENTS 2
+#define LOG_RANK_SCORE  3
+#define LOG_RANK_APPROX 4
 #define uchar unsigned char
 #define uint  unsigned int
 #define ulong unsigned long

@@ -5,7 +5,10 @@
     Show the NEWS file of the \pkg{randomSurvivalForest} package.
 }
 \usage{
-    rsf.news()
+    rsf.news(...)
+}
+\arguments{
+    \item{...}{Further arguments passed to or from other methods.}
 }
 \value{
     None.

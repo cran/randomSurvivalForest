@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 1.0.0
+##  RANDOM SURVIVAL FOREST 2.0.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -54,24 +54,34 @@
 ##**********************************************************************
 ##**********************************************************************
 
-plot.proximity <- function(x, main = deparse(substitute(x)), ...)
-{
-    if (!inherits(x,"randomSurvivalForest"))
-        stop("This function only works for objects of class `randomSurvivalForest'")
-    if (is.null(x$proximity)) return(NULL)
-    proxm <- matrix(0, x$n, x$n)
-    count <- 0
-    for (k in 1:x$n){
-      proxm[k,1:k] <- x$proximity[(count+1):(count+k)]
-      proxm[1:k,k] <- proxm[k,1:k]
-      count <- count+k
-    }
-    proxm <- proxm/diag(proxm)
-    loc <- cmdscale(sqrt(1-proxm))
-    par(mfrow = c(1,1))
-    plot(loc[,1], -loc[,2], type="n", xlab="", ylab="", main="cmdscale(Ensemble Mortality)")
-    text(loc[,1], -loc[,2],
-         pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
-         cex=0.8)
-    invisible(proximity=proxm)
+plot.proximity <- function (x, ...) {
+
+   ### check that object is interpretable
+   if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
+      sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
+    stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+
+  ### proximity checks
+  if (is.null(x$proximity))
+    stop("Proximity is NULL.  Re-run rsf (grow) analysis with proximity set to 'TRUE'.")
+  if (length(x$proximity) == 1) return()
+
+  ### generate plot
+  proxm <- matrix(0, x$n, x$n)
+  count <- 0
+  for (k in 1:x$n){
+    proxm[k,1:k] <- x$proximity[(count+1):(count+k)]
+    proxm[1:k,k] <- proxm[k,1:k]
+    count <- count+k
+  }
+  proxm <- proxm/diag(proxm)
+  loc <- cmdscale(sqrt(1-proxm))
+  old.par <- par(no.readonly = TRUE)
+  par(mfrow = c(1,1))
+  plot(loc[,1], -loc[,2], type="n", xlab="", ylab="", main="cmdscale(Ensemble Mortality)")
+  text(loc[,1], -loc[,2],
+       pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
+       cex=0.8)
+  par(old.par)
+  invisible(proximity=proxm)
 }

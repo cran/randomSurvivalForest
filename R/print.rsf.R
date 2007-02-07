@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 1.0.0
+##  RANDOM SURVIVAL FOREST 2.0.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -54,16 +54,47 @@
 ##**********************************************************************
 ##**********************************************************************
 
-"print.rsf"=function(x, ...) {
-  cat("\nCall:\n", deparse(x$call), "\n\n")
-  cat("                         Sample size: ", x$n,                 "\n", sep="")
-  cat("                    Number of deaths: ", x$ndead,             "\n", sep="")
-  cat("                     Number of trees: ", x$ntree,             "\n",sep="")
-  cat("          Minimum terminal node size: ", x$nodesize,          "\n", sep="")
-  cat("       Average no. of terminal nodes: ", mean(x$leaf.count),  "\n", sep="")
-  cat("No. of variables tried at each split: ", x$mtry,              "\n", sep="")
-  cat("              Total no. of variables: ", length(x$prednames), "\n", sep="")  
-  cat("                      Splitting rule: ", x$splitrule,         "\n", sep="")
-  cat("          OOB estimate of error rate: ",
-          round(x$err.rate[x$ntree]*100, dig=2), "%\n\n", sep="")
+print.rsf <- function(x, ...) {
+
+  ### set default printing if object is a forest
+  if (sum(inherits(x, c("rsf", "forest"), TRUE) == c(1, 2)) == 2) {
+    print.default(x)
+    return()
+  }
+
+  ### check that object is interpretable
+  if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
+    sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
+    stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+
+  ### printing depends upon the object
+  if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) == 2) {
+    cat("\nCall:\n", deparse(x$call), "\n\n")
+    cat("                         Sample size: ", x$n,                 "\n", sep="")
+    cat("                    Number of deaths: ", x$ndead,             "\n", sep="")
+    cat("                     Number of trees: ", x$ntree,             "\n",sep="")
+    cat("          Minimum terminal node size: ", x$nodesize,          "\n", sep="")
+    cat("       Average no. of terminal nodes: ", mean(x$leaf.count),  "\n", sep="")
+    cat("No. of variables tried at each split: ", x$mtry,              "\n", sep="")
+    cat("              Total no. of variables: ", length(x$predictorNames), "\n", sep="")  
+    cat("                      Splitting rule: ", x$splitrule,         "\n", sep="")
+    cat("              Estimate of error rate: ",
+                             round(x$err.rate[x$ntree]*100, dig=2), "%\n\n", sep="")
+  }
+  else {
+    cat("\nCall:\n", deparse(x$call), "\n\n")
+    cat("  Sample size of test (predict) data: ", x$n,                 "\n", sep="")
+    if (!is.null(x$ndead)) {
+      cat("       Number of deaths in test data: ", x$ndead,             "\n", sep="")
+    }
+    cat("                Number of grow trees: ", x$ntree,             "\n",sep="")
+    cat("  Average no. of grow terminal nodes: ", mean(x$leaf.count),  "\n", sep="")
+    cat("         Total no. of grow variables: ", length(x$predictorNames), "\n", sep="")  
+    if (!is.null(x$err.rate)) {
+      if (sum(is.na(x$err.rate)) == 0) {
+        cat("                     Test error rate: ",
+            round(x$err.rate[x$ntree]*100, dig=2), "%\n\n", sep="")
+      }
+    }
+  }
 }

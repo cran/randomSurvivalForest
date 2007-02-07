@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -141,6 +141,77 @@ void hpsort(double *ra, uint n) {
     ra[i] = rra;
   }
 }
+#ifdef SWAP
+#undef SWAP
+#endif
+#define SWAP(a,b) itemp=(a);(a)=(b);(b)=itemp;
+#define M 7
+#define NSTACK 50
+void indexx(uint n, double *arr, uint *indx) {
+  uint i, j, k, l=1;
+  uint indxt, itemp, ir=n;
+  uint *istack, jstack=0;
+  double a;
+  istack = uivector(1, NSTACK);
+  for (j=1; j<=n; j++) indx[j]=j;
+  for (;;) {
+    if (ir-l < M) {
+      for (j=l+1; j<=ir; j++) {
+        indxt = indx[j];
+        a = arr[indxt];
+        for (i=j-1; i>=l; i--) {
+          if (arr[indx[i]] <= a) break;
+          indx[i+1] = indx[i];
+        }
+        indx[i+1] = indxt;
+      }
+      if (jstack == 0) break;
+      ir = istack[jstack--];
+      l = istack[jstack--];
+    }
+    else {
+      k = (l+ir) >> 1;
+      SWAP(indx[k], indx[l+1]);
+      if (arr[indx[l]] > arr[indx[ir]]) {
+        SWAP(indx[l], indx[ir])
+      }
+      if (arr[indx[l+1]] > arr[indx[ir]]) {
+        SWAP(indx[l+1], indx[ir])
+      }
+      if (arr[indx[l]] > arr[indx[l+1]]) {
+        SWAP(indx[l], indx[l+1])
+      }
+      i = l+1;
+      j = ir;
+      indxt = indx[l+1];
+      a = arr[indxt];
+      for (;;) {
+        do i++; while (arr[indx[i]] < a);
+        do j--; while (arr[indx[j]] > a);
+        if (j < i) break;
+        SWAP(indx[i], indx[j])
+      }
+      indx[l+1] = indx[j];
+      indx[j] = indxt;
+      jstack += 2;
+      if (jstack > NSTACK) nrerror("NSTACK too small in indexx.");
+      if (ir-i+1 >= j-l) {
+        istack[jstack] = ir;
+        istack[jstack-1] = i;
+        ir = j-1;
+      }
+      else {
+        istack[jstack] = j-1;
+        istack[jstack-1] = l;
+        l = i;
+      }
+    }
+  }
+  free_uivector(istack, 1, NSTACK);
+}
+#undef SWAP
+#undef M
+#undef NSTACK
 #define FREE_ARG char*
 #define NR_END 1
 double **dmatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
@@ -189,10 +260,10 @@ uint *uivector(ulong nl, ulong nh) {
   if (!v) nrerror("Allocation Failure in uivector()");
   return v-nl+NR_END;
 }
-uchar *ucvector(ulong nl, ulong nh) {
-  uchar *v;
-  v=(uchar *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(uchar)));
-  if (!v) nrerror("Allocation Failure in ucvector()");
+char *cvector(ulong nl, ulong nh) {
+  char *v;
+  v=(char *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(char)));
+  if (!v) nrerror("Allocation Failure in cvector()");
   return v-nl+NR_END;
 }
 void nrerror(char error_text[]) {
@@ -200,7 +271,7 @@ void nrerror(char error_text[]) {
   Rprintf("\nRSF:  Numerical Recipes Run-Time Error:");
   Rprintf("\nRSF:  %s", error_text);
   Rprintf("\nRSF:  Please Contact Technical Support.");
-  Rprintf("\nRSF   The application will now exit.\n");
+  Rprintf("\nRSF:  The application will now exit.\n");
   exit(FALSE);
 }
 void free_dmatrix(double **m,
@@ -230,12 +301,12 @@ void free_dvector(double *v, ulong nl, ulong nh) {
 void free_uivector(uint *v,ulong nl,ulong nh) {
   free((FREE_ARG) (v+nl-NR_END));
 }
-void free_ucvector(uchar *v,ulong nl,ulong nh) {
+void free_cvector(char *v,ulong nl,ulong nh) {
   free((FREE_ARG) (v+nl-NR_END));
 }
 #undef FREE_ARG
 #undef NR_END
-void copyMatrix(uint **new, uint **old, uint nrow, uint ncol) {
+void nrCopyMatrix(uint **new, uint **old, uint nrow, uint ncol) {
   uint i,j;
   for (i = 1; i <= nrow; i++) {  
     for (j = 1; j <= ncol; j++) {  

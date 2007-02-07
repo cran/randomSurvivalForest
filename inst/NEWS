@@ -1,4 +1,51 @@
 Package: randomSurvivalForest
-Version: 1.0.0
-Build:   bld20060811
+Version: 2.0.0
+BUILD: bld20070207
 
+---------------------------------------------------------------------------------
+CHANGES TO RELEASE 2.0.0
+
+Release 2.0.0 represents a major upgrade in the functionality and stability
+of the original 1.0.0 release.  Key changes are as follows:
+
+o Two new splitting rules, 'logrankscore' and 'logrankapprox', added.  
+
+o Expanded output from 'rsf()'.  Now out-of-bag objects 'oob.ensemble' and
+  'oob.mortality' are included in addition to the full ensemble objects 
+  'ensemble' and 'mortality'.
+
+o Importance values for predictors can now be calculated (set 'importace = TRUE' 
+  in the initial 'rsf()' call).  Extended 'plot.error()' to print, as well as plot,
+  such values.
+
+o Prediction on test data can now be implemented using 'rsf.predict()' (set
+  'forest = TRUE' in the initial 'rsf()' call).
+
+o Included option 'predictorWt' used for weighted sampling of predictors when
+  growing a tree.
+
+o Formula no longer restricted to main effects.  Formula for 'rsf' interpreted
+  as in typical R applications.  However, users should be aware that including
+  interactions or higher order terms in a formula may not be an optimal way to
+  grow a forest.
+
+o Three types of objects are generated in an RSF analysis: '(rsf, grow)', 
+  '(rsf, predict)' and '(rsf, forest)'.  Wrappers handle each type of object
+  in different ways.
+
+o Improved error checking in all wrappers.
+
+o Extended 'plot.variable()' wrapper to generate parial plots for predictors.
+
+o Improved control over trace output.  See the 'do.trace' option in 'rsf()'.
+
+o Implements the Predictive Model Markup Language specification for an 
+  '(rsf, forest)' forest object.  PMML is an XML based language which
+  provides a way for applications to define statistical and data mining
+  models and to share models between PMML compliant applications.  More
+  information about PMML and the Data Mining Group can be found at
+  http://www.dmg.org.  Our implementation gives the user the ability to
+  save the geometry of a forest as a PMML XML document for export or
+  later retrieval.
+
+---------------------------------------------------------------------------------

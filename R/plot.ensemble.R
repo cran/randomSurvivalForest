@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 1.0.0
+##  RANDOM SURVIVAL FOREST 2.0.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -54,51 +54,68 @@
 ##**********************************************************************
 ##**********************************************************************
 
-plot.ensemble <- function(x, main = deparse(substitute(x)), ...) {
-    # internal checks
-    if (!inherits(x,"randomSurvivalForest"))
-        stop("This function only works for objects of class `randomSurvivalForest'")
+plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
+
+    ### check that object is interpretable
+    if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
+      sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
+      stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+    if (sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) == 2) {
+      rsfPred <- TRUE
+    }
+    else {
+      rsfPred <- FALSE
+    }
+    
+    ### null case can occur for '(rsf, predict)' objects, so check 
+    if (is.null(x$ndead)) return()
+
+    ### no point in producing plots if sample size too small or
+    ### not enough deaths
+    if (x$n < 5 | sum(x$Cens) < 2) return()
 
     # survival curves
     survival.ensemble <- t(exp(-x$ensemble))
     survival.mean.ensemble <- apply(survival.ensemble,1,mean)
-    allTime.unique <- sort(unique(x$Time[x$Died == 1]))
-    unique.pt <- is.element(allTime.unique, x$Time.unique)
-    Y <- apply(cbind(1:length(allTime.unique)),
-               1,
-               function(j, tau, t.unq) {sum(tau >= t.unq[j])},
-               tau = x$Time,
-               t.unq = allTime.unique)
-    d <- apply(cbind(1:length(allTime.unique)),
-               1,
-               function(j, d, tau, t.unq) {sum(tau == t.unq[j])},
-               tau = x$Time[x$Died == 1],
-               t.unq = allTime.unique)
-    r <- d/(Y+1*(Y == 0))
-    survival.aalen <- exp(-cumsum(r))[unique.pt]
-
+    if (!rsfPred) {
+      allTime.unique <- sort(unique(x$Time[x$Cens == 1]))
+      unique.pt <- is.element(allTime.unique, x$timeInterest)
+      Y <- apply(cbind(1:length(allTime.unique)),
+                 1,
+                 function(j, tau, t.unq) {sum(tau >= t.unq[j])},
+                 tau = x$Time,
+                 t.unq = allTime.unique)
+      d <- apply(cbind(1:length(allTime.unique)),
+                 1,
+                 function(j, d, tau, t.unq) {sum(tau == t.unq[j])},
+                 tau = x$Time[x$Cens == 1],
+                 t.unq = allTime.unique)
+      r <- d/(Y+1*(Y == 0))
+      survival.aalen <- exp(-cumsum(r))[unique.pt]
+    }
+    
     # Brier score
-    # for all distinct time points
-    # stratified by mortality percentiles
-    brier.score <- NULL
+    # . all distinct time points
+    # . stratified by mortality percentiles
+    brier.score <- matrix(NA, length(x$timeInterest), 4)
     mort.perc <- c(min(x$mortality)-1e-5, quantile(x$mortality, (1:4)/4))
     delta <- t(apply(cbind(1:x$n),
                    1,
                    function(i, tau, t.unq) {1*(tau[i] > t.unq)},
                    tau =  x$Time,
-                   t.unq = x$Time.unique)  - survival.ensemble)^2
+                   t.unq = x$timeInterest)  - survival.ensemble)^2
     for (k in 1:4){
-      mort.pt <- (x$mortality > mort.perc[k]) & (x$mortality <= mort.perc[k+1]) 
-      brier.score <- cbind(brier.score,apply(delta[mort.pt,], 2, mean))
+      mort.pt <- (x$mortality > mort.perc[k]) & (x$mortality <= mort.perc[k+1])
+      brier.score[,k] <- apply(as.matrix(delta[mort.pt,]), 2, mean)
     }                  
 
     # plots
-    old.cex <- par()$cex
-    par(mfrow = c(2,2))
+    old.par <- par(no.readonly = TRUE)
+    if (plots.one.page) par(mfrow = c(2,2)) else par(mfrow=c(1,1))
     par(cex = 1.0)
     if (x$n > 500) {
         r.pt <- sample(1:x$n, 500, replace = FALSE)
-        matplot(x$Time.unique,
+        matplot(x$timeInterest,
                 survival.ensemble[,r.pt],
                 xlab = "Time",
                 ylab = "Survival",
@@ -107,7 +124,7 @@ plot.ensemble <- function(x, main = deparse(substitute(x)), ...) {
                 lty = 3)
     }
     else {
-        matplot(x$Time.unique,
+        matplot(x$timeInterest,
                 survival.ensemble,
                 xlab = "Time",
                 ylab = "Survival",
@@ -115,45 +132,51 @@ plot.ensemble <- function(x, main = deparse(substitute(x)), ...) {
                 col = 1,
                 lty = 3)
     }
-    lines(x$Time.unique, survival.aalen, lty = 1, col = 3, lwd = 3)
-    lines(x$Time.unique, survival.mean.ensemble, lty = 1, col = 2, lwd = 3)
-    title("Ensemble Survival", cex.main = 1.25)
-    plot(survival.aalen,
-         survival.mean.ensemble,
-         xlab = "Nelson-Aalen Survival",
-         ylab = "Ensemble Survival",
-         type = "l")
-    abline(0, 1, col = 2, lty = 2)
-    title("Survival", cex.main = 1.25)
-    matplot(x$Time.unique, brier.score,
+    if (!rsfPred) lines(x$timeInterest, survival.aalen, lty = 1, col = 3, lwd = 3)
+    lines(x$timeInterest, survival.mean.ensemble, lty = 1, col = 2, lwd = 3)
+    rug(x$timeInterest, ticksize=-0.03)
+    if (plots.one.page) title("Ensemble Survival", cex.main = 1.25) 
+    if (!rsfPred) {
+      plot(survival.aalen,
+           survival.mean.ensemble,
+           xlab = "Nelson-Aalen Survival",
+           ylab = "Ensemble Survival",
+           type = "l")
+      abline(0, 1, col = 2, lty = 2)
+      if (plots.one.page) title("Survival", cex.main = 1.25)
+    }
+    matplot(x$timeInterest, brier.score,
          xlab = "Time",
          ylab = "Score",
          type = "l",
          col  = 1,
          lty  = 1:4)
-    lines(x$Time.unique, apply(delta, 2, mean), col=3, lwd=1)
-    point.x=round(length(x$Time.unique)*c(3,4)/4)
-    text(x$Time.unique[point.x],brier.score[point.x,1],"0-25",col=4)
-    text(x$Time.unique[point.x],brier.score[point.x,2],"25-50",col=4)
-    text(x$Time.unique[point.x],brier.score[point.x,3],"50-75",col=4)
-    text(x$Time.unique[point.x],brier.score[point.x,4],"75-100",col=4)
-    title("Brier Score",cex.main = 1.25)
+    lines(x$timeInterest, apply(delta, 2, mean), col=3, lwd=1)
+    point.x=round(length(x$timeInterest)*c(3,4)/4)
+    text(x$timeInterest[point.x],brier.score[point.x,1],"0-25",col=4)
+    text(x$timeInterest[point.x],brier.score[point.x,2],"25-50",col=4)
+    text(x$timeInterest[point.x],brier.score[point.x,3],"50-75",col=4)
+    text(x$timeInterest[point.x],brier.score[point.x,4],"75-100",col=4)
+    rug(x$timeInterest, ticksize=0.03)
+    if (plots.one.page) title("Brier Score",cex.main = 1.25)
     plot(x$Time, x$mortality, xlab = "Time", ylab = "Ensemble Mortality", type = "n")
-    title("Mortality vs Time", cex.main = 1.25)
+    if (plots.one.page) title("Mortality vs Time", cex.main = 1.25)
     if (x$n > 500) cex <- 0.5 else cex <- 0.75
-    points(x$Time[x$Died == 1], x$mortality[x$Died == 1], pch = 16, col = 4, cex = cex)
-    points(x$Time[x$Died == 0], x$mortality[x$Died == 0], pch = 16, cex = cex)
-    points(supsmu(x$Time[x$Died == 1][order(x$Time[x$Died == 1])],
-                  x$mortality[x$Died == 1][order(x$Time[x$Died == 1])]),
-           type = "l",
-           lwd = 2,
-           col = 4,
-           cex = cex)
-    if (sum(x$Died == 0) > 1)
-    points(supsmu(x$Time[x$Died == 0][order(x$Time[x$Died == 0])],
-                  x$mortality[x$Died == 0][order(x$Time[x$Died == 0])]),
-           type = "l",
-           lwd = 2,
-           cex = cex)
-    par(cex = old.cex)
+    points(x$Time[x$Cens == 1], x$mortality[x$Cens == 1], pch = 16, col = 4, cex = cex)
+    points(x$Time[x$Cens == 0], x$mortality[x$Cens == 0], pch = 16, cex = cex)
+    if (sum(x$Cens == 1) > 1)
+      points(supsmu(x$Time[x$Cens == 1][order(x$Time[x$Cens == 1])],
+                  x$mortality[x$Cens == 1][order(x$Time[x$Cens == 1])]),
+             type = "l",
+             lty = 3,
+             col = 4,
+             cex = cex)
+    if (sum(x$Cens == 0) > 1)
+      points(supsmu(x$Time[x$Cens == 0][order(x$Time[x$Cens == 0])],
+                  x$mortality[x$Cens == 0][order(x$Time[x$Cens == 0])]),
+             type = "l",
+             lty = 3,
+             cex = cex)
+    rug(x$timeInterest, ticksize=-0.03)
+    par(old.par)      
 }

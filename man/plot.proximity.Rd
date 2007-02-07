@@ -5,17 +5,17 @@
     Multidimensional scaling plot of proximity matrix.
 }
 \usage{
-    plot.proximity(x, main = deparse(substitute(x)), ...)
+    plot.proximity(x, ...)
 }
 \arguments{
-    \item{x}{An object of class \code{randomSurvivalForest},
-    as that created by the function \code{rsf}.}
-    \item{main}{Plot title.}
+    \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
+	predict)}. Note that \code{proximity}=TRUE must be used in
+        the original \code{rsf} call.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-  Extracts proximity information from \code{x} and converts it to a
-  symmetric proximity matrix.  Dissimilarities between points are
+  Extracts proximity information from \code{x} and converts this to a
+  symmetric proximity matrix.  Dissimilarities between points are then
   converted into distances using the R multidimensional scaling function
   \code{cmdscale} and then plotted.  Overlayed on the plot are mortality
   values, rescaled from 1-100, with 1 indicating low mortality, and 100
@@ -35,16 +35,11 @@
 }
 \seealso{
   \code{rsf},
-  \code{print.rsf},
-  \code{plot.ensemble},
-  \code{plot.variable},
-  \code{plot.error},
-  \code{cmdscale}.
+  \code{predict.rsf}.
 }
 \examples{
   data(pbc, package = "randomSurvivalForest") 
-  pbc.prox.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000,
-                      proximity = TRUE)
+  pbc.prox.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, proximity = TRUE)
   plot.proximity(pbc.prox.out)
 }
 \keyword{file}

@@ -54,7 +54,5 @@
 ##**********************************************************************
 ##**********************************************************************
 
-rsf.news <- function(...) {
-    newsfile <- file.path(system.file(package="randomSurvivalForest"), "NEWS")
-    file.show(newsfile)
-}
+rsf <- function(...)
+  UseMethod("rsf")

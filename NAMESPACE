@@ -2,9 +2,19 @@ useDynLib(randomSurvivalForest)
 
 export(rsf.news, 
        rsf,
+       randomSurvivalForest,
        Survrsf,
+       predict.rsf,
+       rsf_to_pmml,
+       pmml_to_rsf,
        plot.error,
        plot.ensemble,
        plot.proximity,
        plot.variable,
-       print.rsf)
+       print.rsf,
+       plot.rsf)
+
+S3method(rsf, default)
+S3method(print, rsf)
+S3method(plot, rsf)
+S3method(predict, rsf)

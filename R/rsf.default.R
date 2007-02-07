@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 1.0.0
+##  RANDOM SURVIVAL FOREST 2.0.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -58,169 +58,298 @@
 # Primary R function for Random Surival Forests
 # ---------------------------------------------------------------
 # Description:
-#    'rsf' implements Ishwaran and Kogalur's random survival
-#    forests algorithm for right censored survival data.  Uses
-#    a recursive tree growing procedure with different splitting
-#    rules for growing an ensemble cumulative hazard function.
-#    An out-of-bag (OOB) estimate of Harrell's concordance index
-#    is provided for assessing prediction.
+#  Ishwaran and Kogalur's Random Survival Forests algorithm for right
+#  censored survival data (Ishwaran and Kogalur, 2006).  This is a direct
+#  extension of Breiman's Random Forests method (Breiman, 2001) to
+#  survival analysis settings.  Algorithm uses a binary recursive tree
+#  growing procedure with different splitting rules for growing an
+#  ensemble cumulative hazard function.  An out-of-bag (OOB) estimate of
+#  Harrell's concordance index (Harrell, 1982) is provided for assessing
+#  prediction.  Importance values for predictors can also be computed.
+#  Prediction on test data is also available.  Note that this is the
+#  default generic method for the package.
 #################################################################
 
-rsf <- function(
-    formula = formula(data),
-    data = sys.parent(),
-    ntree = 100,
+rsf.default <- function(
+    formula,
+    data = NULL,
+    ntree = 1000,
     mtry = NULL,
     nodesize = NULL,
-    ntime = NULL,
-    splitrule = c("conserve", "logrank"),
+    splitrule = c("logrank", "conserve", "logrankscore", "logrankapprox")[1],
+    importance = TRUE,
+    predictorWt = NULL,
+    forest = FALSE,
+    do.trace = FALSE,
     proximity = FALSE,
     seed = NULL,
-    ntime.upper = 1000,
-    trace = FALSE,
+    ntime = NULL,
+    add.noise = FALSE,
     ...)
 {
-    ### model details
-    splitrule <- match.arg(splitrule)
+    ### preliminary checks for formula and data
+    if (!inherits(formula, "formula")) stop("'formula' is not a formula object.")
+    if (is.null(data)) stop("'data' is missing.")
+    if (!is.data.frame(data)) stop("'data' must be a data frame.")
     mf <- match.call(expand.dots = FALSE)
-    m <- match(c("formula","data"),names(mf),0)
+    m <- match(c("formula","data"), names(mf), 0)
     mf <- mf[c(1, m)]
-    mf$drop.unused.levels <- T
+    mf$drop.unused.levels <- TRUE 
     mf[[1]] <- as.name("model.frame")
-    mf <- eval(mf,parent.frame())
-    mt <- attr(mf,"terms")
-    survNames <- all.vars(formula)
-
-    ### remove na's and issue warning
-    if (any(is.na(data))){
-      cat("\n","*** Warning *** found NA's ... removing all records with NA's","\n")
-      if (survNames[3] == ".") {
-        data <- na.omit(data)
-      }
-      else {
-        data <- na.omit(data[,is.element(names(data), survNames)])
-      }  
-    }
-
+    mf <- eval(mf, parent.frame())
+    if (!inherits(model.extract(mf, "response"), "rsf.formula"))
+      stop("Outcome is not a random survival object.  Use 'Survrsf' for the formula.")
+      
     ### process data for native code
-    if (survNames[3] == "."){
-        cov.names <- names(data)[
-            !is.element(names(data),
-            survNames[1:2])
-        ]
-        predictors <- model.matrix(
-           as.formula(paste("~", paste(cov.names, collapse = "+"), sep = "")),
-           data[is.element(names(data), cov.names)])
+    ### remove any NA's and issue warning
+    ### add noise variable if requested (and adjust formula and predictorWt)
+    fNames <- all.vars(formula)
+    if (fNames[3] != ".") {
+       predTempNames <- attr(terms(formula), "term.labels")
     }
     else {
-        cov.names <- names(data)[is.element(names(data), c(survNames[-c(1,2)]))]
-        predictors <- model.matrix(
-            as.formula(paste("~", paste(cov.names, collapse = "+"), sep = "")),
-            data[is.element(names(data), cov.names)])
+       predTempNames <- names(data)[!is.element(names(data), fNames[1:2])]
+       formula = as.formula(paste(paste("Survrsf(",fNames[1],",",fNames[2],") ~"),
+                            paste(predTempNames, collapse="+")))
     }
-    predictors <- as.matrix(predictors[,!is.element(colnames(predictors), "(Intercept)")])
-    cov.names <- colnames(predictors)
-    Died <- data[,is.element(names(data), survNames[2])]
-    Time <- data[,is.element(names(data), survNames[1])]
+    data <- as.data.frame(
+            model.matrix(as.formula(paste("~ -1 +",
+            paste(c(fNames[1:2], predTempNames), collapse="+"))), data))
+    predictorNames <- names(data)[!is.element(names(data), fNames[1:2])]
+    predictors <- as.matrix(data[,is.element(names(data), predictorNames)])
+    if (dim(predictors)[1] <= 1)
+      stop("Less than one observation in training data.  Analysis is not meaningful.")
+    if (add.noise || (length(predictorNames) == 1 && length(unique(predictors)) <= 10)) {
+      noise <- rnorm(dim(predictors)[1])
+      predictors <- cbind(predictors, noise)
+      predictorNames <- c(predictorNames, "noise")
+      formula <- as.formula(paste(paste("Survrsf(",fNames[1],",",fNames[2],") ~"),
+                            paste(c(predTempNames, "noise"), collapse="+")))
+      if (!is.null(predictorWt)) 
+        predictorWt <- c(predictorWt, min(predictorWt))
+    }
+    rownames(predictors) <- colnames(predictors) <- NULL
+    ncov <- length(predictorNames)
+    Cens <- data[,is.element(names(data), fNames[2])]
+    Time <- data[,is.element(names(data), fNames[1])]
 
     ### internal checks
-    if (min(Died) < 0 || max(Died) > 1) 
-        stop("censoring variable must be coded as 0 [censored] and 1 [death]")
-    if (sum(Died == 0) == length(Died)) 
-        stop("no deaths in data: convert 0's to 1's and try again")
- 
+    if (min(Cens) < 0 | max(Cens) > 1) 
+        stop("Censoring variable must be coded as 0 [censored] and 1 [death].")
+    if (sum(Cens == 0) == length(Cens)) 
+        stop("No deaths in data: convert 0's to 1's and try again.")
+
+  
     ### prepare variables for native code
     ### check that option parameters are correctly specified
-    ### cap the number of unique points at a maximum of ntime.upper
+    ### cap the number of unique points at a maximum of ntime
     ### work out individuals at risk (used later for mortality calculation)
-    rownames(predictors) <- colnames(predictors) <- NULL
-    ncov <- length(cov.names)
-    if (!is.null(mtry)){if (mtry > ncov) mtry <- ncov}
-    if (is.null(mtry)) mtry <- max(floor(sqrt(ncov)), 1)
-    if (is.null(nodesize)) nodesize <- min(sum(Died == 1), 3)
-    if (is.null(seed) || abs(seed) < 1) seed <- rnorm(1)*1000
-    seed <- as.integer(-1 * abs(seed))
-    tunique <- sort(unique(Time[Died == 1]))
-    if (ntime.upper > 5 & ntime.upper < length(tunique))
-        tunique <- tunique[sort(unique(as.integer(seq(1, length(tunique),
-                                       length = ntime.upper))))]
-    N <- length(tunique)
-    if (is.null(ntime) || ntime <= 1) ntime <- N
-    if (N > ntime) tunique <- tunique[seq(1, N, length = ntime)]
-    Risk <- apply(cbind(1:length(tunique)),
+    ### do.trace details
+    ntree <- round(ntree)
+    if (ntree < 1) stop("Invalid choice of 'ntree'.  Cannot be less than 1.")
+    if (!is.null(mtry)) {
+      mtry <- round(mtry)
+      if (mtry < 1 || mtry > ncov) mtry <- max(1, min(mtry, ncov))
+    }
+    else {
+      mtry <- max(floor(sqrt(ncov)), 1)
+    }
+    if (!is.null(nodesize)) {
+      nodesize <- round(nodesize)
+      if (nodesize < 1) stop("Invalid choice of 'nodesize'. Cannot be less than 1.")
+    }
+    else {
+      nodesize <- min(sum(Cens == 1), 3)
+    }
+    splitrule.names = c("logrank", "conserve", "logrankscore", "logrankapprox")
+    splitrule.idx = which(splitrule.names == splitrule)
+    if (length(splitrule.idx) != 1)
+      stop("Invalid split rule specified:  ", splitrule)
+    if (is.null(seed)) seed <- rnorm(1)*10000
+    if (abs(seed) < 1) seed <- -1 else seed <- as.integer(-1 * abs(seed))
+    timeInterest <- sort(unique(Time[Cens == 1]))
+    N <- length(timeInterest)
+    if (is.null(ntime) || ntime <= 1 || ntime > N) ntime <- N
+    ntime <- as.integer(ntime)
+    if (ntime > 5 & ntime < N)
+        timeInterest <- timeInterest[unique(as.integer(seq(1, N, length = ntime)))]
+    N <- length(timeInterest)
+    Risk <- apply(cbind(1:length(timeInterest)),
                   1,
-                  function(i, tau, tunq){sum(tau >= tunq[i])},
-                  tau = Time, tunq = tunique)
+                  function(i, tau, tunq) {sum(tau >= tunq[i])},
+                  tau = Time, tunq = timeInterest)
     Risk <- Risk - c(Risk[-1],0)
-    
+
+    if (is.null(predictorWt)) {
+      predictorWt <- rep(1.0/dim(predictors)[2], dim(predictors)[2])
+    }
+    else {
+      if (any(predictorWt <= 0) | length(predictorWt) != dim(predictors)[2]) {
+        predictorWt <- rep(1.0/dim(predictors)[2], dim(predictors)[2])
+      }
+      else {
+        predictorWt <-predictorWt/sum(predictorWt)
+      }
+    }
+    if (!is.logical(do.trace)) {
+      if (do.trace >= 1){
+        do.trace <- 256*round(do.trace) + 1
+      }
+      else {
+        do.trace <- 0
+      }
+    }
+    else {
+      do.trace <- 1*(do.trace)
+    }
+      
     #############################################################
-    # Parameters passed to native C code are as follows:
+    # Parameters passed the C function rsf(...) are as follows:
     #############################################################
-    # 00 - C code library name
-    # 01 - trace (0 = do not send trace, !0 = send trace)
-    # 02 - memory useage (0 = no proximity, !0 = proximity)
-    # 03 - random seed for repeatability (int < 0) 
+    # 00 - C function name
+    # 01 - trace output flag
+    #    -  0 = no trace output
+    #    - !0 = various levels of trace output
+    # 02 - memory useage protocol (MUP) for return objects
+    #    - any combination of the following are allowed
+    #    - 0x00 = only the default objects are returned
+    #    - 0x01 = return proximity information
+    #    - 0x02 = return resulting forest
+    #    - 0x04 = N/A
+    #    - 0x08 = return variable importance
+    # 03 - random seed for repeatability
+    #    - integer < 0 
     # 04 - split rule to be used 
-    #      (1 = Log-Rank, 2 = Conservation of Events)
+    #    - 1 = Log-Rank
+    #    - 2 = Conservation of Events
+    #    - 3 = Log-Rank Score
+    #    - 4 = Approximate Log-Rank
     # 05 - number of covariates to be randomly selected for
-    #      growing tree (int > 0)
-    # 06 - number of bootstrap samples to be used (int B > 0)
-    # 07 - minimum number of deaths in a node (int > 0)
-    # 08 - number of observations (int n)
-    # 09 - time (vector double)
-    # 10 - status (0 = censored, 1 = death) (vector int)
-    # 11 - number of time points of interest (int)
-    # 12 - time points of interest (vector double)
-    # 13 - number of predictors (int p > 0 )
-    # 14 - [n x p] matrix of predictor observations
+    #      growing tree
+    #    - integer > 0
+    # 06 - number of bootstrap iterations
+    #    - integer > 0
+    # 07 - minimum number of deaths allowed in a node
+    #    - integer > 0
+    # 08 - number of observations in data set
+    #    - integer > 1
+    # 09 - vector of observed times of death
+    #    - vector of double values
+    # 10 - vector of observed event types
+    #    - 0 = censored
+    #    - 1 = death
+    # 11 - number of predictors 
+    #    - integer > 0
+    # 12 - [n x p] matrix of predictor observations
+    # 13 - number of time points of interest
+    #    - integer > 0
+    # 14 - vector of time points of interest
+    #    - vector of double values
+    # 15 - random covariate weight
+    #    - vector of double values
     #############################################################
 
-    RSF <- .C("rsf",
-        as.integer(if (trace == FALSE) 0 else 1),
-        as.integer(if (proximity == FALSE) 0 else 1),
+    #############################################################
+    # SEXP outputs (see native code for description):
+    # Note that outputs depend on the MUP flags.
+    #
+    # fullEnsemble - default output
+    # oobEnsemble  - default output
+    # performance  - default output
+    # leafCount    - default output
+    # proximity    - optional
+    # importance   - optional
+    # treeID       \\
+    # nodeID        \\
+    # parmID         || - forest optional
+    # spltPT        ##
+    # seed         ##
+    #############################################################    
+
+    nativeOutput <- .Call("rsfGrow",
+        as.integer(do.trace),
+        as.integer((8 * (if (importance) 1 else 0)) +
+                   (2 * (if (forest) 1 else 0)) +
+                   (if (proximity) 1 else 0)),
         as.integer(seed),
-        as.integer(if (splitrule == "logrank") 1 else 2), 
+        as.integer(splitrule.idx), 
         as.integer(mtry),
         as.integer(ntree),
         as.integer(nodesize),
         as.integer(dim(predictors)[1]),
         as.double(Time),
-        as.integer(Died),
-        as.integer(length(tunique)),
-        as.double(tunique),
+        as.integer(Cens),
         as.integer(dim(predictors)[2]),
         as.numeric(predictors),
-        ensemble = as.double(rep(0, dim(predictors)[1]*length(tunique))),
-        err.rate = as.double(rep(0, ntree)),
-        leaf.count = as.integer(rep(0,ntree)),
-        proximity = as.integer(if (proximity == FALSE) 0 else
-            rep(0,(dim(predictors)[1]+1)*dim(predictors)[1]/2)))
-    mortality <- apply(matrix(RSF$ensemble, 
-                       nrow = length(Died),
+        as.integer(length(timeInterest)),
+        as.double(timeInterest),
+        as.double(predictorWt)
+    )
+    mortality <- apply(matrix(nativeOutput$fullEnsemble, 
+                       nrow = length(Cens),
                        byrow = FALSE),
                        1,
                        function(x, wt) {sum(x*wt)},
                        wt = Risk)
-    out <- list(call = match.call(),
+    oob.mortality <- apply(matrix(nativeOutput$oobEnsemble, 
+                       nrow = length(Cens),
+                       byrow = FALSE),
+                       1,
+                       function(x, wt) {sum(x*wt)},
+                       wt = Risk)
+    
+    if (forest) {
+      nativeArray <- as.data.frame(cbind(nativeOutput$treeID,
+                                        nativeOutput$nodeID,
+                                        nativeOutput$parmID,
+                                        nativeOutput$spltPT))
+      names(nativeArray) <- c("treeID", "nodeID", "parmID", "spltPT")
+      forest <- list(nativeArray = nativeArray, 
+                     timeInterest = timeInterest, 
+                     predictorNames = predictorNames,
+                     bootstrapSeed = nativeOutput$seed,
+                     predictors = predictors,
+                     formula = formula,
+                     Time = Time,
+                     Cens = Cens)
+       class(forest) <- c("rsf", "forest")
+    }
+    else
+      forest <- NULL
+  
+    
+    rsfOutput <- list(
+        call = match.call(),
         formula = formula,
-        terms = mt,
-        n = length(Died),
-        ndead = sum(Died == 1),
+        n = length(Cens),
+        ndead = sum(Cens == 1),
         ntree = ntree,
         mtry = mtry,
         nodesize = nodesize,
         splitrule = splitrule,
         Time = Time,
-        Died = Died,
-        Time.unique = tunique,
-        prednames = cov.names,
+        Cens = Cens,
+        timeInterest = timeInterest,
+        predictorNames = predictorNames,
+        predictorWt = predictorWt,
         predictors = predictors,
-        ensemble = matrix(RSF$ensemble, nrow = length(Died), byrow = FALSE),
-        mortality = if (max(mortality) <= length(Died)) mortality else
-                        round(mortality*(length(Died))/(1*(max(mortality) == 0)+max(mortality))),
-        err.rate = RSF$err.rate,
-        leaf.count = RSF$leaf.count,
-        proximity = (if (proximity == FALSE) NULL else RSF$proximity))
-    class(out) <- "randomSurvivalForest"
-    return(out)
-}
+        ensemble = matrix(nativeOutput$fullEnsemble, nrow = length(Cens), byrow = FALSE),
+        oob.ensemble = matrix(nativeOutput$oobEnsemble, nrow = length(Cens), byrow = FALSE),
+        mortality = (if (max(mortality) <= length(Cens)) mortality else
+                     round(mortality*(length(Cens))/(1*(max(mortality) == 0)+
+                     max(mortality)))),
+        oob.mortality = (if (max(oob.mortality,na.rm=T) <= length(Cens)) oob.mortality else
+                        round(oob.mortality*(length(Cens))/(1*(max(oob.mortality,na.rm=T) == 0)+
+                        max(oob.mortality,na.rm=T)))),
+        err.rate = nativeOutput$performance,
+        leaf.count = nativeOutput$leafCount,
+        importance = (if (importance) nativeOutput$importance-nativeOutput$performance[ntree]
+                      else NULL),
+        forest = forest,
+        proximity = (if (proximity) nativeOutput$proximity else NULL)
+    )
+    class(rsfOutput) <- c("rsf", "grow")
+    return(rsfOutput)
+    
+  }
+

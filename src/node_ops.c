@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -56,6 +56,7 @@
 
 #include   "global.h"
 #include   "nrutil.h"
+#include  "rsfUtil.h"
 #include "node_ops.h"
 Node *makeNode() {
   Node *parent = (Node*) malloc((size_t)sizeof(Node));
@@ -105,9 +106,7 @@ void free_Node(Node *parent) {
 #undef FREE_ARG
 void getNodeInfo(Node *leaf) {
   uint i;
-  Rprintf("\n  SplitParm:  %10d     SplitValue:  %10d \n",
-          leaf -> splitParameter,
-          leaf -> splitValue);
+  Rprintf("\nNodeInfo:  %10d  %10d  %10d", leaf -> leafCount, leaf -> splitParameter, leaf -> splitValueIndex);  
   for (i=1; i <= _xSize; i++) {
     Rprintf("  Lower:      %10d     Upper:       %10d \n",
             (leaf -> permissibleSplit)[i][1],
@@ -123,8 +122,8 @@ void setLeftDaughter(Node *daughter, Node *parent) {
 void setRightDaughter(Node *daughter, Node *parent) {
   parent -> right = daughter;
 }
-char forkNode (Node *parent, uint splitParameter, uint splitValue) {
-  if (_traceFlag & DL1_TRACE) {
+char forkNode (Node *parent, uint splitParameter, uint splitValueIndex, double splitValue) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nforkNode() ENTRY ...\n");
   }
   if (parent == NULL) {
@@ -158,8 +157,8 @@ char forkNode (Node *parent, uint splitParameter, uint splitValue) {
     Rprintf("\nRSF:  [][lowerBound] == [][upperBound].");
     return FALSE;
   }
-  if ( ((parent -> permissibleSplit)[splitParameter][1] > splitValue) ||
-       ((parent -> permissibleSplit)[splitParameter][2] <= splitValue) ) {
+  if ( ((parent -> permissibleSplit)[splitParameter][1] > splitValueIndex) ||
+       ((parent -> permissibleSplit)[splitParameter][2] <= splitValueIndex) ) {
     Rprintf("\nRSF:  *** WARNING *** ");
     Rprintf("\nRSF:  Inconsistent call to forkNode().  ");
     Rprintf("\nRSF:  The split parameter value is out of range [lowerBound, upperBound].");
@@ -168,39 +167,41 @@ char forkNode (Node *parent, uint splitParameter, uint splitValue) {
   Node *left  = makeNode();
   Node *right = makeNode();
   parent -> splitParameter = splitParameter;
+  parent -> splitValueIndex = splitValueIndex;
   parent -> splitValue = splitValue;
   setParent(left, parent);
   setParent(right, parent);
   setLeftDaughter(left, parent);
   setRightDaughter(right, parent);
-  copyMatrix(left  -> permissibleSplit, parent -> permissibleSplit, _xSize, 2);
-  copyMatrix(right -> permissibleSplit, parent -> permissibleSplit, _xSize, 2);
+  nrCopyMatrix(left  -> permissibleSplit, parent -> permissibleSplit, _xSize, 2);
+  nrCopyMatrix(right -> permissibleSplit, parent -> permissibleSplit, _xSize, 2);
   left  -> left  = left  -> right = NULL;
   right -> left  = right -> right = NULL;
-  left -> splitValue      = 0;
   left -> splitParameter  = 0;
+  left -> splitValueIndex = 0;
+  left -> splitValue      = 0.0;
   left -> splitFlag       = TRUE;
   left -> leafCount       = 0;
-  right -> splitValue     = 0;
-  right -> splitParameter = 0;
-  right -> splitFlag      = TRUE;
-  right -> leafCount      = 0;
+  right -> splitValueIndex = 0;
+  right -> splitParameter  = 0;
+  right -> splitFlag       = TRUE;
+  right -> leafCount       = 0;
   (left  -> permissibleSplit)[splitParameter][1] = (parent -> permissibleSplit)[splitParameter][1];
-  (left  -> permissibleSplit)[splitParameter][2] = splitValue;
-  if ( (splitValue + 1) <= ((parent -> permissibleSplit)[splitParameter][2]) ) {
-    (right -> permissibleSplit)[splitParameter][1] = splitValue + 1;
+  (left  -> permissibleSplit)[splitParameter][2] = splitValueIndex;
+  if ( (splitValueIndex + 1) <= ((parent -> permissibleSplit)[splitParameter][2]) ) {
+    (right -> permissibleSplit)[splitParameter][1] = splitValueIndex + 1;
   }
   else {
     (right -> permissibleSplit)[splitParameter][1] = (parent -> permissibleSplit)[splitParameter][2];
   }
   (right -> permissibleSplit)[splitParameter][2] = (parent -> permissibleSplit)[splitParameter][2];
   parent -> splitFlag = FALSE;
-  if (_traceFlag & DL2_TRACE) {
+  if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nParent Info:  "); getNodeInfo(parent);
     Rprintf("\nLeft Info:    "); getNodeInfo(left);
     Rprintf("\nRight Info:   "); getNodeInfo(right);
   }
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nforkNode() EXIT ...\n");
   }
   return TRUE;

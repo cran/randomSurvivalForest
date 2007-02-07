@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 1.0.0
+##  RANDOM SURVIVAL FOREST 2.0.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -54,14 +54,48 @@
 ##**********************************************************************
 ##**********************************************************************
 
-plot.error <- function(x, main = deparse(substitute(x)), ...) {
-    if (!inherits(x, "randomSurvivalForest"))
-        stop("This function only works for objects of class `randomSurvivalForest'")
-    err <- x$err.rate
-    par(mfrow = c(1,1))
-    plot(1:length(err), 
-         err,
-         xlab = "Number of Trees",
-         ylab = "Error Rate",
-         type = "l")
+plot.error <- function (x, ...) {
+
+  if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
+      sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
+    stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+
+    old.par <- par(no.readonly = TRUE)
+    if (is.null(x$importance)) {
+      err <- x$err.rate
+      par(mfrow = c(1,1))
+      plot(1:length(err), 
+           err,
+           xlab = "Number of Trees",
+           ylab = "Error Rate",
+           type = "l")
+    }
+    else {
+      err <- x$err.rate
+      imp <- x$importance 
+      pred.order <- order(imp)
+      n.pred <- length(imp)
+      if (n.pred > 100) {
+        dotchart.labels <- rep("",n.pred)
+        pretty.pt <- pretty(1:n.pred, n=100)
+        dotchart.labels[pretty.pt] <- x$predictorNames[pred.order][pretty.pt]
+      }
+      else {
+        dotchart.labels <- x$predictorNames[pred.order]
+      }
+      par(mfrow = c(1,2))
+      plot(1:length(err), 
+           err,
+           xlab = "Number of Trees",
+           ylab = "Error Rate",
+           type = "l")
+      dotchart(imp[pred.order], dotchart.labels,
+               xlab="Importance",
+               bg="blue")
+      imp.out=as.data.frame(cbind(imp,x$predictorWt),row.names=x$predictorNames)[rev(pred.order),]
+      colnames(imp.out) <- c("Importance","predictorWt")
+      cat("\n")
+      print(round(imp.out,4), justify="right", print.gap=3)
+    } 
+    par(old.par)      
 }

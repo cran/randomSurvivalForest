@@ -1,4 +1,4 @@
-days status drugs age sex ascites hepatom spiders edema bili chol albumin copper alk sgot trig platelet prothrombin stage
+days status treatment age sex ascites hepatom spiders edema bili chol albumin copper alk sgot trig platelet prothrombin stage
 1 400 1 1 21464 1 1 1 1 1 14.5 261 2.6 156 1718 137.95 172 190 12.2 4
 2 4500 0 1 20617 1 0 1 1 0 1.1 302 4.14 54 7394.8 113.52 88 221 10.6 3
 3 1012 1 1 25594 0 0 0 0 0.5 1.4 176 3.48 210 516 96.1 55 151 12 4

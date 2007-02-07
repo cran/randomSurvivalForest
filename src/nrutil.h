@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -62,6 +62,11 @@ void hpsort(
   double *ra,
   uint n
 );
+void indexx(
+  uint n,
+  double *arr, 
+  uint *indx
+            );
 double **dmatrix(
   ulong nrl,
   ulong nrh,
@@ -86,7 +91,7 @@ uint *uivector(
   ulong nl,
   ulong nh
 );
-uchar *ucvector(
+char *cvector(
   ulong nl,
   ulong nh
 );
@@ -120,12 +125,12 @@ void free_uivector(
   ulong nl,
   ulong nh
 );
-void free_ucvector(
-  uchar *v,
+void free_cvector(
+  char *v,
   ulong nl,
   ulong nh
 );
-void copyMatrix(
+void nrCopyMatrix(
   uint **new,
   uint **old,
   uint nrow,

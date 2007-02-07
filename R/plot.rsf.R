@@ -54,7 +54,6 @@
 ##**********************************************************************
 ##**********************************************************************
 
-rsf.news <- function(...) {
-    newsfile <- file.path(system.file(package="randomSurvivalForest"), "NEWS")
-    file.show(newsfile)
+plot.rsf <- function (x, ...) {
+  plot.error (x)
 }

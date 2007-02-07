@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -58,7 +58,6 @@
 #define NODE_OPS_H
 #include "node.h"
 extern uint _xSize;
-extern uint _traceFlag;
 Node ***nodePtrMatrix(
   ulong nrl,
   ulong nrh,
@@ -99,6 +98,7 @@ void setRightDaughter(
 char forkNode(
   Node *parent,
   uint splitParameter,
-  uint splitValue
+  uint splitValueIndex,
+  double splitValue
 );
 #endif

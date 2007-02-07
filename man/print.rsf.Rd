@@ -3,14 +3,14 @@
 \title{Print Summary Output of Analysis}
 \description{
     Print summary output from Random Survival Forests analysis.
-    
+    Note that this is the default print method for the package.
 }
 \usage{
     print.rsf(x, ...)
 }
 \arguments{
-    \item{x}{An object of class \code{randomSurvivalForest},
-    as that created by the function \code{rsf}.}
+    \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
+	predict)}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \author{
@@ -23,14 +23,11 @@
 }
 \seealso{
   \code{rsf},
-  \code{plot.ensemble},
-  \code{plot.variable},
-  \code{plot.error},
-  \code{plot.proximity}.
+  \code{predict.rsf}.
 }
 \examples{
   data(veteran, package = "randomSurvivalForest") 
-  v.out=rsf(Survrsf(time, status)~.,veteran,ntree = 1000)
+  v.out=rsf(Survrsf(time, status)~.,veteran, ntree = 1000)
   print.rsf(v.out)
 }
 \keyword{file}

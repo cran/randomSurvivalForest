@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -55,74 +55,111 @@
 //**********************************************************************
 
 #include "node.h"
-#define LOG_RANK        1
-#define CONSERVE_EVENTS 2
-void freeTree(Node *parent);
-Node* getMembership(
-  Node *parent,
-  uint  index
-);
-void getCumulativeHazardEstimate(
-  double **cumulativeHazard,
+char logRankApprox(
   Node    *parent,
-  double  *timeInterest,
-  uint     sortedTimeInterestSize,
-  Node   **nodeMembership,
-  double  *masterTime
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit
 );
-char logRank(
-  Node  *parent,
-  uint  *splitParameterMax,
-  uint  *splitValueMax,
-  Node **nodeMembership,
-  uint   masterDeathTimeSize
+char logRankScore(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit,
+  uint   **masterSplitOrder
 );
 char conserveEvents(
-  Node  *parent,
-  uint  *splitParameterMax,
-  uint  *splitValueMax,
-  Node **nodeMembership,
-  uint   masterDeathTimeSize
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit
 );
+char logRank(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit
+);
+uint selectRandomCovariates(
+  Node *parent,
+  uint *covariateIndex);
 char getBestSplit(
-  Node  *parent,
-  uint  *splitParameterMax,
-  uint  *splitValueMax,
-  Node **nodeMembership,
-  uint   masterDeathTimeSize,
-  uint  *splitRule
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit,
+  uint   **masterSplitOrder
 );
 char makeTree(
-  Node  *parent,
-  Node **nodeMembership,
-  uint  *leafCount, 
-  uint   masterDeathTimeSize,
-  uint  *splitRule
+  Node    *parent,
+  uint    *leafCount, 
+  uint     masterDeathTimeSize,
+  uint     masterTimesize,
+  double **masterSplit,
+  uint   **masterSplitOrder
 );
 char forkAndUpdate(
-  Node **nodeMembership,
   uint  *leafCount,
   Node  *parent,
   uint   splitParameter,
-  uint   splitValue
+  uint   splitValueIndex,
+  double splitValue
 );
-void rsf(
-  uint   *traceFlag,
-  int    *memoryUseProtocol,
-  int    *seed,
-  uint   *splitRule,
-  uint   *randomCovariateCount,
-  uint   *bootstrapSampleCount,
-  uint   *minimumDeathCount,
-  uint   *observationSizePtr,
-  double *time,
-  uint   *status,
-  uint   *timeInterestSize,
-  double *timeInterest,
-  uint   *xSizePtr,
-  double *xData,
-  double *ensembleEstimator,
-  double *performanceMeasure,
-  uint   *leafCount,
-  uint   *proximity
+char bootstrap(
+  uint     mode,
+  uint     b,
+  Node    *rootPtr,
+  uint    *oobSampleSize,
+  double **masterSplit,
+  uint    *masterSplitSize,
+  uint   **masterSplitOrder
 );
+SEXP rsfGrow(
+  SEXP traceFlag,
+  SEXP mup,
+  SEXP seedPtr,
+  SEXP splitRule,
+  SEXP randomCovariateCount,
+  SEXP forestSize,
+  SEXP minimumDeathCount,
+  SEXP observationSize,
+  SEXP time,
+  SEXP status,
+  SEXP xSize,
+  SEXP xData,
+  SEXP timeInterestSize,
+  SEXP timeInterest,
+  SEXP randomCovariateWeight
+);
+SEXP rsfPredict(
+  SEXP traceFlag,
+  SEXP mup,
+  SEXP forestsize,
+  SEXP observationSize,
+  SEXP time,
+  SEXP status,
+  SEXP xSize,
+  SEXP xData,
+  SEXP fobservationSize,
+  SEXP ftime,
+  SEXP fstatus,
+  SEXP fxData,
+  SEXP timeInterestSize,
+  SEXP timeInterest,
+  SEXP treeID,
+  SEXP nodeID,
+  SEXP parmID,
+  SEXP spltPT,
+  SEXP seed
+);
+SEXP rsf(uint mode, uint traceFlag);

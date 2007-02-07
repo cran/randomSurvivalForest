@@ -5,12 +5,13 @@
     Plot ensemble survival curves and ensemble estimates of mortality.
 }
 \usage{
-    plot.ensemble(x, main = deparse(substitute(x)), ...)
+    plot.ensemble(x, plots.one.page = TRUE, ...)
 }
 \arguments{
-    \item{x}{An object of class \code{randomSurvivalForest},
-    as that created by the function \code{rsf}.}
-    \item{main}{Plot title.}
+    \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
+	predict)}.}
+    \item{plots.one.page}{Logical.  Should plots be placed on one page?
+        Default is TRUE.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -20,13 +21,16 @@
   is Nelson-Aalen estimator. (2) This is a comparison of the population
   ensemble survival function to the Nelson-Aalen estimator. (3) The
   Brier score, a value between 0 and 1 (where 0=perfect, 1=poor, and
-  0.25=guessing; see reference below) is plotted at each of the unique
-  event times with plot stratified by ensemble mortality value.
-  Stratification is into 4 groups corresponding to the 0-25, 25-50,
-  50-75 and 75-100 percentile values of mortality.  Green line is
-  non-stratified score.  (4) Plot of estimated mortality versus observed
-  time.  Points in blue correspond to events, black points are censored
-  observations.
+  0.25=guessing) is plotted at each of the unique event times with plot
+  stratified by ensemble mortality value (see Graf et al. for more
+  background on Brier scores).  Stratification is into 4 groups
+  corresponding to the 0-25, 25-50, 50-75 and 75-100 percentile values
+  of mortality.  Green line is non-stratified score.  (4) Plot of
+  estimated mortality versus observed time.  Points in blue correspond
+  to events, black points are censored observations.
+
+  Note that when \code{x} is of class \code{(rsf, predict)} not all
+  plots will be produced.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
@@ -43,10 +47,7 @@
 }
 \seealso{
   \code{rsf},
-  \code{print.rsf},
-  \code{plot.variable},
-  \code{plot.error},
-  \code{plot.proximity}.
+  \code{predict.rsf}.
 }
 \examples{
   data(veteran, package = "randomSurvivalForest") 

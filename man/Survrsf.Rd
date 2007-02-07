@@ -13,7 +13,7 @@
     \item{d}{censoring indicator (0=censored, 1=death)}
 }
 \value{
-     An object of class \code{Survrsf}.
+     An object of class \code{rsf.formula}.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
@@ -24,12 +24,7 @@
     Forests.  \emph{Cleveland Clinic Technical Report}.
 }
 \seealso{
-  \code{rsf},
-  \code{print.rsf},
-  \code{plot.ensemble},
-  \code{plot.variable},
-  \code{plot.error},
-  \code{plot.proximity}.
+  \code{rsf}.
 }
 \examples{
   data(veteran, package = "randomSurvivalForest") 

@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -57,70 +57,470 @@
 #include   "global.h"
 #include   "nrutil.h"
 #include "node_ops.h"
+#include  "rsfUtil.h"
 #include      "rsf.h"
-uint      _observationSize;
-uint      _xSize;
+SEXP sexpVector[RSF_SEXP_CNT];
+uint stackCount;
+char *sexpString[RSF_SEXP_CNT] = {
+  "",              
+  "",              
+  "fullEnsemble",  
+  "oobEnsemble",   
+  "performance",   
+  "leafCount",     
+  "proximity",     
+  "importance",    
+  "treeID",        
+  "nodeID",        
+  "parmID",        
+  "spltPT",        
+  "seed"           
+};
+uint     *_treeID_;
+uint     *_nodeID_;
+uint     *_parmID_;
+double   *_spltPT_;
+int      *_seed_;
+double   *_fullEnsemble_;
+double   *_oobEnsemble_;
+double   *_performance_;
+uint     *_leafCount_;
+uint     *_proximity_;
+double   *_varImportance_;
+uint      _mup;
 int      *_seedPtr;
-uint     *_status;
+uint      _splitRule;
 uint      _randomCovariateCount;
+uint      _forestSize;
 uint      _minimumDeathCount;
-uint      _traceFlag;
-uint      _masterTimeSize;
-double  **_masterSplit;
+uint      _observationSize;
+double   *_time;
+uint     *_status;
+uint      _xSize;
+double   *_xData;
+double   *_randomCovariateWeight;
+uint      _fobservationSize;
+double   *_ftime;
+uint     *_fstatus;
+double   *_fxData;
+uint      _timeInterestSize;
+double   *_timeInterest;
 double  **_observation;
 uint     *_masterTimeIndex;
-uint   *_bootMembershipIndex;
-uchar  *_bootMembershipFlag;
-clock_t start;
-clock_t now;
-uint updateTimeStamp(uint before) {
-  uint stamp;
-  double cpuTimeUsed;
-  stamp = clock();
-  cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  Rprintf("\nRSF:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  return stamp;
-}
-void freeTree(Node *parent) {
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    freeTree(parent -> left);
-    freeTree(parent -> right);
+double   *_masterTime;
+double  **_fobservation;
+Node    **_nodeMembership;
+uint     *_bootMembershipIndex;
+char     *_bootMembershipFlag;
+Node    **_fnodeMembership;
+uint      _traceFlagDiagLevel;
+uint      _traceFlagIterValue;
+uint      _traceFlagToggler;
+clock_t    start;
+clock_t    now;
+char logRankApprox(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit) {
+  double delta, deltaNum, deltaDen;
+  double eOneMono;
+  double deltaMax = -EPSILON;
+  uint i,j,k, leadingIndex;
+  uint actualCovariateCount;
+  uint parentDeathCount, leftDeathCount, rightDeathCount;
+  uint localMembershipSize, localDeathTimeSize;
+  uint *nodeParentDeath  = uivector(1, masterDeathTimeSize);
+  uint *nodeParentAtRisk = uivector(1, masterDeathTimeSize);
+  uint *randomCovariateIndex = uivector(1, _xSize);
+  uint *localMembershipIndex = uivector(1, _observationSize);
+  uint *localDeathTimeCount = uivector(1, masterTimeSize);
+  uint *localDeathTimeIndex = uivector(1, masterDeathTimeSize);
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\nlogRankApprox() ENTRY ...\n");
   }
-  free_Node(parent);
-}
-Node* getMembership(Node *parent,
-                    uint index) {
-  uint i;
-  Node *result = parent;
-  for (i=1; i <= _xSize; i++) {
-    if ( (_masterSplit[i][(parent -> permissibleSplit)[i][1]] > _observation[i][index]) ||
-         (_masterSplit[i][(parent -> permissibleSplit)[i][2]] < _observation[i][index]) ) {
-      Rprintf("\nRSF:  *** WARNING *** \n");
-      Rprintf("\nRSF:  Inconsistent call to getMembership().  ");
-      Rprintf("\nRSF:  Observation is not in tree.\n");
-      return NULL;
+  *splitParameterMax = *splitValueMax = 0;
+  localMembershipSize = localDeathTimeSize = 0;
+  parentDeathCount = 0;
+  delta = 0;  
+  leadingIndex = 0;  
+  for (i=1; i <= masterTimeSize; i++) {
+    localDeathTimeCount[i] = 0;
+  }
+  for (i=1; i <= _observationSize; i++) {
+    if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
+      localMembershipIndex[++localMembershipSize] = _bootMembershipIndex[i];
+      if (_status[_bootMembershipIndex[i]] == 1) {
+        localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
+        parentDeathCount++;
+      }
     }
   }
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    if (_observation[parent -> splitParameter][index] <=
-        _masterSplit[parent -> splitParameter][parent -> splitValue]) {
-      result = getMembership(parent -> left, index);
-    }
-    else {
-      result = getMembership(parent -> right, index);
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
+    Rprintf("\nLocal Membership Index for Parent Node: \n");
+    for (i=1; i <= localMembershipSize; i++) {
+      Rprintf("%10d %10d \n", i, localMembershipIndex[i]);
     }
   }
-  return result;
+  if (parentDeathCount >= (2 * (_minimumDeathCount))) {
+    for (i=1; i <= masterTimeSize; i++) {
+      if (localDeathTimeCount[i] > 0) {
+        localDeathTimeIndex[++localDeathTimeSize] = i;
+      }
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nLocal Death Times (i, _masterTimeIndex): \n");
+      for (i=1; i <= localDeathTimeSize; i++) {
+        Rprintf("%10d %10d \n", i, localDeathTimeIndex[i]);
+      }
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nLocal Death Counts (i, deaths): \n");
+    }
+    for (i=1; i <= localDeathTimeSize; i++) {
+      nodeParentAtRisk[i] = 0;
+      nodeParentDeath[i] = localDeathTimeCount[localDeathTimeIndex[i]];
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("%10d %10d \n", i, nodeParentDeath[i]);
+      }
+      for (j=1; j <= localMembershipSize; j++) {
+        if (localDeathTimeIndex[i] <= _masterTimeIndex[localMembershipIndex[j]]) {
+          nodeParentAtRisk[i] ++;
+        }
+      }
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nLocal At Risk Counts (i, at risk): \n");
+      for (j=1; j <= localDeathTimeSize; j++) {
+        Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
+      }
+    }
+    actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+    double *nelsonAalen = dvector(1, localDeathTimeSize);
+    uint *survivalTimeIndex = uivector(1, localMembershipSize);
+    for (k=1; k <= localDeathTimeSize; k++) {
+      if (nodeParentAtRisk[k] != 0) {
+        nelsonAalen[k] = (double) nodeParentDeath[k]/nodeParentAtRisk[k];
+      }
+      else {
+        nelsonAalen[k] = 0;
+      }
+    }
+    for (k=2; k <= localDeathTimeSize; k++) {
+      nelsonAalen[k] += nelsonAalen[k-1];
+    }
+    if (getTraceFlag() & DL3_TRACE) {
+      Rprintf("\n     index     NA_par\n");
+      for (k=1; k <= localDeathTimeSize-1; k++) {
+        Rprintf("%10d %10.4f \n", k, nelsonAalen[k]);
+      }
+    }
+    for (k = 1; k <= localMembershipSize; k++) {
+      for (j = 1; j <= localDeathTimeSize; j++) {
+        if ( _masterTimeIndex[localMembershipIndex[k]] <= localDeathTimeIndex[j] ) {
+          leadingIndex = j;
+        }
+        else {
+          j = localDeathTimeSize;
+        }
+      }
+      survivalTimeIndex[k] = leadingIndex;
+    }
+    for (i=1; i <= actualCovariateCount; i++) {
+      if (getTraceFlag() & DL3_TRACE) {
+        Rprintf("\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
+        Rprintf("\n           with limits:  %10d %10d \n",
+                (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
+                (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
+                );
+      }
+      eOneMono = 0.0;
+      for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
+           j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
+           j++) {
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+        }
+        leftDeathCount = 0;
+        for (k=1; k <= localMembershipSize; k++) {
+          if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+            if (getTraceFlag() & DL3_TRACE) {
+              Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
+            }
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] == masterSplit[randomCovariateIndex[i]][j]) {
+              eOneMono = eOneMono + nelsonAalen[survivalTimeIndex[k]];
+            }
+            if (_status[localMembershipIndex[k]] == 1) {
+              leftDeathCount ++;
+            }
+          }
+        }  
+        rightDeathCount = parentDeathCount - leftDeathCount;
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\nRunning Split Totals: \n");
+          Rprintf("    PARdeath    LFTdeath   RGTdeath\n");
+          Rprintf("%10d %10d %10d \n", parentDeathCount, leftDeathCount, rightDeathCount);
+        }
+        if ((leftDeathCount  >= (_minimumDeathCount)) && (rightDeathCount  >= (_minimumDeathCount))) {
+          deltaNum = sqrt(parentDeathCount) * (leftDeathCount - eOneMono);
+          deltaDen = eOneMono * (parentDeathCount - eOneMono);
+          deltaNum = fabs(deltaNum);
+          deltaDen = sqrt(deltaDen);
+          if (deltaDen <= EPSILON) {
+            if (deltaNum <= EPSILON) {
+              delta = 0.0;
+            }
+          }
+          else {
+            delta = deltaNum / deltaDen;
+          }
+          if (delta > deltaMax) {
+            deltaMax = delta;
+            *splitParameterMax = randomCovariateIndex[i];
+            *splitValueMax = j;
+          }
+          if (getTraceFlag() & DL3_TRACE) {
+            Rprintf("\n\nRunning Split Statistics: \n");
+            Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
+            Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
+          }
+        }  
+      }  
+    }  
+    free_dvector(nelsonAalen , 1, localDeathTimeSize);
+    free_uivector (survivalTimeIndex, 1, localMembershipSize);
+  }  
+  else {
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nRSF:  *** WARNING *** ");
+      Rprintf("\nRSF:  Less than twice the minimum threshold of deaths");
+      Rprintf("\nRSF:  encountered in logRank().  This condition");
+      Rprintf("\nRSF:  can occur on the root split and is potentially");
+      Rprintf("\nRSF:  nominal behaviour.  \n");
+    }
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nBest Split Statistics: \n");
+    Rprintf("  SplitParm SplitIndex        Delta \n");
+    Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+  }
+  free_uivector(nodeParentDeath, 1, masterDeathTimeSize);
+  free_uivector(nodeParentAtRisk, 1, masterDeathTimeSize);
+  free_uivector(randomCovariateIndex, 1, _xSize);
+  free_uivector(localMembershipIndex, 1, _observationSize);
+  free_uivector(localDeathTimeCount, 1, masterTimeSize);
+  free_uivector(localDeathTimeIndex, 1, masterDeathTimeSize);
+  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+    if (getTraceFlag() & DL1_TRACE) {
+      Rprintf("\nlogRankApprox() EXIT (TRUE) ...\n");
+    }
+    return TRUE;
+  }
+  else {
+    if (getTraceFlag() & DL1_TRACE) {
+      Rprintf("\nlogRankApprox() EXIT (FALSE) ...\n");
+    }
+    return FALSE;
+  }
 }
-char conserveEvents(Node *parent,
-                    uint *splitParameterMax,
-                    uint *splitValueMax,
-                    Node **nodeMembership,
-                    uint masterDeathTimeSize) {
+char logRankScore(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit,
+  uint   **masterSplitOrder) {
+  double delta, deltaNum, deltaDen;
+  double meanSurvRank, varSurvRank;
+  double deltaMax = -EPSILON;
+  uint i,j,k;
+  uint actualCovariateCount;
+  uint parentDeathCount, leftDeathCount, rightDeathCount;
+  uint localMembershipSize, localDeathTimeSize, leftMembershipSize;
+  uint *randomCovariateIndex = uivector(1, _xSize);
+  uint *localMembershipIndex = uivector(1, _observationSize);
+  uint *localDeathTimeCount = uivector(1, masterTimeSize);
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\nlogrankScore() ENTRY ...\n");
+  }
+  *splitParameterMax = *splitValueMax = 0;
+  localMembershipSize = localDeathTimeSize = 0;
+  parentDeathCount = 0;
+  delta = 0;  
+  for (i=1; i <= _observationSize; i++) {
+    if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
+      localMembershipIndex[++localMembershipSize] = _bootMembershipIndex[i];
+      if (_status[_bootMembershipIndex[i]] == 1) {
+        localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
+        parentDeathCount++;
+      }
+    }
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nLocal Membership Size:  %10d \n", localMembershipSize);
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
+  }
+  if (parentDeathCount >= (2 * (_minimumDeathCount))) {
+    for (i=1; i <= masterTimeSize; i++) {
+      if (localDeathTimeCount[i] > 0) {
+        localDeathTimeSize++;
+      }
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nLocal Death Time Size:  %10d \n", localDeathTimeSize);
+    }
+    if (localDeathTimeSize > 1) {
+      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      uint   *localSplitRank  = uivector(1, localMembershipSize);
+      uint *survivalTimeIndexRank = uivector(1, localMembershipSize);
+      double *survivalRank = dvector(1, localMembershipSize);
+      for (i=1; i <= actualCovariateCount; i++) {
+        k = 0;
+        for (j=1; j <= _observationSize; j++) {
+          if (_nodeMembership[_bootMembershipIndex[masterSplitOrder[i][j]]] == parent) {
+            localSplitRank[++k] = masterSplitOrder[i][j];
+          }
+        }
+        for (k = 1; k <= localMembershipSize; k++) {
+          survivalTimeIndexRank[k] = 0;
+          for (j = 1; j <= localMembershipSize; j++) {
+            if ( _masterTimeIndex[localMembershipIndex[j]]  <= _masterTimeIndex[_bootMembershipIndex[localSplitRank[k]]] ) {
+              survivalTimeIndexRank[k] ++;
+            }
+          }
+        }
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\nLocal Membership Information for Parent Node: \n");
+          Rprintf("               MEMBidx    SPLTval    TIMEidx -> SORTidx \n");
+          for (k=1; k <=  localMembershipSize; k++) {
+            Rprintf("%10d %10d %10.4f %10d %10d\n", k,
+                    _bootMembershipIndex[localSplitRank[k]], _observation[i][_bootMembershipIndex[localSplitRank[k]]],
+                    _masterTimeIndex[_bootMembershipIndex[localSplitRank[k]]], survivalTimeIndexRank[k]);
+          }
+        }
+        meanSurvRank = varSurvRank = 0;
+        for (k = 1; k <= localMembershipSize; k++) {
+          survivalRank[k] = 0;
+          for (j = 1; j <= survivalTimeIndexRank[k]; j++) {
+            survivalRank[k] = survivalRank[k] + ((double) _status[_bootMembershipIndex[localSplitRank[j]]] / (localMembershipSize - survivalTimeIndexRank[j] + 1) );
+          }
+          survivalRank[k] = _status[_bootMembershipIndex[localSplitRank[k]]] - survivalRank[k];
+          meanSurvRank = meanSurvRank + survivalRank[k];
+          varSurvRank = varSurvRank +  pow(survivalRank[k], 2.0);
+        }
+        varSurvRank = ( varSurvRank - (pow(meanSurvRank, 2.0) / localMembershipSize) ) / (localMembershipSize - 1);
+        meanSurvRank = meanSurvRank / localMembershipSize;
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\n\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
+          Rprintf("\n           with limits:  %10d %10d \n",
+                  (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
+                  (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
+                  );
+        }
+        for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
+             j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
+             j++) {
+          if (getTraceFlag() & DL3_TRACE) {
+            Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+          }
+          leftDeathCount = 0;
+          leftMembershipSize = 0;
+          deltaNum = 0.0;
+          for (k=1; k <= localMembershipSize; k++) {
+            if (_observation[randomCovariateIndex[i]][_bootMembershipIndex[localSplitRank[k]]] <= masterSplit[randomCovariateIndex[i]][j]) {
+              if (getTraceFlag() & DL3_TRACE) {
+                Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, _bootMembershipIndex[localSplitRank[k]]);
+              }
+              leftMembershipSize ++;
+              if (_status[_bootMembershipIndex[localSplitRank[k]]] == 1) {
+                leftDeathCount ++;
+              }
+              deltaNum = deltaNum + survivalRank[k];
+            }
+          }  
+          rightDeathCount = parentDeathCount - leftDeathCount;
+          if (getTraceFlag() & DL3_TRACE) {
+            Rprintf("\nRunning Split Totals: \n");
+            Rprintf("    PARcnt      LFTcnt     RGTcnt   PARdeath    LFTdeath   RGTdeath\n");
+            Rprintf("%10d %10d %10d %10d %10d %10d \n", localMembershipSize, leftMembershipSize, localMembershipSize - leftMembershipSize, parentDeathCount, leftDeathCount, rightDeathCount);
+          }
+          if ((leftDeathCount  >= (_minimumDeathCount)) && (rightDeathCount  >= (_minimumDeathCount))) {
+            deltaNum  = deltaNum - (leftMembershipSize * meanSurvRank);
+            deltaDen = leftMembershipSize * (1.0 - (leftMembershipSize / localMembershipSize)) * varSurvRank;
+            deltaNum = fabs(deltaNum);
+            deltaDen = sqrt(deltaDen);
+            if (deltaDen <= EPSILON) {
+              if (deltaNum <= EPSILON) {
+                delta = 0.0;
+              }
+            }
+            else {
+              delta = deltaNum / deltaDen;
+            }
+            if (delta > deltaMax) {
+              deltaMax = delta;
+              *splitParameterMax = randomCovariateIndex[i];
+              *splitValueMax = j;
+            }
+            if (getTraceFlag() & DL3_TRACE) {
+              Rprintf("\n\nRunning Split Statistics: \n");
+              Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
+              Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
+            }
+          }  
+        }  
+      }  
+      free_uivector(localSplitRank, 1, localMembershipSize);
+      free_uivector(survivalTimeIndexRank, 1, localMembershipSize);
+      free_dvector(survivalRank, 1, localMembershipSize);
+    }   
+  }  
+  else {
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nRSF:  *** WARNING *** ");
+      Rprintf("\nRSF:  Less than twice the minimum threshold of deaths");
+      Rprintf("\nRSF:  encountered in conserveEvents().  This condition");
+      Rprintf("\nRSF:  can occur on the root split and is potentially");
+      Rprintf("\nRSF:  nominal behaviour.  \n");
+    }
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nBest Split Statistics: \n");
+    Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
+    Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+  }
+  free_uivector(randomCovariateIndex, 1, _xSize);
+  free_uivector(localMembershipIndex, 1, _observationSize);
+  free_uivector(localDeathTimeCount, 1, masterTimeSize);
+  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+    if (getTraceFlag() & DL1_TRACE) {
+      Rprintf("\nlogRankScore() EXIT (TRUE) ...\n");
+    }
+    return TRUE;
+  }
+  else {
+    if (getTraceFlag() & DL1_TRACE) {
+      Rprintf("\nlogRankScore() EXIT (FALSE) ...\n");
+    }
+    return FALSE;
+  }
+}
+char conserveEvents(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit) {
   double delta, nelsonAalenSumLeft, nelsonAalenSumRight;
   double deltaMax = -EPSILON;
   uint i,j,k,m, index;
-  uint maxCovariateCount = 0;
   uint actualCovariateCount;
   uint parentDeathCount, leftDeathCount, rightDeathCount;
   uint localMembershipSize, localDeathTimeSize;
@@ -130,21 +530,21 @@ char conserveEvents(Node *parent,
   uint *nodeParentAtRisk = uivector(1, masterDeathTimeSize);
   uint *nodeLeftAtRisk   = uivector(1, masterDeathTimeSize);
   uint *nodeRightAtRisk   = uivector(1, masterDeathTimeSize);
-  uchar *randomSplitVector = ucvector(1, _xSize);
+  uint *randomCovariateIndex = uivector(1, _xSize);
   uint *localMembershipIndex = uivector(1, _observationSize);
-  uint *localDeathTimeCount = uivector(1, _masterTimeSize);
+  uint *localDeathTimeCount = uivector(1, masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, masterDeathTimeSize);
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nconserveEvents() ENTRY ...\n");
   }
   *splitParameterMax = *splitValueMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
-  for (i=1; i <= _masterTimeSize; i++) {
+  for (i=1; i <= masterTimeSize; i++) {
     localDeathTimeCount[i] = 0;
   }
   for (i=1; i <= _observationSize; i++) {
-    if (nodeMembership[_bootMembershipIndex[i]] == parent) {
+    if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
       localMembershipIndex[++localMembershipSize] = _bootMembershipIndex[i];
       if (_status[_bootMembershipIndex[i]] == 1) {
         localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
@@ -152,33 +552,33 @@ char conserveEvents(Node *parent,
       }
     }
   }
-  if (_traceFlag & DL2_TRACE) {
+  if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
-    Rprintf("\nLocal Membership Index for parent node: \n");
+    Rprintf("\nLocal Membership Index for Parent Node: \n");
     for (i=1; i <= localMembershipSize; i++) {
       Rprintf("%10d %10d \n", i, localMembershipIndex[i]);
     }
   }
   if (parentDeathCount >= (2 * (_minimumDeathCount))) {
-    for (i=1; i <= _masterTimeSize; i++) {
+    for (i=1; i <= masterTimeSize; i++) {
       if (localDeathTimeCount[i] > 0) {
         localDeathTimeIndex[++localDeathTimeSize] = i;
       }
     }
-    if (_traceFlag & DL2_TRACE) {
-      Rprintf("\nLocal Death Times (i, masterTimeIndex): \n");
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nLocal Death Times (i, _masterTimeIndex): \n");
       for (i=1; i <= localDeathTimeSize; i++) {
         Rprintf("%10d %10d \n", i, localDeathTimeIndex[i]);
       }
     }
     if (localDeathTimeSize > 1) {
-      if (_traceFlag & DL2_TRACE) {
+      if (getTraceFlag() & DL2_TRACE) {
         Rprintf("\nLocal Death Counts (i, deaths): \n");
       }
       for (i=1; i <= localDeathTimeSize; i++) {
         nodeParentAtRisk[i] = 0;
         nodeParentDeath[i] = localDeathTimeCount[localDeathTimeIndex[i]];
-        if (_traceFlag & DL2_TRACE) {
+        if (getTraceFlag() & DL2_TRACE) {
           Rprintf("%10d %10d \n", i, nodeParentDeath[i]);
         }
         for (j=1; j <= localMembershipSize; j++) {
@@ -187,54 +587,17 @@ char conserveEvents(Node *parent,
           }
         }
       }
-      if (_traceFlag & DL2_TRACE) {
+      if (getTraceFlag() & DL2_TRACE) {
         Rprintf("\nLocal At Risk Counts (i, at risk): \n");
         for (j=1; j <= localDeathTimeSize; j++) {
           Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
         }
       }
-      for (i=1; i <= _xSize; i++) {
-        if ((parent -> permissibleSplit)[i][1] == (parent -> permissibleSplit)[i][2]) {
-          randomSplitVector[i] = FALSE;
-        }
-        else {
-          randomSplitVector[i] = TRUE;
-          maxCovariateCount++;
-        }
-      }
-      if (_randomCovariateCount > maxCovariateCount) {
-        actualCovariateCount = maxCovariateCount;
-      }
-      else {
-        actualCovariateCount = _randomCovariateCount;
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\nCovariate Counts:  actual vs allowed \n");  
-        Rprintf("%10d %10d \n", actualCovariateCount, maxCovariateCount);
-      }
-      uint *randomCovariateIndex = uivector(1, actualCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
       double *nelsonAalenLeft  = dvector(1, localDeathTimeSize);
       double *nelsonAalenRight = dvector(1, localDeathTimeSize);
-      m = actualCovariateCount;
-      for (i=maxCovariateCount; m > 0; i--) {
-        k = ceil(ran1(_seedPtr)*(i*1.0));
-        for (j = 1; k > 0; j++) {
-          if (randomSplitVector[j] == TRUE) {
-            k--;
-          }
-        }
-        randomSplitVector[j-1] = ACTIVE;
-        randomCovariateIndex[m] = j-1;
-        m--;
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\nCovariate Random Selection:  \n");
-        for (i=1; i <= actualCovariateCount; i++) {
-          Rprintf("%10d %10d \n", i, randomCovariateIndex[i]);
-        }
-      }
       for (i=1; i <= actualCovariateCount; i++) {
-        if (_traceFlag & DL3_TRACE) {
+        if (getTraceFlag() & DL3_TRACE) {
           Rprintf("\n\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
           Rprintf("\n           with limits:  %10d %10d \n",
             (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
@@ -244,7 +607,7 @@ char conserveEvents(Node *parent,
         for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
              j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
              j++) {
-          if (_traceFlag & DL3_TRACE) {
+          if (getTraceFlag() & DL3_TRACE) {
             Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
           }
           nelsonAalenSumLeft = nelsonAalenSumRight = 0.0;
@@ -253,14 +616,14 @@ char conserveEvents(Node *parent,
             nodeLeftDeath[k] = nodeLeftAtRisk[k] = 0;
           }
           for (k=1; k <= localMembershipSize; k++) {
-            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= _masterSplit[randomCovariateIndex[i]][j]) {
-              if (_traceFlag & DL3_TRACE) {
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+              if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
               }
               index = 0;  
               for (m = 1; m <= localDeathTimeSize; m++) {
                 if (localDeathTimeIndex[m] <= _masterTimeIndex[localMembershipIndex[k]]) {
-                  if (_traceFlag & DL2_TRACE) {
+                  if (getTraceFlag() & DL3_TRACE) {
                     Rprintf("NLAR:  %10d %10d %10d \n", m, localDeathTimeIndex[m], _masterTimeIndex[localMembershipIndex[k]]);
                   }
                   nodeLeftAtRisk[m] ++;
@@ -281,7 +644,7 @@ char conserveEvents(Node *parent,
             leftDeathCount += nodeLeftDeath[k];
           }
           rightDeathCount = parentDeathCount - leftDeathCount;
-          if (_traceFlag & DL3_TRACE) {
+          if (getTraceFlag() & DL3_TRACE) {
             Rprintf("\nRunning Split Risk Counts: \n");
             Rprintf("     index     PARrisk    LFTrisk    RGTrisk    PARdeath   LFTdeath   RGTdeath\n");
             for (k=1; k <=  localDeathTimeSize; k++) {
@@ -311,7 +674,7 @@ char conserveEvents(Node *parent,
               nelsonAalenLeft[k] += nelsonAalenLeft[k-1];
               nelsonAalenRight[k] += nelsonAalenRight[k-1];
             }
-            if (_traceFlag & DL3_TRACE) {
+            if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n     index     LFTrsk     RGTrsk     NA_lft     NA_rgt\n");
               for (k=1; k <= localDeathTimeSize-1; k++) {
                 Rprintf("%10d %10d %10d %10.4f %10.4f \n", k, nodeLeftAtRisk[k], nodeRightAtRisk[k], nelsonAalenLeft[k], nelsonAalenRight[k]);
@@ -328,21 +691,20 @@ char conserveEvents(Node *parent,
               *splitParameterMax = randomCovariateIndex[i];
               *splitValueMax = j;
             }
-            if (_traceFlag & DL3_TRACE) {
+            if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n\nRunning Split Statistics: \n");
-              Rprintf(" SplitParm SplitIndex SplitValue      Delta \n");
-              Rprintf("%10d %10d %10.4f %10.4f \n", i, j, _masterSplit[randomCovariateIndex[i]][j], delta);
+              Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
+              Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
             }
           }  
         }  
       }  
-      free_uivector(randomCovariateIndex, 1, actualCovariateCount);
       free_dvector(nelsonAalenLeft, 1, localDeathTimeSize);
       free_dvector(nelsonAalenRight, 1, localDeathTimeSize);
     }   
   }  
   else {
-    if (_traceFlag & DL2_TRACE) {
+    if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nRSF:  *** WARNING *** ");
       Rprintf("\nRSF:  Less than twice the minimum threshold of deaths");
       Rprintf("\nRSF:  encountered in conserveEvents().  This condition");
@@ -350,10 +712,10 @@ char conserveEvents(Node *parent,
       Rprintf("\nRSF:  nominal behaviour.  \n");
     }
   }
-    if (_traceFlag & DL2_TRACE) {
+    if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex        Delta \n");
-      Rprintf(" %10d %10d %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
+      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
+      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
     }
   free_uivector(nodeParentDeath, 1, masterDeathTimeSize);
   free_uivector(nodeLeftDeath,   1, masterDeathTimeSize);
@@ -361,32 +723,33 @@ char conserveEvents(Node *parent,
   free_uivector(nodeParentAtRisk, 1, masterDeathTimeSize);
   free_uivector(nodeLeftAtRisk,   1, masterDeathTimeSize);
   free_uivector(nodeRightAtRisk,  1, masterDeathTimeSize);
-  free_ucvector(randomSplitVector, 1, _xSize);
+  free_uivector(randomCovariateIndex, 1, _xSize);
   free_uivector(localMembershipIndex, 1, _observationSize);
-  free_uivector(localDeathTimeCount, 1, _masterTimeSize);
+  free_uivector(localDeathTimeCount, 1, masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, masterDeathTimeSize);
   if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
-    if (_traceFlag & DL1_TRACE) {
+    if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nconserveEvents() EXIT (TRUE) ...\n");
     }
     return TRUE;
   }
   else {
-    if (_traceFlag & DL1_TRACE) {
+    if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nconserveEvents() EXIT (FALSE) ...\n");
     }
     return FALSE;
   }
 }
-char logRank(Node *parent,
-             uint *splitParameterMax,
-             uint *splitValueMax,
-             Node **nodeMembership,
-             uint masterDeathTimeSize) {
+char logRank(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit) {
   double delta, deltaNum, deltaDen;
   double deltaMax = -EPSILON;
   uint i,j,k,m, index;
-  uint maxCovariateCount = 0;
   uint actualCovariateCount;
   uint parentDeathCount, leftDeathCount, rightDeathCount;
   uint localMembershipSize, localDeathTimeSize;
@@ -396,22 +759,22 @@ char logRank(Node *parent,
   uint *nodeParentAtRisk = uivector(1, masterDeathTimeSize);
   uint *nodeLeftAtRisk   = uivector(1, masterDeathTimeSize);
   uint *nodeRightAtRisk  = uivector(1, masterDeathTimeSize);
-  uchar *randomSplitVector = ucvector(1, _xSize);
+  uint *randomCovariateIndex = uivector(1, _xSize);
   uint *localMembershipIndex = uivector(1, _observationSize);
-  uint *localDeathTimeCount = uivector(1, _masterTimeSize);
+  uint *localDeathTimeCount = uivector(1, masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, masterDeathTimeSize);
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nlogRank() ENTRY ...\n");
   }
   *splitParameterMax = *splitValueMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = -1.0;  
-  for (i=1; i <= _masterTimeSize; i++) {
+  for (i=1; i <= masterTimeSize; i++) {
     localDeathTimeCount[i] = 0;
   }
   for (i=1; i <= _observationSize; i++) {
-    if (nodeMembership[_bootMembershipIndex[i]] == parent) {
+    if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
       localMembershipIndex[++localMembershipSize] = _bootMembershipIndex[i];
       if (_status[_bootMembershipIndex[i]] == 1) {
         localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
@@ -419,33 +782,33 @@ char logRank(Node *parent,
       }
     }
   }
-  if (_traceFlag & DL2_TRACE) {
+  if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
-    Rprintf("\nLocal Membership Index for parent node: \n");
+    Rprintf("\nLocal Membership Index for Parent Node: \n");
     for (i=1; i <= localMembershipSize; i++) {
       Rprintf("%10d %10d \n", i, localMembershipIndex[i]);
     }
   }
   if (parentDeathCount >= (2 * (_minimumDeathCount))) {
-    for (i=1; i <= _masterTimeSize; i++) {
+    for (i=1; i <= masterTimeSize; i++) {
       if (localDeathTimeCount[i] > 0) {
         localDeathTimeIndex[++localDeathTimeSize] = i;
       }
     }
-    if (_traceFlag & DL2_TRACE) {
-      Rprintf("\nLocal Death Times (i, masterTimeIndex): \n");
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nLocal Death Times (i, _masterTimeIndex): \n");
       for (i=1; i <= localDeathTimeSize; i++) {
         Rprintf("%10d %10d \n", i, localDeathTimeIndex[i]);
       }
     }
     if (localDeathTimeSize > 1) {
-      if (_traceFlag & DL2_TRACE) {
+      if (getTraceFlag() & DL2_TRACE) {
         Rprintf("\nLocal Death Counts (i, deaths): \n");
       }
       for (i=1; i <= localDeathTimeSize; i++) {
         nodeParentAtRisk[i] = 0;
         nodeParentDeath[i] = localDeathTimeCount[localDeathTimeIndex[i]];
-        if (_traceFlag & DL2_TRACE) {
+        if (getTraceFlag() & DL2_TRACE) {
           Rprintf("%10d %10d \n", i, nodeParentDeath[i]);
         }
         for (j=1; j <= localMembershipSize; j++) {
@@ -454,52 +817,15 @@ char logRank(Node *parent,
           }
         }
       }
-      if (_traceFlag & DL2_TRACE) {
+      if (getTraceFlag() & DL2_TRACE) {
         Rprintf("\nLocal At Risk Counts (i, at risk): \n");
         for (j=1; j <= localDeathTimeSize; j++) {
           Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
         }
       }
-      for (i=1; i <= _xSize; i++) {
-        if ((parent -> permissibleSplit)[i][1] == (parent -> permissibleSplit)[i][2]) {
-          randomSplitVector[i] = FALSE;
-        }
-        else {
-          randomSplitVector[i] = TRUE;
-          maxCovariateCount++;
-        }
-      }
-      if (_randomCovariateCount > maxCovariateCount) {
-        actualCovariateCount = maxCovariateCount;
-      }
-      else {
-        actualCovariateCount = _randomCovariateCount;
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\nCovariate Counts:  actual vs allowed \n");  
-        Rprintf("%10d %10d \n", actualCovariateCount, maxCovariateCount);
-      }
-      uint *randomCovariateIndex = uivector(1, actualCovariateCount);
-      m = actualCovariateCount;
-      for (i=maxCovariateCount; m > 0; i--) {
-        k = ceil(ran1(_seedPtr)*(i*1.0));
-        for (j = 1; k > 0; j++) {
-          if (randomSplitVector[j] == TRUE) {
-            k--;
-          }
-        }
-        randomSplitVector[j-1] = ACTIVE;
-        randomCovariateIndex[m] = j-1;
-        m--;
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\nCovariate Random Selection:  \n");
-        for (i=1; i <= actualCovariateCount; i++) {
-          Rprintf("%10d %10d \n", i, randomCovariateIndex[i]);
-        }
-      }
+      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
       for (i=1; i <= actualCovariateCount; i++) {
-        if (_traceFlag & DL3_TRACE) {
+        if (getTraceFlag() & DL3_TRACE) {
           Rprintf("\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
           Rprintf("\n           with limits:  %10d %10d \n",
             (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
@@ -509,7 +835,7 @@ char logRank(Node *parent,
         for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
              j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
              j++) {
-          if (_traceFlag & DL3_TRACE) {
+          if (getTraceFlag() & DL3_TRACE) {
             Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
           }
           deltaNum = deltaDen =  0.0;
@@ -518,14 +844,14 @@ char logRank(Node *parent,
             nodeLeftDeath[k] = nodeLeftAtRisk[k] = 0;
           }
           for (k=1; k <= localMembershipSize; k++) {
-            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= _masterSplit[randomCovariateIndex[i]][j]) {
-              if (_traceFlag & DL3_TRACE) {
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+              if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
               }
               index = 0;  
               for (m = 1; m <= localDeathTimeSize; m++) {
                 if (localDeathTimeIndex[m] <= _masterTimeIndex[localMembershipIndex[k]]) {
-                  if (_traceFlag & DL3_TRACE) {
+                  if (getTraceFlag() & DL2_TRACE) {
                     Rprintf("NLAR:  %10d %10d %10d \n", m, localDeathTimeIndex[m], _masterTimeIndex[localMembershipIndex[k]]);
                   }
                   nodeLeftAtRisk[m] ++;
@@ -540,7 +866,7 @@ char logRank(Node *parent,
               }
             }
             else {
-              if (_traceFlag & DL3_TRACE) {
+              if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Right Daughter (index):  %10d %10d \n", k, localMembershipIndex[k]);
                 index = 0;  
                 for (m = 1; m <= localDeathTimeSize; m++) {
@@ -563,7 +889,7 @@ char logRank(Node *parent,
             leftDeathCount += nodeLeftDeath[k];
           }
           rightDeathCount = parentDeathCount - leftDeathCount;
-          if (_traceFlag & DL3_TRACE) {
+          if (getTraceFlag() & DL3_TRACE) {
             Rprintf("\nRunning Split Risk Counts: \n");
             Rprintf("     index    PARrisk    LFTrisk    PARdeath   LFTdeath   \n");
             for (k=1; k <=  localDeathTimeSize; k++) {
@@ -579,7 +905,7 @@ char logRank(Node *parent,
               deltaNum = deltaNum + (
                 (double) nodeLeftDeath[k] - ((double) ( nodeLeftAtRisk[k] * nodeParentDeath[k]) / nodeParentAtRisk[k])
               );
-              if (_traceFlag & DL3_TRACE) {
+              if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nPartial Sum deltaNum:  %10d %10.4f", k, deltaNum);
               }
               if (nodeParentAtRisk[k] >= 2) {
@@ -588,7 +914,7 @@ char logRank(Node *parent,
                   (1.0 - ((double) nodeLeftAtRisk[k] / nodeParentAtRisk[k])) *
                   ((double) (nodeParentAtRisk[k] - nodeParentDeath[k]) / (nodeParentAtRisk[k] - 1)) * nodeParentDeath[k]
                 );
-                if (_traceFlag & DL3_TRACE) {
+                if (getTraceFlag() & DL3_TRACE) {
                   Rprintf("\nPartial Sum deltaDen:  %10d %10.4f", k, deltaDen);
                 }
               }
@@ -608,7 +934,7 @@ char logRank(Node *parent,
               *splitParameterMax = randomCovariateIndex[i];
               *splitValueMax = j;
             }
-            if (_traceFlag & DL3_TRACE) {
+            if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n\nRunning Split Statistics: \n");
               Rprintf("  SplitParm SplitIndex        Numer        Denom        Delta \n");
               Rprintf(" %10d %10d %12.4f %12.4f %12.4f \n", i, j, deltaNum, deltaDen, delta);
@@ -616,11 +942,10 @@ char logRank(Node *parent,
           }  
         }  
       }  
-      free_uivector(randomCovariateIndex, 1, actualCovariateCount);
     }  
   }  
   else {
-    if (_traceFlag & DL2_TRACE) {
+    if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nRSF:  *** WARNING *** ");
       Rprintf("\nRSF:  Less than twice the minimum threshold of deaths");
       Rprintf("\nRSF:  encountered in logRank().  This condition");
@@ -628,92 +953,199 @@ char logRank(Node *parent,
       Rprintf("\nRSF:  nominal behaviour.  \n");
     }
   }
-  if (_traceFlag & DL2_TRACE) {
+  if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nBest Split Statistics: \n");
     Rprintf("  SplitParm SplitIndex        Delta \n");
-    Rprintf(" %10d %10d %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
+    Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
   }
   free_uivector(nodeParentDeath, 1, masterDeathTimeSize);
   free_uivector(nodeLeftDeath,   1, masterDeathTimeSize);
+  free_uivector(nodeRightDeath,  1, masterDeathTimeSize);
   free_uivector(nodeParentAtRisk, 1, masterDeathTimeSize);
   free_uivector(nodeLeftAtRisk,   1, masterDeathTimeSize);
-  free_ucvector(randomSplitVector, 1, _xSize);
+  free_uivector(nodeRightAtRisk,  1, masterDeathTimeSize);
+  free_uivector(randomCovariateIndex, 1, _xSize);
   free_uivector(localMembershipIndex, 1, _observationSize);
-  free_uivector(localDeathTimeCount, 1, _masterTimeSize);
+  free_uivector(localDeathTimeCount, 1, masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, masterDeathTimeSize);
   if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
-    if (_traceFlag & DL1_TRACE) {
+    if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nlogRank() EXIT (TRUE) ...\n");
     }
     return TRUE;
   }
   else {
-    if (_traceFlag & DL1_TRACE) {
+    if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nlogRank() EXIT (FALSE) ...\n");
     }
     return FALSE;
   }
 }
-char getBestSplit(Node *parent,
-                 uint *splitParameterMax,
-                 uint *splitValueMax,
-                 Node **nodeMembership,
-                 uint masterDeathTimeSize,
-                 uint *splitRule) {
-  if (*splitRule == LOG_RANK) {
+uint selectRandomCovariates(
+  Node *parent,
+  uint *covariateIndex) {
+  uint i,j,k;
+  double randomValue;
+  uint maxCovariateCount;
+  uint actualCovariateCount;
+  uint unselectedCovariateCount;
+  char *randomSplitVector = cvector(1, _xSize);
+  double *cdf = dvector(1, _xSize);
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\nselectRandomCovariate() ENTRY ...\n");
+  }
+  maxCovariateCount = 0;
+  for (i=1; i <= _xSize; i++) {
+    if ((parent -> permissibleSplit)[i][1] == (parent -> permissibleSplit)[i][2]) {
+      randomSplitVector[i] = FALSE;
+    }
+    else {
+      randomSplitVector[i] = TRUE;
+      maxCovariateCount++;
+    }
+  }
+  if (_randomCovariateCount > maxCovariateCount) {
+    actualCovariateCount = maxCovariateCount;
+  }
+  else {
+    actualCovariateCount = _randomCovariateCount;
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nCovariate Counts:  actual vs allowed \n");  
+    Rprintf("%10d %10d \n", actualCovariateCount, maxCovariateCount);
+  }
+  for (i=1; i <= actualCovariateCount; i++) {
+    unselectedCovariateCount = 0;
+    for (k=1; k <= _xSize; k++) {
+      if (randomSplitVector[k] == TRUE) {
+        cdf[++unselectedCovariateCount] = _randomCovariateWeight[k];
+      }
+    }
+    for (k=2; k <= unselectedCovariateCount; k++) {
+      cdf[k] += cdf[k-1];
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nUpdated CDF of Covariate Weights:  ");
+      Rprintf("\n     index          cdf");
+      for (k=1; k <= unselectedCovariateCount; k++) {
+        Rprintf("\n%10d  %12.4f", k, cdf[k]);
+      }
+      Rprintf("\n");
+    }
+    randomValue = ran1(_seedPtr)*cdf[unselectedCovariateCount];
+    j=1;
+    while (randomValue > cdf[j]) {
+      j++;
+    }
+    for (k = 1; j > 0; k++) {
+      if (randomSplitVector[k] == TRUE) {
+        j--;
+      }
+    }
+    randomSplitVector[k-1] = ACTIVE;
+    covariateIndex[i] = k-1;
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nCovariate Random Selection:  \n");
+    for (i=1; i <= actualCovariateCount; i++) {
+      Rprintf("%10d %10d \n", i, covariateIndex[i]);
+    }
+  }
+  free_cvector(randomSplitVector, 1, _xSize);
+  free_dvector(cdf, 1, _xSize);
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\nselectRandomCovariate() EXIT ...\n");
+  }
+  return actualCovariateCount;
+}
+char getBestSplit(
+  Node    *parent,
+  uint    *splitParameterMax,
+  uint    *splitValueMax,
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit,
+  uint   **masterSplitOrder) {
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\ngetBestSplit() ENTRY ...\n");
+  }
+  if (_splitRule == LOG_RANK) {
     return logRank(parent,
                    splitParameterMax,
                    splitValueMax,
-                   nodeMembership,
-                   masterDeathTimeSize);
+                   masterDeathTimeSize,
+                   masterTimeSize,
+                   masterSplit);
   }
-  else if (*splitRule == CONSERVE_EVENTS) {
+  else if (_splitRule == CONSERVE_EVENTS) {
     return conserveEvents(parent,
                           splitParameterMax,
                           splitValueMax,
-                          nodeMembership,
-                          masterDeathTimeSize);
+                          masterDeathTimeSize,
+                          masterTimeSize,
+                          masterSplit);
+  }
+  else if (_splitRule == LOG_RANK_SCORE) {
+    return logRankScore(parent,
+                        splitParameterMax,
+                        splitValueMax,
+                        masterDeathTimeSize,
+                        masterTimeSize,
+                        masterSplit,
+                        masterSplitOrder);
+  }
+  else if (_splitRule == LOG_RANK_APPROX) {
+    return logRankApprox(parent,
+                          splitParameterMax,
+                          splitValueMax,
+                          masterDeathTimeSize,
+                          masterTimeSize,
+                          masterSplit);
   }
   else {
     Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Invalid split rule:  %10d", *splitRule);
+    Rprintf("\nRSF:  Invalid split rule:  %10d", _splitRule);
     Rprintf("\nRSF:  Please Contact Technical Support.");
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\ngetBestSplit() EXIT ...\n");
+  }
 }
-char forkAndUpdate(Node **nodeMembership,
-                   uint *leafCount,
-                   Node *parent,
-                   uint splitParameter,
-                   uint splitValue) {
+char forkAndUpdate(
+  uint  *leafCount,
+  Node  *parent,
+  uint   splitParameter,
+  uint   splitValueIndex,
+  double splitValue) {
   uint i;
   uint leftDeathCount, rightDeathCount;
   char result;
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\ngetforkAndUpdate() ENTRY ...\n");
   }
-  result = forkNode(parent, splitParameter, splitValue);
+  result = forkNode(parent, splitParameter, splitValueIndex, splitValue);
   if (result == TRUE) {
     leftDeathCount = rightDeathCount = 0;
     (*leafCount)++;
     for (i = 1; i <= _observationSize; i++) {
-      if (nodeMembership[i] == parent) {
-        if (_observation[splitParameter][i] <= _masterSplit[splitParameter][splitValue]) {
-          nodeMembership[i] = parent -> left;
+      if (_nodeMembership[i] == parent) {
+        if (_observation[splitParameter][i] <= splitValue) {
+          _nodeMembership[i] = parent -> left;
           ((parent -> left) -> leafCount) = (parent -> leafCount);
         }
         else {
-          nodeMembership[i] = parent -> right;
+          _nodeMembership[i] = parent -> right;
           ((parent -> right) -> leafCount) = *leafCount;
         }
       }
     }
     for (i = 1; i <= _observationSize; i++) {
-      if (nodeMembership[_bootMembershipIndex[i]] == parent -> left) {
+      if (_nodeMembership[_bootMembershipIndex[i]] == parent -> left) {
         if (_status[_bootMembershipIndex[i]] == 1) leftDeathCount ++;
       }
-      else if (nodeMembership[_bootMembershipIndex[i]] == parent -> right) {
+      else if (_nodeMembership[_bootMembershipIndex[i]] == parent -> right) {
         if (_status[_bootMembershipIndex[i]] == 1) rightDeathCount ++;
       }
     }
@@ -731,60 +1163,65 @@ char forkAndUpdate(Node **nodeMembership,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\ngetforkAndUpdate() EXIT ...\n");
   }
   return result;
 }
-char makeTree(Node *parent,
-              Node **nodeMembership,
-              uint *leafCount, 
-              uint masterDeathTimeSize,
-              uint *splitRule) {
+char makeTree(
+  Node    *parent,
+  uint    *leafCount, 
+  uint     masterDeathTimeSize,
+  uint     masterTimeSize,
+  double **masterSplit,
+  uint   **masterSplitOrder) {
   char splitResult, forkResult;
   uint splitParameterMax, splitValueMax;
   uint i;
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nmakeTree() ENTRY ...\n");
   }
   splitResult = getBestSplit(parent,
-                             &splitParameterMax,
-                             &splitValueMax,
-                             nodeMembership,
+                             & splitParameterMax,
+                             & splitValueMax,
                              masterDeathTimeSize,
-                             splitRule);
+                             masterTimeSize,
+                             masterSplit,
+                             masterSplitOrder);
   if (splitResult == TRUE) {
-    forkResult = forkAndUpdate(nodeMembership,
-                               leafCount,
+    forkResult = forkAndUpdate(leafCount,
                                parent,
                                splitParameterMax,
-                               splitValueMax);
+                               splitValueMax,
+                               masterSplit[splitParameterMax][splitValueMax]);
     if (forkResult == TRUE) {
-      if (_traceFlag & DL2_TRACE) {
+      if (getTraceFlag() & DL2_TRACE) {
         Rprintf("\nNode Membership:  \n");
         for (i=1; i <=  _observationSize; i++) {
-          Rprintf("%10d %10d \n", i, nodeMembership[i] -> leafCount);
+          Rprintf("%10d %10d \n", i, _nodeMembership[i] -> leafCount);
         }
       }
       if ((parent -> left) -> splitFlag == TRUE) {
-        if (_traceFlag & DL1_TRACE) {
+        if (getTraceFlag() & DL1_TRACE) {
           Rprintf("\nmakeTree() LEFT:  \n");
         }
         makeTree(parent -> left,
-                 nodeMembership,
                  leafCount,
                  masterDeathTimeSize,
-                 splitRule);
+                 masterTimeSize,
+                 masterSplit,
+                 masterSplitOrder);
       }
       if ((parent -> right) -> splitFlag == TRUE) {
-        if (_traceFlag & DL1_TRACE) {
+        if (getTraceFlag() & DL1_TRACE) {
           Rprintf("\nmakeTree() RIGHT:  \n");
         }
         makeTree(parent -> right,
-                 nodeMembership,
                  leafCount,
                  masterDeathTimeSize,
-                 splitRule);
+                 masterTimeSize,
+                 masterSplit,
+                 masterSplitOrder);
       }
     }
     else {
@@ -797,723 +1234,725 @@ char makeTree(Node *parent,
   }
   else {
     parent -> splitFlag = FALSE;
-    if (_traceFlag & DL1_TRACE) {
+    if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\ngetBestSplit() FAILED ...\n");
     }
   }
-  if (_traceFlag & DL1_TRACE) {
+  if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nmakeTree() EXIT ...\n");
   }
   return splitResult;
 }
-void getCumulativeHazardEstimate(double **cumulativeHazard,
-                                 Node *parent,
-                                 double *timeInterest,
-                                 uint sortedTimeInterestSize,
-                                 Node **nodeMembership,
-                                 double *masterTime) {
-  uint i, j;
-  uint *nodeParentDeath  = uivector(1, _masterTimeSize);
-  uint *nodeParentAtRisk = uivector(1, _masterTimeSize);
-  uint priorTimePointIndex, currentTimePointIndex;
-  double estimate;
-  for (i=1; i <= _masterTimeSize; i++) {
-    nodeParentAtRisk[i] = nodeParentDeath[i] = 0;
+char bootstrap(
+  uint     mode,
+  uint     b,
+  Node    *rootPtr,
+  uint    *oobSampleSize,
+  double **masterSplit,
+  uint    *masterSplitSize,
+  uint   **masterSplitOrder) {
+  char result;
+  uint **masterSplitBounds;
+  uint ibSampleSize;
+  uint leadingIndex;
+  uint i,j,k;
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\nbootstrap() ENTRY ...\n");
+  }
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  Bootstrap sample:  %10d ", b);  
+  }
+  result = FALSE;  
+  if (_mup & MUP_TREE) {
+    *_seedPtr = - abs(*_seedPtr);
+    _seed_[b] = *_seedPtr;
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nSaved Seed for Bootstrap:  ");
+      Rprintf("\n%10d %20d ", b, _seed_[b]);
+      Rprintf("\n");
+    }
+  }
+  else if (mode == RSF_PRED) {
+    *_seedPtr = _seed_[b];
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nRestored Seed for Bootstrap:  ");
+      Rprintf("\n%10d %20d ", b, *_seedPtr);
+      Rprintf("\n");
+    }
   }
   for (i=1; i <= _observationSize; i++) {
-    if (nodeMembership[_bootMembershipIndex[i]] == parent) {
-      for (j=1; j <= _masterTimeIndex[_bootMembershipIndex[i]]; j++) {
-        nodeParentAtRisk[j] ++;
-      }
-      if (_status[_bootMembershipIndex[i]] == 1) {
-        nodeParentDeath[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
-      }
+    _nodeMembership[i] = rootPtr;
+    _bootMembershipFlag[i] = FALSE;
+  }
+  for (i=1; i <= _observationSize; i++) {
+    k = ceil(ran1(_seedPtr)*((_observationSize)*1.0));
+    _bootMembershipFlag[k] = TRUE;
+    _bootMembershipIndex[i] = k;
+  }
+  for (i=1; i <= _observationSize; i++) {
+    if (_bootMembershipFlag[i] == FALSE) {
+      oobSampleSize[b] ++;
     }
   }
-  priorTimePointIndex = 0;
-  currentTimePointIndex = 1;
-  for (j=1; j <= sortedTimeInterestSize; j++) {
-    for (i = priorTimePointIndex + 1; i <= _masterTimeSize; i++) {
-      if (masterTime[i] <= timeInterest[j]) {
-        currentTimePointIndex = i;
-      }
-      else {
-        i = _masterTimeSize;
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\n\nOOB Size:  %10d ", oobSampleSize[b]);
+    Rprintf("\n\nRoot Membership (all data):  ");
+    Rprintf("\n     index       leaf    IBindex\n");
+    for (i=1; i <=  _observationSize; i++) {
+      Rprintf("%10d %10d %10d \n", i, _nodeMembership[i] -> leafCount, _bootMembershipIndex[i]);
+    }
+  }
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  Bootstrapping and initialization of root node complete.");  
+  }
+  if (oobSampleSize[b] == 0) {
+    if (getTraceFlag() & DL0_TRACE) {
+      Rprintf("\nRSF:  OOB sample size is zero.  Bootstrap sample has been discarded.");  
+    }
+    result = FALSE;
+  }
+  else if(mode == RSF_GROW) {
+    if (getTraceFlag() & DL3_TRACE) {
+      Rprintf("\nRaw Bootstrap MasterSplit Data:  ");  
+    }
+    k = 1;
+    for (i=1; i <= _observationSize; i++) {
+      if (_bootMembershipFlag[i] == TRUE) {
+        for (j=1; j <= _xSize; j++) {
+          masterSplit[j][k] = _observation[j][i];
+        }
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\n%10d ", i);  
+          for (j=1; j <= _xSize; j++) {
+            Rprintf("%10.4f ", masterSplit[j][k]);
+          }
+        }
+        k++;
       }
     }
-    if (_traceFlag & DL2_TRACE) {
-      Rprintf("\nCumulative hazard at risk and death counts for node:  %10d \n", parent -> leafCount);
-      Rprintf("  with time point index:  %10d \n", currentTimePointIndex);
-      for (i=1; i <= _masterTimeSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n");
-      for (i=1; i <= _masterTimeSize; i++) {
-        Rprintf("%10d", nodeParentAtRisk[i]);
-      }
-      Rprintf("\n");
-      for (i=1; i <= _masterTimeSize; i++) {
-        Rprintf("%10d", nodeParentDeath[i]);
-      }
-      Rprintf("\n");
-    }
-    estimate = 0.0;
-    for (i = priorTimePointIndex + 1; i <= currentTimePointIndex; i++) {
-      if (nodeParentDeath[i] > 0) {
-        if (nodeParentAtRisk[i] >= 1) {
-          estimate = estimate + ((double) nodeParentDeath[i] / nodeParentAtRisk[i]);
+    ibSampleSize = _observationSize - oobSampleSize[b];
+    for (i=1; i <= _xSize; i++) {
+      hpsort(masterSplit[i], ibSampleSize);
+   }
+    if (getTraceFlag() & DL3_TRACE) {
+      Rprintf("\n\nRaw Sorted Bootstrap MasterSplit Data:  ");
+      for (i=1; i <= ibSampleSize; i++) {
+        Rprintf("\n%10d", i);
+        for (j=1; j <= _xSize; j++) {
+          Rprintf(" %10.4f", masterSplit[j][i]);
         }
       }
     }
-    cumulativeHazard[j][parent -> leafCount] = estimate;
-    priorTimePointIndex = currentTimePointIndex;
+    masterSplitBounds = uimatrix(1, _xSize, 1, 2);
+    for (i=1; i <= _xSize; i++) {
+      masterSplitBounds[i][1] = 1;
+      masterSplitSize[i] = leadingIndex = 1;
+      for (j=2; j <= ibSampleSize; j++) {
+        if (masterSplit[i][j] > masterSplit[i][leadingIndex]) {
+          masterSplitSize[i]++;
+          leadingIndex++;
+          masterSplit[i][leadingIndex] = masterSplit[i][j];
+        }
+      }
+      masterSplitBounds[i][2] = leadingIndex;
+      for (j=masterSplitSize[i]+1; j <= ibSampleSize; j++) {
+        masterSplit[i][j] = 0;
+      }
+    }
+    if (_splitRule == LOG_RANK_SCORE) {
+      double *predictorValue = dvector(1, _observationSize);
+      for (j=1; j <= _xSize; j++) {
+        for (i=1; i <= _observationSize; i++) {
+          masterSplitOrder[j][i] = 0;
+          predictorValue[i] = _observation[j][_bootMembershipIndex[i]];
+        }
+        indexx(_observationSize, predictorValue, masterSplitOrder[j]);
+      }
+      free_dvector(predictorValue, 1, _observationSize);
+      if (getTraceFlag() & DL3_TRACE) {
+        Rprintf("\n\nBootstraped Ordered Predictor Matrix:  ");
+        Rprintf("\n     index   observations -> \n");
+        for (i = 1; i <= _observationSize; i++) {
+          Rprintf("%10d", i);
+          for (j=1; j <= _xSize; j++) {
+            Rprintf(" %10d", masterSplitOrder[j][i]);
+          }
+          Rprintf("\n");
+        }
+      }
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\n\nBootstraped MasterSplit Data:  ");
+      for (i=1; i <= ibSampleSize; i++) {
+        Rprintf("\n%10d", i);
+        for (j=1; j <= _xSize; j++) {
+          Rprintf(" %10.4f", masterSplit[j][i]);
+        }
+      }
+      Rprintf("\n\nSize of Permissible Splits:  ");
+      Rprintf("\n          ");
+      for (j=1; j <= _xSize; j++) {
+        Rprintf(" %10d", masterSplitSize[j]);
+      }
+      Rprintf("\n");
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nMaster Permissible Split Boundaries:  \n");
+      for (i=1; i <= _xSize; i++) {
+        Rprintf("%10d %10d %10d \n", i, masterSplitBounds[i][1], masterSplitBounds[i][2]);
+      }
+    }
+    nrCopyMatrix(rootPtr -> permissibleSplit, masterSplitBounds, _xSize, 2);
+    free_uimatrix(masterSplitBounds, 1, _xSize, 1, 2);
+    if (getTraceFlag() & DL0_TRACE) {
+      Rprintf("\nRSF:  Initialization of master split data complete.");  
+    }
+    result = TRUE;
   }  
-  for (j=2; j <= sortedTimeInterestSize; j++) {
-    cumulativeHazard[j][parent -> leafCount] += cumulativeHazard[j-1][parent -> leafCount];
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\nbootstrap() EXIT ...\n");
   }
-  free_uivector(nodeParentDeath, 1, _masterTimeSize);
-  free_uivector(nodeParentAtRisk, 1, _masterTimeSize);
+  return result;
 }
-void rsf(uint *traceFlag,
-         int  *memoryUseProtocol,
-         int  *seed,
-         uint *splitRule,
-         uint *randomCovariateCount,
-         uint *bootstrapSampleCount,
-         uint *minimumDeathCount,
-         uint *observationSizePtr,
-         double *time,
-         uint *status,
-         uint *timeInterestSize,
-         double *timeInterest,
-         uint *xSizePtr,
-         double *xData,
-         double *ensembleEstimator,
-         double *performanceMeasure,
-         uint *leafCount,
-         uint *proximity) {
-  uint i,j,k,b;
-  uint leadingIndex;
-  Node **root;
-  double **ensembleEstimatorPtr;
-  uint sortedTimeInterestSize;
-  uint *masterSplitSize;
-  double *masterTime;
-  uint masterDeathTimeSize;
-  uint **masterSplitBounds;
-  uint proximitySize;
-  Node **nodeMembership;
-  double **cumulativeHazard;
-  uint inBootstrapSampleSize;
-  ulong concordancePairSize;
-  ulong concordanceWorseCount;
-  double *ensembleEstimatorRun;
-  uint *ensembleEstimatorDen;
-  uint *oobSampleSize;
-  uint discardedSampleCount;
-  _traceFlag = *traceFlag;
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Native code normal entry. \n");
-  }
-  start = clock();
-  if (*seed >= 0) {
+SEXP rsfGrow(SEXP traceFlag,
+             SEXP mup,  
+             SEXP seedPtr,  
+             SEXP splitRule,  
+             SEXP randomCovariateCount,  
+             SEXP forestSize,  
+             SEXP minimumDeathCount,
+             SEXP observationSize,
+             SEXP time,
+             SEXP status,
+             SEXP xSize,
+             SEXP xData,
+             SEXP timeInterestSize,
+             SEXP timeInterest,
+             SEXP randomCovariateWeight
+            ) {
+  int seedValue         = INTEGER(seedPtr)[0];
+  _seedPtr              = &seedValue;
+  _splitRule            = INTEGER(splitRule)[0];
+  _randomCovariateCount = INTEGER(randomCovariateCount)[0];
+  _forestSize           = INTEGER(forestSize)[0];
+  _minimumDeathCount    = INTEGER(minimumDeathCount)[0];
+  _observationSize      = INTEGER(observationSize)[0];
+  _time                 =    REAL(time);  _time--;
+  _status               = (uint*) INTEGER(status);  _status--;
+  _xSize                = INTEGER(xSize)[0];
+  _xData                =    REAL(xData);
+  _timeInterestSize     = INTEGER(timeInterestSize)[0];
+  _timeInterest         =    REAL(timeInterest);  _timeInterest--;
+  _randomCovariateWeight =   REAL(randomCovariateWeight);  _randomCovariateWeight--;
+  _mup                  = INTEGER(mup)[0] | MUP_PERF;  
+  if (*_seedPtr >= 0) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Random seed must be less than zero.  \n");
-    return;
+    return R_NilValue;
   }
-  else if ((*splitRule != LOG_RANK) && (*splitRule != CONSERVE_EVENTS)) {
+  if ( (_splitRule != LOG_RANK) && (_splitRule != CONSERVE_EVENTS) && (_splitRule != LOG_RANK_SCORE) && (_splitRule != LOG_RANK_APPROX) ) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Invalid split rule:  %10d  \n", *splitRule);
-    return;
+    Rprintf("\nRSF:  Invalid split rule:  %10d \n", _splitRule);
+    return R_NilValue;
   }
-  else if (*observationSizePtr < 2) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of observations must be greater than one.  \n");
-    return;
-  }
-  else if (*xSizePtr < 1) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of parameters must be greater than zero.  \n");
-    return;
-  }
-  else if ((*randomCovariateCount < 1) || (*randomCovariateCount > *xSizePtr)) {
+  if ( ((_randomCovariateCount < 1) || (_randomCovariateCount > _xSize)) ) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Number of random covariate parameters must be greater");
-    Rprintf("\nRSF:  than zero and less than the total number of covariates.  \n");
-    return;
+    Rprintf("\nRSF:  than zero and less than the total number of covariates:  %10d \n", _randomCovariateCount);
+    return R_NilValue;
   }
-  else if (*minimumDeathCount < 1) {
+  if (_minimumDeathCount < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Minimum number of deaths must be greater than zero.  \n");
-    return;
+    Rprintf("\nRSF:  Minimum number of deaths must be greater than zero:  %10d \n", _minimumDeathCount);
+    return R_NilValue;
   }
-  else if (*bootstrapSampleCount < 1) {
+  return rsf(RSF_GROW, INTEGER(traceFlag)[0]);
+}
+SEXP rsfPredict(SEXP traceFlag,
+                SEXP mup,
+                SEXP forestSize, 
+                SEXP observationSize,
+                SEXP time,
+                SEXP status,
+                SEXP xSize,
+                SEXP xData,
+                SEXP fobservationSize,
+                SEXP ftime,
+                SEXP fstatus,
+                SEXP fxData,
+                SEXP timeInterestSize,
+                SEXP timeInterest,
+                SEXP treeID,
+                SEXP nodeID,
+                SEXP parmID,
+                SEXP spltPT,
+                SEXP seed
+               ) {
+  int seedValue;
+  _seedPtr              = &seedValue;
+  _forestSize           = INTEGER(forestSize)[0];
+  _observationSize      = INTEGER(observationSize)[0];
+  _time                 =    REAL(time);  _time --;
+  _status               = (uint*) INTEGER(status);  _status --;
+  _xSize                = INTEGER(xSize)[0];
+  _xData                =    REAL(xData);
+  _fobservationSize     = INTEGER(fobservationSize)[0];
+  _ftime                =    REAL(ftime);  _ftime --;
+  _fstatus              = (uint*) INTEGER(fstatus);  _fstatus --;
+  _fxData               =    REAL(fxData);
+  _timeInterestSize     = INTEGER(timeInterestSize)[0];
+  _timeInterest         =    REAL(timeInterest);  _timeInterest --;
+  _treeID_              = (uint*) INTEGER(treeID);  _treeID_ --;
+  _nodeID_              = (uint*) INTEGER(nodeID);  _nodeID_ --;
+  _parmID_              = (uint*) INTEGER(parmID);  _parmID_ --;
+  _spltPT_              =    REAL(spltPT);  _spltPT_ --;
+  _seed_                = INTEGER(seed);  _seed_ --;
+  _mup                  = INTEGER(mup)[0] & (~MUP_TREE);  
+  _mup                  = _mup & (~MUP_VIMP);  
+  if (_fobservationSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of bootstrap iterations must be greater than zero.  \n");
-    return;
+    Rprintf("\nRSF:  Number of prediction observations must be greater than one:  %10d \n", _fobservationSize);
+    return R_NilValue;
   }
-  else if (*timeInterestSize < 1) {
+  return rsf(RSF_PRED, INTEGER(traceFlag)[0]);
+}
+SEXP rsf(uint mode, uint traceFlag) {
+  uint sexpIndex;
+  uint sortedTimeInterestSize;
+  uint masterDeathTimeSize;
+  uint masterTimeSize;
+  double **masterSplit;        
+  uint    *masterSplitSize;    
+  uint   **masterSplitOrder;   
+  Node   **root;
+  double **oobEnsemblePtr;
+  double **fullEnsemblePtr;
+  double  *ensembleRun;
+  uint    *ensembleDen;
+  double **vimpEnsembleRun;
+  uint    *oobSampleSize;
+  uint     forestNodeCount;
+  uint     rejectedTreeCount;  
+  uint i, j, k, b;
+  char splitResult;
+  Node *rootPtr;
+  char result;
+  _traceFlagDiagLevel = (traceFlag | mode) & 0xFF;
+  _traceFlagIterValue = traceFlag >> 8;
+  updateTraceFlag(TRUE);
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  Native code rsf() entry. \n");
+  }
+  start = clock();
+  if (_forestSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of time points of interest must be greater than zero.  \n");
-    return;
+    Rprintf("\nRSF:  Number of bootstrap iterations must be greater than zero:  %10d \n", _forestSize);
+    return R_NilValue;
   }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Number of observations:  %10d", *observationSizePtr);
-    Rprintf("\nRSF:  Number of predictors:    %10d \n", *xSizePtr);
+  if (_observationSize < 2) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Parameter verification failed.");
+    Rprintf("\nRSF:  Number of observations must be greater than one:  %10d \n", _observationSize);
+    return R_NilValue;
   }
-  _observationSize = *observationSizePtr;
-  _xSize = *xSizePtr;
-  _seedPtr = seed;
-  _status = status;
-  _randomCovariateCount = *randomCovariateCount;
-  _minimumDeathCount = *minimumDeathCount;
-  root = NULL;  
-  if (*memoryUseProtocol != FALSE) {
-    root = nodePtrVector(1, *bootstrapSampleCount);
+  if (_timeInterestSize < 1) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Parameter verification failed.");
+    Rprintf("\nRSF:  Number of time points of interest must be greater than zero:  %10d \n", _timeInterestSize);
+    return R_NilValue;
   }
-  nodeMembership = nodePtrVector(1, _observationSize);
-  _bootMembershipIndex = uivector(1, _observationSize);
-  _bootMembershipFlag = ucvector(1, _observationSize);
-  _observation = dmatrix(1, _xSize, 1, _observationSize);
-  _masterSplit = dmatrix(1, _xSize, 1, _observationSize);
-  masterSplitBounds = uimatrix(1, _xSize, 1, 2);
-  masterTime  = dvector(1, _observationSize);
-  _masterTimeIndex  = uivector(1, _observationSize);
-  masterSplitSize = uivector(1, _xSize);
-  oobSampleSize = uivector(1, *bootstrapSampleCount);
-  time--;
-  _status--;
-  timeInterest--;
-  performanceMeasure--;
-  leafCount--;
-  proximity--;
-  if (_traceFlag & DL2_TRACE) {
-    Rprintf("\nIncoming Data:  ");
-    Rprintf("\n     index       time     status   observations -> \n");
+  if (_xSize < 1) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Parameter verification failed.");
+    Rprintf("\nRSF:  Number of parameters must be greater than zero:  %10d \n", _xSize);
+    return R_NilValue;
   }
-  for (i=1; i <= _observationSize; i++) {
-    if (_traceFlag & DL2_TRACE) {
-      Rprintf("%10d %10.4f %10d", i, time[i], _status[i]);
-      for (j=1; j <= _xSize; j++) {
-        Rprintf(" %10.4f", (xData+((j-1)*(_observationSize)))[i-1]);
+  for (i =1 ; i <= _observationSize; i++) {
+    if (_time[i] <= 0) {
+      Rprintf("\nRSF:  *** ERROR *** ");
+      Rprintf("\nRSF:  Parameter verification failed.");
+      Rprintf("\nRSF:  Time vector must contain elements greater than zero:  %10d \n", _time[i]);
+      return R_NilValue;
+    }
+    if ( (_status[i] != 0) && (_status[i] != 1) ) {
+      Rprintf("\nRSF:  *** ERROR *** ");
+      Rprintf("\nRSF:  Parameter verification failed.");
+      Rprintf("\nRSF:  Status vector must contain elements equal to one or zero:  %10d \n", _status[i]);
+      return R_NilValue;
+    }
+  }
+  if (mode == RSF_GROW) {
+    for (i = 1; i <= _xSize; i++) {
+      if(_randomCovariateWeight[i] <= 0) {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Parameter verification failed.");
+        Rprintf("\nRSF:  Random covariate weight vector must contain elements greater than zero:  %12.4f \n", _randomCovariateWeight[i]);
+        return R_NilValue;
       }
-      Rprintf("\n");
-    }
-    masterTime[i] = time[i];
-    for (j=1; j <= _xSize; j++) {
-      _observation[j][i] = (xData+((j-1)*(_observationSize)))[i-1];
     }
   }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Initial read complete.");  
-  }
-  hpsort(masterTime, _observationSize);
-  _masterTimeSize = leadingIndex = 1;
-  for (i=2; i <= _observationSize; i++) {
-    if (masterTime[i] > masterTime[leadingIndex]) {
-      _masterTimeSize++;
-      leadingIndex++;
-      masterTime[leadingIndex] = masterTime[i];
-    }
-  }
-  for (i=_masterTimeSize+1; i <= _observationSize; i++) {
-    masterTime[i] = 0;
-  }
-  if (_traceFlag & DL2_TRACE) {
-    Rprintf("\n\nSorted Distinct Event Times:  \n");
-    for (i=1; i <= _masterTimeSize; i++) {
-      Rprintf("%10d %10.4f \n", i, masterTime[i]);
-    }
-  }
-  for (j=1; j <= _observationSize; j++) {
-    k = 1;
-    while (k <= _masterTimeSize) {
-      if (time[j] == masterTime[k]) {
-        _masterTimeIndex[j] = k;
-        k = _masterTimeSize;
+  if (mode == RSF_PRED) {
+    for (i = 1; i <= _forestSize; i++) {
+      if(_seed_[i] >= 0) {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Parameter verification failed.");
+        Rprintf("\nRSF:  Random seed vector must contain elements less than zero:  %10d \n", _seed_[i]);
+        return R_NilValue;
       }
-      k++;
+    }
+    result = TRUE;
+    for (i =1 ; i <= _fobservationSize; i++) {
+      if ( (_ftime[i] <= 0) || ((_fstatus[i] != 0) && (_fstatus[i] != 1)) ) {
+        result = FALSE;
+      }
+    }
+    if (result == FALSE) {
+      _mup = _mup & (~MUP_PERF);  
+      if (getTraceFlag() & DL0_TRACE) {
+        Rprintf("\nRSF:  Prediction data set time and status vector ignored.");  
+        Rprintf("\nRSF:  No performance measure will be calculated.");  
+      }
     }
   }
-  if (_traceFlag & DL2_TRACE) {
-    Rprintf("\nMaster Time Index:  \n");
-    for (i=1; i <= _observationSize; i++) {
-      Rprintf("%10d %10d \n", i, _masterTimeIndex[i]);
+  if (getTraceFlag() & DL0_TRACE) {
+    if (mode == RSF_GROW) {
+      Rprintf("\nRSF:  Mode is GROW.");
+      Rprintf("\nRSF:  Split rule is:                %10d", _splitRule);
+      Rprintf("\nRSF:  Number of GROW observations:  %10d", _observationSize);
     }
-  }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Initialization of master time data complete.");  
-  }
-  hpsort(timeInterest, *timeInterestSize);
-  sortedTimeInterestSize = leadingIndex = 1;
-  for (i=2; i <= *timeInterestSize; i++) {
-    if (timeInterest[i] > timeInterest[leadingIndex]) {
-      sortedTimeInterestSize++;
-      leadingIndex++;
-      timeInterest[leadingIndex] = timeInterest[i];
+    if (mode == RSF_PRED) {
+      Rprintf("\nRSF:  Mode is PRED.");
+      Rprintf("\nRSF:  Number of PRED observations:  %10d", _fobservationSize);
     }
+    Rprintf("\nRSF:  Number of predictors:         %10d \n", _xSize);
   }
-  if (sortedTimeInterestSize != *timeInterestSize) {
-    Rprintf("\nRSF:  *** WARNING *** ");
-    Rprintf("\nRSF:  Time points of interest are not unique.");
-    Rprintf("\nRSF:  The ensemble estimate output matrix is being");
-    Rprintf("\nRSF:  resized as [N'] x [n], where N' is the");
-    Rprintf("\nRSF:  unique time points of interest and n is");
-    Rprintf("\nRSF:  number of observations in the data.");
+  stackPreDefinedCommonArrays(& oobSampleSize);
+  if (mode == RSF_GROW) {
+    stackPreDefinedGrowthArrays(
+                                & masterSplit,
+                                & masterSplitSize,
+                                & masterSplitOrder);
   }
-  for (i=sortedTimeInterestSize+1; i <= *timeInterestSize; i++) {
-    timeInterest[i] = 0;
+  else {
+    stackPreDefinedPredictArrays();
   }
-  if (_traceFlag & DL2_TRACE) {
-    Rprintf("\n\nSorted Distinct Times of Interest:  \n");
-    for (i=1; i <= sortedTimeInterestSize; i++) {
-      Rprintf("%10d %10.4f \n", i, timeInterest[i]);
+  initializeArrays(  mode,
+                   & masterTimeSize,
+                   & sortedTimeInterestSize,
+                   & masterDeathTimeSize
+                  );
+  sexpIndex = stackDefinedOutputObjects(   mode,
+                                           sortedTimeInterestSize,
+                                           sexpString,
+                                         & root,
+                                         & oobEnsemblePtr,
+                                         & fullEnsemblePtr,
+                                         & ensembleRun,
+                                         & ensembleDen,
+                                         & _oobEnsemble_,
+                                         & _fullEnsemble_,
+                                         & _performance_,
+                                         & _leafCount_,
+                                         & _proximity_,
+                                         & _varImportance_,
+					 & vimpEnsembleRun,
+                                         & _seed_,
+                                         sexpVector
+                                       );
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  Number of trees in forest:  %10d \n", _forestSize);
+  }
+  forestNodeCount = 1;
+  for (b = 1; b <= _forestSize; b++) {
+    if ( (b == 1) || (b == _forestSize)) {
+      updateTraceFlag(TRUE);
     }
-  }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Initialization of time interest data complete.");  
-  }
-  uchar *masterDeathTimeIndicator = ucvector(1, _masterTimeSize);
-  for (i=1; i <= _masterTimeSize; i++) {
-    masterDeathTimeIndicator[i] = FALSE;
-  }
-  k = 0;
-  for (i=1; i <= _observationSize; i++) {
-    if (_status[i] == 0) {
-      k++;
-    }
-    else {
-      masterDeathTimeIndicator[_masterTimeIndex[i]] = TRUE;
-    }
-  }
-  if (k == _observationSize) {
-    for (i=1; i <= _observationSize; i++) {
-      _status[i] = 1;
-    }
-    for (i=1; i <= _masterTimeSize; i++) {
-      masterDeathTimeIndicator[i] = TRUE;
-    }
-    Rprintf("\nRSF:  *** WARNING *** ");
-    Rprintf("\nRSF:  All observations were censored, and will be considered to be deaths.");
-  }
-  masterDeathTimeSize = 0;
-  for (i=1; i<= _masterTimeSize; i++) {
-    if (masterDeathTimeIndicator[i] == TRUE) {
-      masterDeathTimeSize ++;
-    }
-  }
-  if (_traceFlag & DL2_TRACE) {
-    Rprintf("\n\nMaster Death Time Indicator:  \n");
-    for (i=1; i <= _masterTimeSize; i++) {
-      Rprintf("%10d %10.4f %10d \n", i, masterTime[i], masterDeathTimeIndicator[i]);
-    }
-  }
-  free_ucvector(masterDeathTimeIndicator, 1, _masterTimeSize);
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Initialization of death time data complete");  
-  }
-  ensembleEstimatorRun = dvector(1, _observationSize);
-  ensembleEstimatorDen = uivector(1, _observationSize);
-  ensembleEstimatorPtr = pdvector(1, sortedTimeInterestSize);
-  for (i=1; i <= sortedTimeInterestSize; i++) {
-    ensembleEstimatorPtr[i] = ensembleEstimator+((i-1)*(_observationSize)) - 1;
-  }
-  for (i=1; i <= _observationSize; i++) {
-    for (j=1; j <= sortedTimeInterestSize; j++) {
-      ensembleEstimatorPtr[j][i] = 0.0;
-    }
-    ensembleEstimatorDen[i] = 0;
-  }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Initialization of ensemble estimates complete.");  
-  }
-  if (*memoryUseProtocol != FALSE) {
-    proximitySize = ((_observationSize + 1)  * _observationSize) / 2; 
-    for (i=1; i <= proximitySize; i++) {
-      proximity[i] = 0;
-    }
-  }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Initialization of proximity information complete.");  
-  }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Number of bootstrap samples:  %10d \n", *bootstrapSampleCount);
-  }
-  discardedSampleCount = 0;
-  for (b=1; b <= *bootstrapSampleCount; b++) {
-    Node *rootPtr;
-    char result;
-    leafCount[b] = 1;
-    oobSampleSize[b] = 0;
-    performanceMeasure[b] = 0;
-    if (_traceFlag & DL0_TRACE) {
-      Rprintf("\nRSF:  Bootstrap iteration:  %10d ", b);  
-    }
-    rootPtr = makeNode();
-    if (*memoryUseProtocol != FALSE) {
-      root[b] = rootPtr;
-    }
+    rootPtr = makeNode();  
     rootPtr -> parent = rootPtr;
-    rootPtr -> left = NULL; rootPtr -> right = NULL;
-    rootPtr -> splitValue = 0;
+    rootPtr -> left = NULL;
+    rootPtr -> right = NULL;
+    rootPtr -> splitValueIndex = 0;
     rootPtr -> splitParameter = 0;
     rootPtr -> splitFlag = TRUE;
     rootPtr -> leafCount = 1;
-    for (i=1; i <= _observationSize; i++) {
-      nodeMembership[i] = rootPtr;
-      _bootMembershipFlag[i] = FALSE;
+    if (_mup & MUP_TREE) {
+      root[b] = rootPtr;
     }
-    for (i=1; i <= _observationSize; i++) {
-      k = ceil(ran1(_seedPtr)*((_observationSize)*1.0));
-      _bootMembershipFlag[k] = TRUE;
-      _bootMembershipIndex[i] = k;
-    }
-    for (i=1; i <= _observationSize; i++) {
-      if (_bootMembershipFlag[i] == FALSE) {
-        oobSampleSize[b] ++;
+    if (mode == RSF_GROW) {
+      splitResult = bootstrap(mode,
+                              b,
+                              rootPtr,
+                              oobSampleSize,
+                              masterSplit,
+                              masterSplitSize,
+                              masterSplitOrder);
+      if (splitResult) {
+        splitResult = makeTree(rootPtr,
+                               _leafCount_ + b,
+                               masterDeathTimeSize,
+                               masterTimeSize,
+                               masterSplit,
+                               masterSplitOrder);
       }
     }
-    if (_traceFlag & DL2_TRACE) {
-      Rprintf("\n\nSample Size:  %10d ", oobSampleSize[b]);
-      Rprintf("\n\nRoot Membership:  \n");
+    else {
+      *_seedPtr = - _seed_[b];
+      splitResult = bootstrap(mode,
+                              b,
+                              rootPtr,
+                              oobSampleSize,
+                              masterSplit,      
+                              masterSplitSize,  
+                              masterSplitOrder  
+                              );
+      if ((getTraceFlag() & RSF_PRED) && (getTraceFlag() & DL2_TRACE)) {
+        Rprintf("\nIncoming Tree:  ");
+        Rprintf("\n      tree       parm       node         splt \n");
+      }
+      splitResult = restoreTree(b,
+                                rootPtr,
+                                _leafCount_ + b,
+                                & forestNodeCount,
+                                _treeID_,
+                                _nodeID_,
+                                _parmID_,
+                                _spltPT_);
+      if (getTraceFlag() & DL0_TRACE) {
+        Rprintf("\nRSF:  Tree construction complete:  %10d", b);  
+        Rprintf("\nRSF:  Final leaf count:  %10d\n", _leafCount_[b]);
+      }
+      for (k = 1; k <= _observationSize; k++) {
+        _nodeMembership[k] = getMembership(rootPtr, _observation, k);
+      }
+      for (k = 1; k <= _fobservationSize; k++) {
+        _fnodeMembership[k] = getMembership(rootPtr,  _fobservation, k);
+      }
+    }
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nFinal GROW Membership (all data):  %10d", b);
+      Rprintf("\n     index       leaf    IBindex\n");
       for (i=1; i <=  _observationSize; i++) {
-        Rprintf("%10d %10d %10d \n", i, _bootMembershipIndex[i], nodeMembership[i] -> leafCount);
+        Rprintf("%10d %10d %10d \n", i, _nodeMembership[i] -> leafCount, _bootMembershipIndex[i]);
       }
     }
-    if (_traceFlag & DL0_TRACE) {
-      Rprintf("\nRSF:  Initialization of bootstrap root node complete.");  
+    if ((getTraceFlag() & RSF_PRED) && (getTraceFlag() & DL2_TRACE)) {
+      Rprintf("\nFinal PRED Membership (all data):  %10d", b);
+      Rprintf("\n     index       leaf\n");
+      for (i=1; i <=  _fobservationSize; i++) {
+        Rprintf("%10d %10d \n", i, _fnodeMembership[i] -> leafCount);
+      }
     }
-    if (oobSampleSize[b] != 0) {
-      inBootstrapSampleSize = _observationSize - oobSampleSize[b];
-      if (_traceFlag & DL3_TRACE) {
-        Rprintf("\nRaw Bootstrap MasterSplit Data:  ");  
-      }
-      k = 1;
-      for (i=1; i <= _observationSize; i++) {
-        if (_bootMembershipFlag[i] == TRUE) {
-          for (j=1; j <= _xSize; j++) {
-            _masterSplit[j][k] = (xData+((j-1)*(_observationSize)))[i-1];
-          }
-          if (_traceFlag & DL3_TRACE) {
-            Rprintf("\n%10d ", i);  
-            for (j=1; j <= _xSize; j++) {
-              Rprintf("%10.4f ", _masterSplit[j][k]);
-            }
-          }
-          k++;
-        }
-      }
-      for (i=1; i <= _xSize; i++) {
-        hpsort(_masterSplit[i], inBootstrapSampleSize);
-      }
-      if (_traceFlag & DL3_TRACE) {
-        Rprintf("\n\nRaw Sorted Bootstrap MasterSplit Data:  ");
-        for (i=1; i <= inBootstrapSampleSize; i++) {
-          Rprintf("\n%10d", i);
-          for (j=1; j <= _xSize; j++) {
-            Rprintf(" %10.4f", _masterSplit[j][i]);
-          }
-        }
-      }
-      for (i=1; i <= _xSize; i++) {
-        masterSplitBounds[i][1] = 1;
-        masterSplitSize[i] = leadingIndex = 1;
-        for (j=2; j <= inBootstrapSampleSize; j++) {
-          if (_masterSplit[i][j] > _masterSplit[i][leadingIndex]) {
-            masterSplitSize[i]++;
-            leadingIndex++;
-            _masterSplit[i][leadingIndex] = _masterSplit[i][j];
-          }
-        }
-        masterSplitBounds[i][2] = leadingIndex;
-        for (j=masterSplitSize[i]+1; j <= inBootstrapSampleSize; j++) {
-          _masterSplit[i][j] = 0;
-        }
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\n\nBootstrap MasterSplit Data:  ");
-        for (i=1; i <= inBootstrapSampleSize; i++) {
-          Rprintf("\n%10d", i);
-          for (j=1; j <= _xSize; j++) {
-            Rprintf(" %10.4f", _masterSplit[j][i]);
-          }
-        }
-        Rprintf("\n\nSize of Permissible Splits:  ");
-        Rprintf("\n          ");
-        for (j=1; j <= _xSize; j++) {
-          Rprintf(" %10d", masterSplitSize[j]);
-        }
-        Rprintf("\n");
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\nMaster Permissible Split Boundaries:  \n");
-        for (i=1; i <= _xSize; i++) {
-          Rprintf("%10d %10d %10d \n", i, masterSplitBounds[i][1], masterSplitBounds[i][2]);
-        }
-      }
-      copyMatrix(rootPtr -> permissibleSplit, masterSplitBounds, _xSize, 2);
-      if (_traceFlag & DL0_TRACE) {
-        Rprintf("\nRSF:  Initialization of master split data complete.");  
-      }
-      result = makeTree(rootPtr, nodeMembership, &leafCount[b],
-                               masterDeathTimeSize, splitRule);
-      if (_traceFlag & DL0_TRACE) {
-        Rprintf("\nRSF:  Bootstrap iteration tree complete.");  
-        Rprintf("\nRSF:  Final leaf count:  %10d ", leafCount[b]);
-        now = updateTimeStamp(now);
-      }
-      if (*memoryUseProtocol != FALSE) {
+    if (_mup & MUP_PROX) {
+      if (mode == RSF_GROW) {
         k = 0;
         for (i = 1; i <= _observationSize; i++) {
           k += i - 1;
           for (j = 1; j <= i; j++) {
-            if ( (nodeMembership[i] -> leafCount) == (nodeMembership[j] -> leafCount) ) {
-              proximity[k + j] ++;
+            if ( (_nodeMembership[i] -> leafCount) == (_nodeMembership[j] -> leafCount) ) {
+              _proximity_[k + j] ++;
             }
-          }
-        }
-        if (_traceFlag & DL0_TRACE) {
-          Rprintf("\nRSF:  Proximity matrix calculation complete.");  
-        }
-      }
-      if (_traceFlag & DL2_TRACE) {
-        Rprintf("\nFinal Membership for Bootstrap Sample:  \n");
-        for (i=1; i <=  _observationSize; i++) {
-          Rprintf("%10d %10d %10d \n", i, _bootMembershipIndex[i], nodeMembership[i] -> leafCount);
-        }
-      }
-      if (result == TRUE) {
-        cumulativeHazard = dmatrix(1, sortedTimeInterestSize, 1, leafCount[b]);
-        for (i=1; i <= leafCount[b]; i++) {
-          for (j = 1; j <= _observationSize; j++) {
-            if (_bootMembershipFlag[j] == TRUE) {
-              if ((nodeMembership[j] -> leafCount) == i) {
-                k = j;
-                j = _observationSize;
-              }
-            }
-          }
-          getCumulativeHazardEstimate(cumulativeHazard,
-                                      nodeMembership[k],
-                                      timeInterest,
-                                      sortedTimeInterestSize,
-                                      nodeMembership,
-                                      masterTime
-          );
-        }
-        if (_traceFlag & DL0_TRACE) {
-          Rprintf("\nRSF:  CHE calculation complete.");  
-        }
-        if (_traceFlag & DL2_TRACE) {
-          Rprintf("\nTree specific cumulative hazard calculation: \n");
-          Rprintf("          ");
-          for (i=1; i <= leafCount[b]; i++) {
-            Rprintf("%10d", i);
-          }
-          Rprintf("\n");
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            Rprintf("%10d", j);
-            for (i=1; i <= leafCount[b]; i++) {
-              Rprintf("%10.4f", cumulativeHazard[j][i]);
-            }
-            Rprintf("\n");
-          }
-        }
-        for (i=1; i <= _observationSize; i++) {
-          if (_bootMembershipFlag[i] == FALSE) {
-            k = nodeMembership[i] -> leafCount;
-            for (j=1; j <= sortedTimeInterestSize; j++) {
-              ensembleEstimatorPtr[j][i] += cumulativeHazard[j][k];
-            }
-            ensembleEstimatorDen[i] ++;
-          }
-        }
-        free_dmatrix(cumulativeHazard, 1, sortedTimeInterestSize, 1, leafCount[b]);
-        if (_traceFlag & DL2_TRACE) {
-          Rprintf("\nEnsemble Estimator Numerator calculation: \n");
-          Rprintf("          ");
-          for (i=1; i <= _observationSize; i++) {
-            Rprintf("%10d", i);
-          }
-          Rprintf("\n");
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            Rprintf("%10d", j);
-            for (i=1; i <= _observationSize; i++) {
-              Rprintf("%10.4f", ensembleEstimatorPtr[j][i]);
-            }
-            Rprintf("\n");
-          }
-        }
-        for (i = 1; i <= _observationSize; i++) {
-          ensembleEstimatorRun[i] = 0.0;
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            ensembleEstimatorRun[i] += ensembleEstimatorPtr[j][i];
-          }
-          if (ensembleEstimatorDen[i] != 0) {
-            ensembleEstimatorRun[i] = ensembleEstimatorRun[i] / ensembleEstimatorDen[i];
-          }
-        }
-        if (_traceFlag & DL0_TRACE) {
-          Rprintf("\nRSF:  Bootstrap iteration ensemble estimate complete.");  
-        }
-        if (_traceFlag & DL2_TRACE) {
-          Rprintf("\nEnsemble Estimator Denominator calculation: \n");
-          Rprintf("          ");  
-          for (i=1; i <= _observationSize; i++) {
-            Rprintf("%10d", i);
-          }
-          Rprintf("\n          ");
-          for (i=1; i <= _observationSize; i++) {
-            Rprintf("%10d", ensembleEstimatorDen[i]);
-          }
-          Rprintf("\n");
-          Rprintf("\nEnsemble Estimator:  %10d \n", b);
-          Rprintf("          ");
-          for (i=1; i <= _observationSize; i++) {
-            Rprintf("%10d", i);
-          }
-          Rprintf("\n          ");
-          for (i=1; i <= _observationSize; i++) {
-            Rprintf("%10.4f", ensembleEstimatorRun[i]);
-          }
-          Rprintf("\n");
-        }
-        concordancePairSize = concordanceWorseCount = 0;
-        for (i=1; i < _observationSize; i++) {
-          for (j=i+1; j <= _observationSize; j++) {
-            if (ensembleEstimatorDen[i] != 0  && ensembleEstimatorDen[j] != 0) {
-              if ( (_masterTimeIndex[i] >  _masterTimeIndex[j] && _status[j] == 1) ||
-                   (_masterTimeIndex[i] == _masterTimeIndex[j] && _status[j] == 1 && _status[i] == 0) ) {
-                concordancePairSize += 2;
-                if (ensembleEstimatorRun[j] > ensembleEstimatorRun[i]) {              
-                    concordanceWorseCount += 2;
-                  }
-                else if (fabs(ensembleEstimatorRun[j] - ensembleEstimatorRun[i]) < EPSILON) {              
-                  concordanceWorseCount += 1;
-                }  
-              }
-              else if ( (_masterTimeIndex[j] >  _masterTimeIndex[i] && _status[i] == 1) ||
-                        (_masterTimeIndex[j] == _masterTimeIndex[i] && _status[i] == 1 && _status[j] == 0) ) {
-                concordancePairSize += 2;
-                if (ensembleEstimatorRun[i] > ensembleEstimatorRun[j]) {
-                  concordanceWorseCount += 2;
-                }
-                else if (fabs(ensembleEstimatorRun[i] - ensembleEstimatorRun[j]) < EPSILON) {
-                  concordanceWorseCount += 1;
-                }  
-              }
-            }
-          }
-        }
-        performanceMeasure[b] = 1.0 - ((double) concordanceWorseCount / concordancePairSize);
-        if (_traceFlag & DL0_TRACE) {
-          Rprintf("\nRSF:  Concordance pair and error update complete.");  
-          Rprintf("\nRSF:  Number of concordance pairs:         %20d", concordancePairSize);
-          Rprintf("\nRSF:  Number of pairs with worse outcome:  %20d", concordanceWorseCount);
-          Rprintf("\nRSF:  Error Rate:                          %20.4f ", performanceMeasure[b]);
-          Rprintf("\n");
-        }
-        if (_traceFlag & DL2_TRACE) {
-          Rprintf("\nDiagnostic Classification of OOB elements:   \n");
-          Rprintf("\n       Leaf     Observ         EE    Data ->  \n");
-          for (i=1; i <= leafCount[b]; i++) {
-            for (j = 1; j <= _observationSize; j++) {
-              if (_bootMembershipFlag[j] == FALSE) {
-                if ((nodeMembership[j] -> leafCount) == i) {
-                  Rprintf("\n %10d %10d %10.4f", i, j, ensembleEstimatorRun[j]);
-                  for (k = 1; k <= *xSizePtr; k++) {
-                    Rprintf("%10.4f", _observation[k][j]);
-                  }
-                }
-              }
-            }
-            Rprintf("\n");
           }
         }
       }
       else {
-        discardedSampleCount++;
-        if (b > 1) {
-          performanceMeasure[b] = performanceMeasure[b-1];
+        k = 0;
+        for (i = 1; i <= _fobservationSize; i++) {
+          k += i - 1;
+          for (j = 1; j <= i; j++) {
+            if ( (_fnodeMembership[i] -> leafCount) == (_fnodeMembership[j] -> leafCount) ) {
+              _proximity_[k + j] ++;
+            }
+          }
         }
-      }  
-    }  
-    else {
-      discardedSampleCount++;
-      if (b > 1) {
-        performanceMeasure[b] = performanceMeasure[b-1];
+      }
+      if (getTraceFlag() & DL0_TRACE) {
+        Rprintf("\nRSF:  Proximity matrix calculation complete.");  
       }
     }
-    if (*memoryUseProtocol == FALSE) {
+    if (splitResult) {
+      _performance_[b] = getPerformance(mode,
+                                        sortedTimeInterestSize,
+                                        _leafCount_[b],
+                                        masterTimeSize,
+                                        oobEnsemblePtr,
+                                        fullEnsemblePtr,
+                                        ensembleRun,
+                                        ensembleDen,
+                                        oobSampleSize[b],
+                                        rootPtr,
+                                        vimpEnsembleRun);
+    }
+    else {
+      if (b > 1) {
+        _performance_[b] = _performance_[b-1];
+      }
+    }  
+    if (!(_mup & MUP_TREE)) {
       freeTree(rootPtr);
     }
+    updateTraceFlag(FALSE);
   }  
-  if (_traceFlag & DL2_TRACE) {
-    if (*memoryUseProtocol != FALSE) {
+  updateTraceFlag(TRUE);
+  if (_mup & MUP_VIMP) {
+    for (k=1; k <= _xSize; k++) {
+      for (i = 1; i <= _observationSize; i++) {
+        if (ensembleDen[i] != 0) {
+          vimpEnsembleRun[k][i] = vimpEnsembleRun[k][i] / ensembleDen[i];
+        }
+      }
+      if (getTraceFlag() & DL1_TRACE) {
+        Rprintf("\nConcordance Pairs for VIMP covariate:  %10d", k);  
+      }
+      _varImportance_[k] = 1.0 - getConcordanceIndex(_observationSize, 
+                                                     _time, 
+                                                     _status, 
+                                                     vimpEnsembleRun[k], 
+                                                     ensembleDen);
+    }
+    if (getTraceFlag() & DL0_TRACE) {
+      Rprintf("\nRSF:  Variable Importance Measure: \n");
+      Rprintf("          ");  
+      for (k=1; k <= _xSize; k++) {
+        Rprintf("%10d", k);
+      }
+      Rprintf("\n          ");
+      for (k=1; k <= _xSize; k++) {
+        Rprintf("%10.4f", _varImportance_[k]);
+      }
+      Rprintf("\n");
+    }
+  }
+  if (getTraceFlag() & DL1_TRACE) {
+    if (_mup & MUP_PROX) {
       Rprintf("\nProximity Matrix:  \n");
       k = 0;
       for (i = 1; i <= _observationSize; i++) {
         k += i - 1;
         for (j = 1; j <= i; j++) {
-          Rprintf("%10d ", proximity[k + j]);
+          Rprintf("%10d ", _proximity_[k + j]);
         }
         Rprintf("\n");
       }
     }
   }
-  k = 0;
-  for (b=1; b <= *bootstrapSampleCount; b++) {
-    if (oobSampleSize[b] == 0) {
-      k++;
+  rejectedTreeCount = k = 0;
+  for (b = 1; b <= _forestSize; b++) {
+    if (mode == RSF_GROW) {
+      if (oobSampleSize[b] == 0) {
+        k ++;
+      }
+    }
+    if (_leafCount_[b] == 1) {
+      rejectedTreeCount ++;
     }
   }
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Bootstrap samples:                                                  %10d ", *bootstrapSampleCount);
-    Rprintf("\nRSF:  Bootstrap samples rejected (total):                                 %10d " , discardedSampleCount);
-    Rprintf("\nRSF:  Bootstrap samples rejected (OOB subset size was zero):              %10d ", k);
-    Rprintf("\nRSF:  Bootstrap samples rejected (threshold of minimum deaths too high):  %10d \n", discardedSampleCount - k);
-    Rprintf("\n");
+  if ((getTraceFlag() & RSF_GROW) && (getTraceFlag() & DL0_TRACE)) {
+    Rprintf("\nRSF:  Trees rejected (death threshold too high):  %10d ", rejectedTreeCount - k);
+    Rprintf("\nRSF:  Trees rejected (OOB subset size was zero):  %10d ", k);
+    Rprintf("\nRSF:  Trees rejected (total):                     %10d ", rejectedTreeCount);
+    Rprintf("\nRSF:  Trees (total):                              %10d \n", _forestSize);
   }
-  if (discardedSampleCount == *bootstrapSampleCount) {
+  if ((getTraceFlag() & RSF_PRED) && (getTraceFlag() & DL0_TRACE)) {
+    Rprintf("\nRSF:  Trees rejected (total):                     %10d ", rejectedTreeCount);
+    Rprintf("\nRSF:  Trees (total):                              %10d \n", _forestSize);
+  }
+  if (rejectedTreeCount == _forestSize) {
     Rprintf("\nRSF:  *** WARNING *** ");
     Rprintf("\nRSF:  Insufficient trees for analysis.  \n");
   }
-  for (i = 1; i <= _observationSize; i++) {
-    if (ensembleEstimatorDen[i] != 0) {
+  if (mode == RSF_GROW) {
+    for (i = 1; i <= _observationSize; i++) {
       for (j=1; j <= sortedTimeInterestSize; j++) {
-        ensembleEstimatorPtr[j][i] = ensembleEstimatorPtr[j][i] / ensembleEstimatorDen[i];
+        oobEnsemblePtr[j][i] = oobEnsemblePtr[j][i] / ensembleDen[i];
+        fullEnsemblePtr[j][i] = fullEnsemblePtr[j][i] / _forestSize;
       }
     }
   }
-  if (*memoryUseProtocol != FALSE) {
-    for (b=1; b <= *bootstrapSampleCount; b++) {
-      freeTree(root[b]);
+  if (mode == RSF_PRED) {
+    for (i = 1; i <= _fobservationSize; i++) {
+      for (j=1; j <= sortedTimeInterestSize; j++) {
+        fullEnsemblePtr[j][i] = fullEnsemblePtr[j][i] / _forestSize;
+      }
     }
-    free_nodePtrVector(root, 1, *bootstrapSampleCount);
   }
-  free_nodePtrVector(nodeMembership, 1, _observationSize);
-  free_uivector(_bootMembershipIndex, 1, _observationSize);
-  free_ucvector(_bootMembershipFlag, 1, _observationSize);
-  free_dmatrix(_observation, 1, _xSize, 1, _observationSize);
-  free_dmatrix(_masterSplit, 1, _xSize, 1, _observationSize);
-  free_uimatrix(masterSplitBounds, 1, _xSize, 1, 2);
-  free_dvector(masterTime, 1, _observationSize);
-  free_uivector(_masterTimeIndex, 1, _observationSize);
-  free_uivector(masterSplitSize, 1, _xSize);
-  free_uivector(oobSampleSize, 1, *bootstrapSampleCount);
-  free_dvector(ensembleEstimatorRun, 1, _observationSize);
-  free_uivector(ensembleEstimatorDen, 1, _observationSize);
-  free_pdvector(ensembleEstimatorPtr, 1, sortedTimeInterestSize);
-  if (_traceFlag & DL0_TRACE) {
-    Rprintf("\nRSF:  Native code nominal exit.  ");
+  forestNodeCount = 0;
+  for (b = 1; b <= _forestSize; b++) {
+    forestNodeCount += (2 * _leafCount_[b]) - 1;
+  }
+  sexpIndex = stackVariableOutputObjects(
+    sexpIndex, 
+    forestNodeCount,
+    sexpString,
+    & _treeID_,
+    & _nodeID_,
+    & _parmID_,
+    & _spltPT_,
+    sexpVector);
+  if (_mup & MUP_TREE) {
+    forestNodeCount = 1;
+    for (b = 1; b <= _forestSize; b++) {
+      saveTree(b, root[b], & forestNodeCount, _treeID_, _nodeID_, _parmID_, _spltPT_);
+    }
+    forestNodeCount --;
+    if (getTraceFlag() & DL2_TRACE) {
+      Rprintf("\nGrown Forest Node Count:  %10d", forestNodeCount);
+      Rprintf("\nGrown Forest Output:  ");
+      Rprintf("\n   TREE_ID    NODE_ID    PARM_ID      SPLT_PT");
+      for (i = 1; i <= forestNodeCount; i++) {
+        Rprintf("\n%10d %10d %10d %12.4f",
+          _treeID_[i],
+          _nodeID_[i],
+          _parmID_[i],
+          _spltPT_[i]);
+      }
+      Rprintf("\n");
+      Rprintf("\nGrown Forest Membership by Observation:  ");
+      Rprintf("\n    OBSERV    TREE_ID    NODE_ID");
+      for (b = 1; b <= _forestSize; b++) {
+        for (k = 1; k <= _observationSize; k++) {
+	  Rprintf("\n%10d %10d %10d ", k, b, getMembership(root[b], _observation, k) -> leafCount);
+        }
+      }
+      Rprintf("\n");
+    }
+    if (getTraceFlag() & DL1_TRACE) {
+      Rprintf("\nGrown Forest Random Seed Vector:  ");
+      Rprintf("\n   TREE_ID                 seed");
+      for (b = 1; b <= _forestSize; b++) {
+        Rprintf("\n%10d %20d ", b, _seed_[b]);
+      }
+      Rprintf("\n");
+    }
+  }
+  unstackPreDefinedCommonArrays(oobSampleSize);
+  if (mode == RSF_GROW) {
+    unstackPreDefinedGrowthArrays(
+                                  masterSplit,
+                                  masterSplitSize,
+                                  masterSplitOrder
+                                 );
+  }
+  else {
+    unstackPreDefinedPredictArrays();
+  }
+  unstackDefinedOutputObjects(mode,
+                       root,
+                       sortedTimeInterestSize,
+                       oobEnsemblePtr,
+                       fullEnsemblePtr,
+                       ensembleRun,
+                       ensembleDen,
+                       vimpEnsembleRun);
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  Native code rsf() exit. \n");
     now = updateTimeStamp(start);
   }
-}  
+  UNPROTECT(stackCount + 2);
+  return sexpVector[RSF_OUTP_ID];
+}

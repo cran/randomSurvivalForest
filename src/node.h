@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 1.0.0
+//  RANDOM SURVIVAL FOREST 2.0.0
 //
 //  Copyright 2006, Cleveland Clinic
 //
@@ -60,9 +60,10 @@
 typedef struct node Node;
 struct node {
   struct node *parent;
-  uchar splitFlag;
+  char splitFlag;
   uint splitParameter;
-  uint splitValue;
+  uint splitValueIndex;
+  double splitValue;
   uint leafCount;
   struct node *left;
   struct node *right;

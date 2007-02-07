@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 1.0.0
+##  RANDOM SURVIVAL FOREST 2.0.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -57,6 +57,6 @@
 Survrsf <- function(t, d) {
     ss <- cbind(t, d)
     attr(ss, "type") <- "right-censored"
-    class(ss) <- "Survrsf"
+    class(ss) <- "rsf.formula"
     return(ss)
 }
