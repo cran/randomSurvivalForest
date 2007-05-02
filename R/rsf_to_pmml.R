@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.0.0
+##  RANDOM SURVIVAL FOREST 2.1.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -95,9 +95,9 @@ rsf_to_pmml <- function(rsfForest, ...) {
     # and attributes concurrently. 
     rootString = 
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-         <PMML version=\"3.1\" xmlns=\"http:\/\/www.dmg.org/PMML-3_1\" xmlns:xsi=\"http:\/\/www.w3.org/2001/XMLSchema-instance\">
+         <PMML version=\"3.1\" xmlns=\"http:##www.dmg.org/PMML-3_1\" xmlns:xsi=\"http:##www.w3.org/2001/XMLSchema-instance\">
            <Header copyright=\"Copyright 2006, Cleveland Clinic\" description=\"Random Survival Forest Tree Model\">
-              <Application name=\"Random Survival Forest\" version=\"2.0\"/>
+              <Application name=\"Random Survival Forest\" version=\"2.1\"/>
            </Header>
          </PMML>
        "
@@ -107,6 +107,9 @@ rsf_to_pmml <- function(rsfForest, ...) {
     pmmlDoc = xmlTreeParse(rootString, asText=TRUE)
     pmmlRoot = xmlRoot(pmmlDoc)
 
+    # Define the MiningBuildTask node for the document.
+    miningBldTskNode = xmlNode("MiningBuildTask")
+  
     # Define the DataDictionary node for the document.
     dataDictNode = xmlNode("DataDictionary", attrs=c(numberOfFields=length(predictorNames)))
 
@@ -132,8 +135,8 @@ rsf_to_pmml <- function(rsfForest, ...) {
                                           attrs=c(type="double", n=length(timeInterest)), 
                                           paste(timeInterest, collapse="  \n  "))))
     
-    # Add the Extension node to the DataDictionary.
-    dataDictNode = append.XMLNode(dataDictNode, extensionNode)
+    # Add the Extension node to the MiningBuildTask.
+    miningBldTskNode = append.XMLNode(miningBldTskNode, extensionNode)
     
 
 
@@ -142,6 +145,9 @@ rsf_to_pmml <- function(rsfForest, ...) {
         dataDictNode = append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=predictorNames[k], optype="continuous", dataType="double")))
     }
 
+    # Add the MiningBuildTask to the root node.
+    pmmlRoot = append.XMLNode(pmmlRoot, miningBldTskNode)
+  
     # Add the DataDictionary to the root node.
     pmmlRoot = append.XMLNode(pmmlRoot, dataDictNode)
 

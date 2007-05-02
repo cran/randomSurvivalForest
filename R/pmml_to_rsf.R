@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.0.0
+##  RANDOM SURVIVAL FOREST 2.1.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -66,6 +66,13 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
         stop("XML content malformed or not of type PMML.  Please ensure the data is valid.")
     }
  
+    # Point to the MiningBuildTask node, there should only be one.
+    rsfMiningBldTsk <- pmmlRoot[names(pmmlRoot) == "MiningBuildTask"]
+    # Stop if there is not one and only one.
+    if(length(rsfMiningBldTsk) != 1) {
+        stop("MiningBuildTask not found or malformed in PMML content.  Please ensure the data is valid.")
+    }
+    
     # Point to the DataDictionary node, there should only be one.
     rsfDataDict <- pmmlRoot[names(pmmlRoot) == "DataDictionary"]
     # Stop if there is not one and only one.
@@ -84,8 +91,11 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
         stop("TreeModel not found in PMML content.  Please ensure the data is valid.")
     }
 
+    # Extract the MiningBuildTask node.
+    miningBldTsk = rsfMiningBldTsk[1]$MiningBuildTask
+    
     # Extract the DataDictionary node.
-    dataDictNode = rsfDataDict[1]$DataDict
+    dataDictNode = rsfDataDict[1]$DataDictionary
 
     # Extract the numberOfFields attribute.
     numFields = as.integer(xmlGetAttr(dataDictNode, "numberOfFields"))
@@ -114,22 +124,22 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
         predictorNames[i] = xmlGetAttr(dataFieldNode, "name")
     }
 
-    # Point to all Extension nodes, we need only the one containing the RSF extensionsof.
-    rsfDataDictExtn = dataDictNode[names(dataDictNode) == "Extension"]
+    # Point to all Extension nodes, we need only the one containing the RSF extensions.
+    rsfMiningBldTskExtn = miningBldTskNode[names(miningBldTskNode) == "Extension"]
 
     # Count the number of Extension nodes.
-    numExtn = length(rsfDataDictExtn)
+    numExtn = length(rsfMiningBldTskExtn)
 
     extnFlag = FALSE
     # Loop through all Extension nodes, searching for the RSF extensions.
     for (i in 1:numExtn) {
         if (extnFlag == FALSE) {
             # Determine if this extension is the RSF extension.
-            ddeNode = rsfDataDictExtn[i]$Extension
+            mbteNode = rsfMiningBldTskExtn[i]$Extension
 
-            rsfFormula = ddeNode[names(ddeNode) == "X-RSF-Formula"]            
-            rsfBootSeed = ddeNode[names(ddeNode) == "X-RSF-BootstrapSeeds"]
-            rsfTimeInt = ddeNode[names(ddeNode) == "X-RSF-TimesOfInterest"]
+            rsfFormula = mbteNode[names(ddeNode) == "X-RSF-Formula"]            
+            rsfBootSeed = mbteNode[names(ddeNode) == "X-RSF-BootstrapSeeds"]
+            rsfTimeInt = mbteNode[names(ddeNode) == "X-RSF-TimesOfInterest"]
 
 
             if (length(rsfFormula) == 1) {

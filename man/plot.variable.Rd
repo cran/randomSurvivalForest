@@ -9,7 +9,8 @@
     plot.variable(x,
                   plots.per.page = 4,
                   granule = 5,
-                  sort = TRUE, 
+                  sort = TRUE,
+                  freq = TRUE,
                   partial = FALSE,
                   predictorNames = NULL,
                   n.pred = NULL,
@@ -25,11 +26,14 @@
         plot. Larger values coerce boxplots.}
     \item{sort}{Should predictors be sorted by importance values (only
         applies if importance values are available)?  Default is TRUE.}
+    \item{freq}{Should y-axis be in terms of expected number of deaths
+	(the default), or should relative frequencies be used?} 
     \item{partial}{Logical. Should partial plots be created?  Default
         is FALSE.}
     \item{predictorNames}{Character vector of predictor names.  Only these
         predictors will be plotted.  Default is all.}
-    \item{n.pred}{Number of predictors to be plotted.  Default is all.}
+    \item{n.pred}{Number of predictors to be plotted (only applies when
+	\code{predictorNames}=NULL).  Default is all.}
     \item{n.pts}{Maximum number of points used when generating partial
         plots for continuous predictors.}
     \item{...}{Further arguments passed to or from other methods.}
@@ -40,7 +44,10 @@
     terms of total number of deaths.  For example, if individual
     \code{i} has a mortality value of 100, then if all individuals had
     the same predictor as \code{i}, there would be 100 deaths in the
-    dataset (on average).
+    dataset (on average).  Note that if \code{freq}=FALSE, then
+    mortality values are divided by the sample size and the y-axis
+    records relative frequencies (i.e. the expected fraction of deaths
+    in the sample).
 
     Default is to create marginal plots.  Thus, each point represents
     the estimated mortality of an individual \code{i} against the value
@@ -92,6 +99,6 @@
   v.out <- rsf(Survrsf(time,status)~., veteran, forest = TRUE, ntree = 1000)
   plot.variable(v.out, plots.per.page = 3)
   plot.variable(v.out, plots.per.page = 2, predictorNames = c("trt", "karno", "age"))
-  plot.variable(v.out, partial = TRUE, plots.per.page = 2, n.pred=3)
+  plot.variable(v.out, freq = TRUE, partial = TRUE, plots.per.page = 2, n.pred=3)
 }
 \keyword{file}

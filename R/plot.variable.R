@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.0.0
+##  RANDOM SURVIVAL FOREST 2.1.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -59,6 +59,7 @@ plot.variable <- function (
     plots.per.page = 4,
     granule = 5,
     sort = TRUE,
+    freq = TRUE,                           
     partial = FALSE,
     predictorNames = NULL,
     n.pred = NULL,                           
@@ -82,8 +83,10 @@ plot.variable <- function (
            cat("Coefficient list does not match available predictors:","\n")
            print(x$predictorNames)
            stop()
-         }
-      cov.names <- cov.names[is.element(cov.names, x$predictorNames)]
+      }
+      cov.names <- unique(cov.names[is.element(cov.names, x$predictorNames)])
+      n.cov <- length(cov.names)
+      n.pred <- NULL
     }
     if (sort) {
       if (!is.null(x$importance)) {
@@ -101,8 +104,6 @@ plot.variable <- function (
       cov.names <- cov.names[1:n.cov]
     }
     n <- dim(predictors)[1]
-    mortality.ensemble <- x$mortality
-
       
     ### plots (marginal, partial)
     old.par <- par(no.readonly = TRUE)
@@ -111,6 +112,12 @@ plot.variable <- function (
       plots.per.page <- max(round(min(plots.per.page,n.cov)), 1)
       granule <- max(round(granule),1)
       par(mfrow = c(min(plots.per.page, ceiling(n.cov/plots.per.page)), plots.per.page))
+      if (freq) {
+        mortality.ensemble <- x$mortality
+      }
+      else {
+        mortality.ensemble <- x$mortality/n
+      }
       for (k in 1:n.cov) {
         y <- predictors[, x$predictorNames == cov.names[k]]
         y.uniq <- unique(y)
@@ -173,20 +180,23 @@ plot.variable <- function (
         colnames(newdata.y) <- x$predictorNames
         for (l in 1:n.y) {
            newdata.y[, x$predictorNames == cov.names[k]] <- rep(y.uniq[l], n)
+           pred.temp <- predict.rsf(baseForest, newdata.y)$mortality
            if (n.y > granule | n.cov == 1) {
-             mortality.y <- c(mortality.y, mean(predict.rsf(baseForest, newdata.y)$mortality))
-             mortality.y.se <- c(mortality.y.se,
-                                 sd(predict.rsf(baseForest, newdata.y)$mortality)/sqrt(n))
+             mortality.y <- c(mortality.y, mean(pred.temp))
+             mortality.y.se <- c(mortality.y.se, sd(pred.temp/sqrt(n)))
            }
            else {
-             pred.temp <- predict.rsf(baseForest, newdata.y)$mortality
              mean.temp <- mean(pred.temp)
              pred.temp <- mean.temp + (pred.temp-mean.temp)/sqrt(n)
              mortality.y <- c(mortality.y, pred.temp)
            }
         }
         if (n.y > granule | n.cov == 1) {
-            plot(c(min(y), y.uniq,max(y), y.uniq, y.uniq),
+            if (!freq) {
+              mortality.y <- mortality.y/n
+              mortality.y.se <- mortality.y.se/n
+            }
+            plot(c(min(y), y.uniq, max(y), y.uniq, y.uniq),
                  c(NA, mortality.y, NA, mortality.y+2*mortality.y.se, mortality.y-2*mortality.y.se),
                  xlab=cov.names[k],
                  ylab = "",
@@ -201,13 +211,20 @@ plot.variable <- function (
             rug(y, ticksize=0.03)
         }
         else {
+            if (freq) {
+              y.se <- 2
+            }
+            else {
+              mortality.y <- mortality.y/n
+              y.se <- 2/n
+            }
             bxp.call <- boxplot(mortality.y ~ rep(y.uniq, rep(n, n.y)), range = 2, plot = F)
             boxplot(mortality.y ~ rep(y.uniq, rep(n, n.y)),
                     xlab = cov.names[k],
                     notch = T,
                     outline = F,
                     range = 2,
-                    ylim = c(min(bxp.call$stats[1,])-2,max(bxp.call$stats[5,])+2),
+                    ylim = c(min(bxp.call$stats[1,])-y.se,max(bxp.call$stats[5,])+y.se),
                     data = predictors,
                     col = "bisque",
                     names = rep("",n.y),

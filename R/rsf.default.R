@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.0.0
+##  RANDOM SURVIVAL FOREST 2.1.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -55,7 +55,7 @@
 ##**********************************************************************
 
 #################################################################
-# Primary R function for Random Surival Forests
+# Primary R function for Random Survival Forests
 # ---------------------------------------------------------------
 # Description:
 #  Ishwaran and Kogalur's Random Survival Forests algorithm for right
@@ -78,6 +78,7 @@ rsf.default <- function(
     nodesize = NULL,
     splitrule = c("logrank", "conserve", "logrankscore", "logrankapprox")[1],
     importance = TRUE,
+    big.data = FALSE,
     predictorWt = NULL,
     forest = FALSE,
     do.trace = FALSE,
@@ -96,25 +97,36 @@ rsf.default <- function(
     mf <- mf[c(1, m)]
     mf$drop.unused.levels <- TRUE 
     mf[[1]] <- as.name("model.frame")
-    mf <- eval(mf, parent.frame())
-    if (!inherits(model.extract(mf, "response"), "rsf.formula"))
+    fNames <- all.vars(formula, max.names=1e7)
+    if (!(all.names(formula)[2]=="Survrsf" &
+        sum(is.element(names(data), fNames[1:2]))==2)) 
       stop("Outcome is not a random survival object.  Use 'Survrsf' for the formula.")
-      
+
     ### process data for native code
     ### remove any NA's and issue warning
+    ### special treatement for big.data=T
     ### add noise variable if requested (and adjust formula and predictorWt)
-    fNames <- all.vars(formula)
     if (fNames[3] != ".") {
-       predTempNames <- attr(terms(formula), "term.labels")
+       if (!big.data) {
+         predTempNames <- attr(terms(formula), "term.labels")
+       }
+       else {
+         predTempNames <- fNames[-c(1:2)]
+       }
     }
     else {
        predTempNames <- names(data)[!is.element(names(data), fNames[1:2])]
        formula = as.formula(paste(paste("Survrsf(",fNames[1],",",fNames[2],") ~"),
                             paste(predTempNames, collapse="+")))
     }
-    data <- as.data.frame(
+    if (!big.data) {
+      data <- as.data.frame(
             model.matrix(as.formula(paste("~ -1 +",
             paste(c(fNames[1:2], predTempNames), collapse="+"))), data))
+    }
+    else {
+       data <- na.omit(data[,is.element(names(data), c(fNames[1:2], predTempNames))])
+    } 
     predictorNames <- names(data)[!is.element(names(data), fNames[1:2])]
     predictors <- as.matrix(data[,is.element(names(data), predictorNames)])
     if (dim(predictors)[1] <= 1)
@@ -348,7 +360,12 @@ rsf.default <- function(
         forest = forest,
         proximity = (if (proximity) nativeOutput$proximity else NULL)
     )
-    class(rsfOutput) <- c("rsf", "grow")
+    if (!big.data) {
+      class(rsfOutput) <- c("rsf", "grow")
+    }
+    else {
+      class(rsfOutput) <- c("rsf", "grow", "bigdata")
+    }
     return(rsfOutput)
     
   }

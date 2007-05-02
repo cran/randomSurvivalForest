@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.0.0
+##  RANDOM SURVIVAL FOREST 2.1.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -95,7 +95,7 @@ plot.error <- function (x, ...) {
       imp.out=as.data.frame(cbind(imp,x$predictorWt),row.names=x$predictorNames)[rev(pred.order),]
       colnames(imp.out) <- c("Importance","predictorWt")
       cat("\n")
-      print(round(imp.out,4), justify="right", print.gap=3)
+      print(round(imp.out[1:min(n.pred,100),],4), justify="right", print.gap=3)
     } 
     par(old.par)      
 }

@@ -23,6 +23,7 @@
     nodesize = NULL,
     splitrule = c("logrank", "conserve", "logrankscore", "logrankapprox")[1],
     importance = TRUE,
+    big.data = FALSE,
     predictorWt = NULL,
     forest = FALSE,
     do.trace = FALSE,
@@ -55,6 +56,8 @@
         Default value is \dQuote{logrank}.  See details below.}
     \item{importance}{Logical.  Should importance of predictors be
       estimated?  Default is TRUE.}
+    \item{big.data}{Logical.  Set this value to true when the number of predictors
+      \code{p} is \emph{very} large, or the data is very large.  See details below.}
     \item{predictorWt}{Vector of positive weights where entry \code{k}
         represents the likehood of selecting predictor 
         \code{k} as a candidate for splitting.  Default is to use uniform
@@ -112,6 +115,19 @@
   predictor named \dQuote{marital} encoded as a factor with levels
   \dQuote{S}, \dQuote{M} and \dQuote{D}, two new dummy variables will be
   created labeled \dQuote{maritalM} and \dQuote{maritalS}.
+
+  For \emph{very} large data sets, or data with a \emph{large} number of
+  predictors, users should consider setting the logical flag
+  \code{big.data} to TRUE.  This bypasses the large overhead needed by R
+  in creating design matrices and parsing formula.  Users should be
+  aware, however, that predictors are not processed and are interpreted
+  \emph{as is} when this option is turned on.  Think of the data frame
+  as containing time and censoring information and the rest of the data
+  as the pre-processed design matrix when this option is on.  Side
+  effects are that factors are not transformed to dummy values (in fact
+  they are coerced to NAs), and transformations used in the formula
+  (such as logs etc.) are ignored.
+  
 }    
 \value{
      An object of class \code{(rsf, grow)}, which is a list with the
@@ -220,6 +236,7 @@
   \code{plot.proximity},
   \code{predict.rsf},
   \code{print.rsf},
+  \code{find.interaction},
   \code{pmml_to_rsf},
   \code{rsf_to_pmml},
   \code{Survrsf}.

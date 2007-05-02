@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.0.0
+##  RANDOM SURVIVAL FOREST 2.1.0
 ##
 ##  Copyright 2006, Cleveland Clinic
 ##
@@ -63,33 +63,38 @@ predict.rsf <- function(
 {
 
     ### check that 'object' and 'newdata' are appropriate types
+    ### special treatment for class (rsf, grow, bigdata)
     if (is.null(object)) stop("Object is empty!")
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2    &
         sum(inherits(object, c("rsf", "forest"), TRUE) == c(1, 2)) != 2  &
         sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+    big.data <- F
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) == 2) {
       if (is.null(object$forest)) 
         stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
+      if (inherits(object, c("rsf", "grow", "bigdata"), TRUE) [3] == 3) big.data <- T
       object <- object$forest
     }
     if (is.null(newdata)) stop("'newdata' is null.")
     if (!is.data.frame(newdata)) stop("'newdata' must be a data frame.")
-    
+
     ### check that newdata matches original training data
     ### add noise variable if necessary
     ### clean up newdata if necessary
     ### check to see if training data contains time and censoring info
     ### NOTE: automatic pass given if object is of class (rsf, partial)
+    ### NOTE: special treatment dependent on big.data flag
     if (sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) == 2) {
       predictorsTestdata  <- as.matrix(newdata)
       rownames(predictorsTestdata) <- colnames(predictorsTestdata) <- NULL
       Time <- rep(0, dim(predictorsTestdata)[1])
       Cens <- rep(1, dim(predictorsTestdata)[1])
       performance <- F
+      remove(newdata)
     }
     else {
-      fNames <- all.vars(object$formula)
+      fNames <- all.vars(object$formula, max.names=1e7)
       if (sum(is.element(fNames,"noise")) == 1) {
         newdata <- as.data.frame(cbind(newdata, noise = rnorm(dim(newdata)[1])))
       }
@@ -97,14 +102,29 @@ predict.rsf <- function(
         stop("'newdata' does not match original training data.")
       }
       if (sum(is.element(names(newdata), fNames[1:2])) == 2) {
-        ftermLabels <- c(fNames[1:2], attr(terms(object$formula), "term.labels"))
+        if (!big.data) {
+          ftermLabels <- c(fNames[1:2], attr(terms(object$formula), "term.labels"))
+        }
+        else {
+          ftermLabels <- fNames
+        }
       }
       else {
-        ftermLabels <- attr(terms(object$formula), "term.labels")
+        if (!big.data) {
+          ftermLabels <- attr(terms(object$formula), "term.labels")
+        }
+         else {
+           ftermLabels <- fNames[-c(1:2)]
+         }
       }
-      newdata <- as.data.frame(
-               model.matrix(as.formula(paste("~ -1 +",
-               paste(ftermLabels, collapse="+"))), newdata))
+      if (!big.data) { 
+        newdata <- as.data.frame(
+                  model.matrix(as.formula(paste("~ -1 +",
+                  paste(ftermLabels, collapse="+"))), newdata))
+      }
+      else {
+        newdata <- na.omit(newdata[,is.element(names(newdata), ftermLabels)])
+      }      
       predictorsTestdata  <- as.matrix(newdata[,is.element(names(newdata), object$predictorNames)])
       rownames(predictorsTestdata) <- colnames(predictorsTestdata) <- NULL
       fNames.pt <- is.element(fNames[1:2], names(newdata))
@@ -121,6 +141,7 @@ predict.rsf <- function(
         Cens <- rep(1, dim(predictorsTestdata)[1])
         performance <- F
       }
+      remove(newdata)
     }
     
     ### work out individuals at risk (used later for mortality calculation)
@@ -143,7 +164,7 @@ predict.rsf <- function(
     else {
       do.trace <- 1*(do.trace)
     }
- 
+    
     ###################################################################
     # Parameters passed the C function rsfPredict(...) are as follows:
     ###################################################################
@@ -222,7 +243,7 @@ predict.rsf <- function(
         as.integer(object$nativeArray[,3]),
         as.double(object$nativeArray[,4]),
         as.integer(object$bootstrapSeed))
-
+    
     mortality <- apply(matrix(nativeOutput$fullEnsemble, 
                        nrow = length(Cens),
                        byrow = FALSE),

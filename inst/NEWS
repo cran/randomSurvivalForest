@@ -1,9 +1,36 @@
 Package: randomSurvivalForest
-Version: 2.0.0
-BUILD: bld20070207
+Version: 2.1.0
+BUILD: release_2_0_bld20070502
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.0.0
+CHANGES TO RELEASE 2.1.0
+
+Release 2.1.0 represents a minor upgrade of the product, and will not affect
+most users of the prior version of the product.  Key changes are as follows:
+
+o R 2.5.0 compliance issues and necessitated modifications.
+
+o Modification of PMML representation of RSF forest output.  The RSF custom
+  extension has been moved from the DataDictionary node to a new
+  MiningBuildTask node.  Note that forests produced with Release 2.0.0 will
+  have to be regenerated using Release 2.1.0.  We apologize for the 
+  inconvenience.
+
+o Fast processing of data involving large numbers of predictors (as in
+  many genomic examples) by using the option big.data=TRUE.  This
+  option bypasses the huge overhead needed by R in creating design
+  matrices and parsing formula.  However, users should be aware of
+  some side effects.  See the RSF help file for more details.  Thanks
+  to Steven (Xi) Chen for pointing out the problem.
+
+o Only the top 100 predictors are now printed to the terminal when
+  calling plot.error().  This deals with settings as above when one
+  might have thousands of predictors.
+
+o Introduced a new wrapper "find.interaction()" for testing for
+  pairwise interactions between predictors.  
+
+---------------------------------------------------------------------------------
 
 Release 2.0.0 represents a major upgrade in the functionality and stability
 of the original 1.0.0 release.  Key changes are as follows:

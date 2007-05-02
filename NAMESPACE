@@ -11,8 +11,10 @@ export(rsf.news,
        plot.ensemble,
        plot.proximity,
        plot.variable,
+       plot.rsf,
        print.rsf,
-       plot.rsf)
+       find.interaction)
+
 
 S3method(rsf, default)
 S3method(print, rsf)
