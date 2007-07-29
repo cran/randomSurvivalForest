@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License

@@ -13,8 +13,8 @@ export(rsf.news,
        plot.variable,
        plot.rsf,
        print.rsf,
-       find.interaction)
-
+       find.interaction,
+       plot.rsf)
 
 S3method(rsf, default)
 S3method(print, rsf)

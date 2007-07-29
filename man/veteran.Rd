@@ -3,7 +3,7 @@
 \alias{veteran}
 \title{Veteran's Administration Lung Cancer Trial}
 \description{
-    Randomized trail of two treatment regimens for lung cancer.
+    Randomized trial of two treatment regimens for lung cancer.
     This is a standard survival analysis data set.
 }
 \format{A data frame containing:

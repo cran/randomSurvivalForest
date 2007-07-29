@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -64,7 +64,7 @@ print.rsf <- function(x, ...) {
 
   ### check that object is interpretable
   if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
-    sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
+      sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
 
   ### printing depends upon the object
@@ -72,6 +72,11 @@ print.rsf <- function(x, ...) {
     cat("\nCall:\n", deparse(x$call), "\n\n")
     cat("                         Sample size: ", x$n,                 "\n", sep="")
     cat("                    Number of deaths: ", x$ndead,             "\n", sep="")
+    if (!is.null(x$imputedData)) {
+      cat("                    Was data imputed: ", "yes",               "\n", sep="")
+      cat("                         Missingness: ",
+          round(100*length(x$imputedIndv)/x$n,2), "%\n", sep="")      
+    }
     cat("                     Number of trees: ", x$ntree,             "\n",sep="")
     cat("          Minimum terminal node size: ", x$nodesize,          "\n", sep="")
     cat("       Average no. of terminal nodes: ", mean(x$leaf.count),  "\n", sep="")
@@ -86,6 +91,11 @@ print.rsf <- function(x, ...) {
     cat("  Sample size of test (predict) data: ", x$n,                 "\n", sep="")
     if (!is.null(x$ndead)) {
       cat("       Number of deaths in test data: ", x$ndead,             "\n", sep="")
+    }
+    if (!is.null(x$imputedData)) {
+      cat("               Was test data imputed: ", "yes",               "\n", sep="")
+      cat("                         Missingness: ",
+          round(100*length(x$imputedIndv)/x$n,2), "%\n", sep="")      
     }
     cat("                Number of grow trees: ", x$ntree,             "\n",sep="")
     cat("  Average no. of grow terminal nodes: ", mean(x$leaf.count),  "\n", sep="")

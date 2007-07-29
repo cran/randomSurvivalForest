@@ -54,18 +54,44 @@
 //**********************************************************************
 //**********************************************************************
 
-#ifndef NODE_H
-#define NODE_H
-typedef struct node Node;
-struct node {
-  struct node *parent;
-  char splitFlag;
-  unsigned int splitParameter;
-  unsigned int splitValueIndex;
-  double splitValue;
-  unsigned int leafCount;
-  struct node *left;
-  struct node *right;
-  unsigned int **permissibleSplit;
-};
+#ifndef RSFIMPUTE_H
+#define RSFIMPUTE_H
+#include "extern.h"
+char imputeNode(uint type, uint b, Node *parent);
+void imputeTree(char mode, uint b, Node *parent);
+void imputeUpdate(char mode, double **mvImputationPtr);
+void imputeSummary(char      mode,
+                   char    **mRecordBootFlag,
+                   double ***mvImputation,
+                   double   *sumStatus,
+                   double   *sumTime,
+                   double  **sumPredictor);
+void imputeConcordance(char      mode,
+                       uint      b,
+                       char    **mRecordBootFlag,
+                       double ***mvImputation,
+                       double   *sumStatus,
+                       double   *sumTime,
+                       double   *status,
+                       double   *time);
+void imputeCommon(char      mode,
+                  char      recordFlag,
+                  uint      b,
+                  char    **mRecordBootFlag,
+                  double ***mvImputation,
+                  double   *sumStatus,
+                  double   *sumTime,
+                  double  **sumPredictor);
+void unImpute (char);
+double getMaximalValue(double *value, uint size);
+double getMedianValue(double *value, uint size);
+double getMeanValue(double *value, uint size);
+double getSampleValue(double *value, uint size, char chainFlag);
+uint getRecordMap(uint   *map, 
+                  uint    size, 
+                  double *status, 
+                  double *time, 
+                  double *data);
+char getForestSign (uint mode, uint b);
+void updateTimeIndexArray(Node *parent);
 #endif

@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -54,7 +54,7 @@
 ##**********************************************************************
 ##**********************************************************************
 
-plot.proximity <- function (x, ...) {
+plot.proximity <- function (x, plot = TRUE, ...) {
 
    ### check that object is interpretable
    if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
@@ -75,13 +75,23 @@ plot.proximity <- function (x, ...) {
     count <- count+k
   }
   proxm <- proxm/diag(proxm)
-  loc <- cmdscale(sqrt(1-proxm))
-  old.par <- par(no.readonly = TRUE)
-  par(mfrow = c(1,1))
-  plot(loc[,1], -loc[,2], type="n", xlab="", ylab="", main="cmdscale(Ensemble Mortality)")
-  text(loc[,1], -loc[,2],
-       pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
-       cex=0.8)
-  par(old.par)
+  if (plot) {
+    loc <- cmdscale(sqrt(1-proxm))
+    old.par <- par(no.readonly = TRUE)
+    par(mfrow = c(1,1))
+    plot(loc[,1], -loc[,2], type="n", xlab="", ylab="", main="cmdscale(Ensemble Mortality)")
+    if (sum(x$Cens == 1) > 1 & sum(x$Cens == 0) > 1) {
+      text(loc[,1], -loc[,2],
+           pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
+           col = 3*x$Cens+1,
+           cex = 0.8)
+    }
+    else {
+      text(loc[,1], -loc[,2],
+           pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
+           cex = 0.8)
+    }
+    par(old.par)
+  }
   invisible(proximity=proxm)
 }

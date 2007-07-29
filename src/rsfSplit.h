@@ -54,18 +54,26 @@
 //**********************************************************************
 //**********************************************************************
 
-#ifndef NODE_H
-#define NODE_H
-typedef struct node Node;
-struct node {
-  struct node *parent;
-  char splitFlag;
-  unsigned int splitParameter;
-  unsigned int splitValueIndex;
-  double splitValue;
-  unsigned int leafCount;
-  struct node *left;
-  struct node *right;
-  unsigned int **permissibleSplit;
-};
+#ifndef RSFSPLIT_H
+#define RSFSPLIT_H
+#include "extern.h"
+char logRankApprox(Node    *parent,
+                   uint    *splitParameterMax,
+                   uint    *splitValueMax,
+                   double **masterSplit);
+char logRankScore(Node    *parent,
+                  uint    *splitParameterMax,
+                  uint    *splitValueMax,
+                  double **masterSplit,
+                  uint   **masterSplitOrder);
+char conserveEvents(Node    *parent,
+                    uint    *splitParameterMax,
+                    uint    *splitValueMax,
+                    double **masterSplit);
+char logRank(Node    *parent,
+             uint    *splitParameterMax,
+             uint    *splitValueMax,
+             double **masterSplit);
+uint selectRandomCovariates(Node *parent,
+                            uint *covariateIndex);
 #endif

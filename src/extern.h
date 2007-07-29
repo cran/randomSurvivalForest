@@ -54,18 +54,53 @@
 //**********************************************************************
 //**********************************************************************
 
-#ifndef NODE_H
-#define NODE_H
-typedef struct node Node;
-struct node {
-  struct node *parent;
-  char splitFlag;
-  unsigned int splitParameter;
-  unsigned int splitValueIndex;
-  double splitValue;
-  unsigned int leafCount;
-  struct node *left;
-  struct node *right;
-  unsigned int **permissibleSplit;
-};
-#endif
+extern int      *_seed_;
+extern uint     *_leafCount_;
+extern uint      _mup;
+extern uint      _splitRule;
+extern uint      _forestSize;
+extern uint      _minimumDeathCount;
+extern uint      _randomCovariateCount;
+extern double   *_randomCovariateWeight;
+extern uint      _observationSize;
+extern uint      _xSize;
+extern double   *_time;
+extern double   *_status;
+extern double   *_xData;
+extern uint      _fobservationSize;
+extern double   *_ftime;
+extern double   *_fstatus;
+extern double   *_fxData;
+extern uint      _timeInterestSize;
+extern double   *_timeInterest;
+extern SEXP      _sexp_xType;
+extern char    **_xType;
+extern double  **_observation;
+extern double  **_fobservation;
+extern double   *_masterTime;
+extern uint     *_masterTimeIndex;
+extern uint      _masterTimeSize;
+extern uint     *_mRecordMap;
+extern uint     *_fmRecordMap;
+extern uint      _mRecordSize;
+extern uint      _fmRecordSize;
+extern uint     *_mRecordIndex;
+extern uint     *_fmRecordIndex;
+extern uint      _mvSize;
+extern uint      _fmvSize;
+extern int     **_mvSign;
+extern int     **_fmvSign;
+extern int      *_mvIndex;
+extern int      *_fmvIndex;
+extern int     **_mvForestSign;
+extern int     **_fmvForestSign;
+extern double   *_mStatus;
+extern double   *_fmStatus;
+extern double   *_mTime;
+extern double   *_fmTime;
+extern int      *_seed1Ptr;
+extern int      *_seed2Ptr;
+extern Node    **_nodeMembership;
+extern uint     *_bootMembershipIndex;
+extern char     *_bootMembershipFlag;
+extern Node    **_fnodeMembership;

@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 2.1.0
+//  RANDOM SURVIVAL FOREST 3.0.0
 //
-//  Copyright 2006, Cleveland Clinic
+//  Copyright 2007, Cleveland Clinic
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -56,7 +56,6 @@
 
 #ifndef NODE_OPS_H
 #define NODE_OPS_H
-#include "node.h"
 extern uint _xSize;
 Node ***nodePtrMatrix(
   ulong nrl,
@@ -68,6 +67,7 @@ Node **nodePtrVector(
   ulong nl,
   ulong nh
 );
+Node* makeNode();
 void free_nodePtrMatrix(
   Node ***m,
   ulong nrl,
@@ -81,7 +81,6 @@ void free_nodePtrVector(
   ulong nh
 );
 void free_Node(Node *parent);
-Node* makeNode();
 void getNodeInfo(Node *leaf);
 void setParent(
   Node *daughter,

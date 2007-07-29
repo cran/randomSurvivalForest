@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 2.1.0
+//  RANDOM SURVIVAL FOREST 3.0.0
 //
-//  Copyright 2006, Cleveland Clinic
+//  Copyright 2007, Cleveland Clinic
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -54,112 +54,66 @@
 //**********************************************************************
 //**********************************************************************
 
-#include "node.h"
-char logRankApprox(
-  Node    *parent,
-  uint    *splitParameterMax,
-  uint    *splitValueMax,
-  uint     masterDeathTimeSize,
-  uint     masterTimeSize,
-  double **masterSplit
-);
-char logRankScore(
-  Node    *parent,
-  uint    *splitParameterMax,
-  uint    *splitValueMax,
-  uint     masterDeathTimeSize,
-  uint     masterTimeSize,
-  double **masterSplit,
-  uint   **masterSplitOrder
-);
-char conserveEvents(
-  Node    *parent,
-  uint    *splitParameterMax,
-  uint    *splitValueMax,
-  uint     masterDeathTimeSize,
-  uint     masterTimeSize,
-  double **masterSplit
-);
-char logRank(
-  Node    *parent,
-  uint    *splitParameterMax,
-  uint    *splitValueMax,
-  uint     masterDeathTimeSize,
-  uint     masterTimeSize,
-  double **masterSplit
-);
-uint selectRandomCovariates(
-  Node *parent,
-  uint *covariateIndex);
-char getBestSplit(
-  Node    *parent,
-  uint    *splitParameterMax,
-  uint    *splitValueMax,
-  uint     masterDeathTimeSize,
-  uint     masterTimeSize,
-  double **masterSplit,
-  uint   **masterSplitOrder
-);
-char makeTree(
-  Node    *parent,
-  uint    *leafCount, 
-  uint     masterDeathTimeSize,
-  uint     masterTimesize,
-  double **masterSplit,
-  uint   **masterSplitOrder
-);
-char forkAndUpdate(
-  uint  *leafCount,
-  Node  *parent,
-  uint   splitParameter,
-  uint   splitValueIndex,
-  double splitValue
-);
-char bootstrap(
-  uint     mode,
-  uint     b,
-  Node    *rootPtr,
-  uint    *oobSampleSize,
-  double **masterSplit,
-  uint    *masterSplitSize,
-  uint   **masterSplitOrder
-);
-SEXP rsfGrow(
-  SEXP traceFlag,
-  SEXP mup,
-  SEXP seedPtr,
-  SEXP splitRule,
-  SEXP randomCovariateCount,
-  SEXP forestSize,
-  SEXP minimumDeathCount,
-  SEXP observationSize,
-  SEXP time,
-  SEXP status,
-  SEXP xSize,
-  SEXP xData,
-  SEXP timeInterestSize,
-  SEXP timeInterest,
-  SEXP randomCovariateWeight
-);
-SEXP rsfPredict(
-  SEXP traceFlag,
-  SEXP mup,
-  SEXP forestsize,
-  SEXP observationSize,
-  SEXP time,
-  SEXP status,
-  SEXP xSize,
-  SEXP xData,
-  SEXP fobservationSize,
-  SEXP ftime,
-  SEXP fstatus,
-  SEXP fxData,
-  SEXP timeInterestSize,
-  SEXP timeInterest,
-  SEXP treeID,
-  SEXP nodeID,
-  SEXP parmID,
-  SEXP spltPT,
-  SEXP seed
-);
+uint getTraceFlag();
+void updateTraceFlag(char reset);
+char getBestSplit(Node    *parent,
+                  uint    *splitParameterMax,
+                  uint    *splitValueMax,
+                  double **masterSplit,
+                  uint   **masterSplitOrder);
+char makeTree(uint     b,
+              Node    *parent,
+              double **masterSplit,
+              uint   **masterSplitOrder,
+              char     mTimeIndexFlag);
+char forkAndUpdate(uint  *leafCount,
+                   Node  *parent,
+                   uint   splitParameter,
+                   uint   splitValueIndex,
+                   double splitValue);
+char bootstrap(uint     mode,
+               uint     b,
+               Node    *rootPtr,
+               uint    *oobSampleSize,
+               double **masterSplit,
+               uint    *masterSplitSize,
+               uint   **masterSplitOrder,
+               char   **mRecordBootFlag);
+SEXP rsfGrow(SEXP traceFlag,
+             SEXP mup,
+             SEXP seedPtr,
+             SEXP splitRule,
+             SEXP randomCovariateCount,
+             SEXP forestSize,
+             SEXP minimumDeathCount,
+             SEXP observationSize,
+             SEXP time,
+             SEXP status,
+             SEXP xSize,
+             SEXP xData,
+             SEXP timeInterestSize,
+             SEXP timeInterest,
+             SEXP randomCovariateWeight,
+             SEXP xType);
+SEXP rsfPredict(SEXP traceFlag,
+                SEXP mup,
+                SEXP seedPtr,  
+                SEXP forestsize,
+                SEXP observationSize,
+                SEXP time,
+                SEXP status,
+                SEXP xSize,
+                SEXP xData,
+                SEXP fobservationSize,
+                SEXP ftime,
+                SEXP fstatus,
+                SEXP fxData,
+                SEXP timeInterestSize,
+                SEXP timeInterest,
+                SEXP treeID,
+                SEXP nodeID,
+                SEXP parmID,
+                SEXP spltPT,
+                SEXP seedVector,
+                SEXP xType);
 SEXP rsf(uint mode, uint traceFlag);

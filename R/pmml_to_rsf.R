@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -92,7 +92,7 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
     }
 
     # Extract the MiningBuildTask node.
-    miningBldTsk = rsfMiningBldTsk[1]$MiningBuildTask
+    miningBldTskNode = rsfMiningBldTsk[1]$MiningBuildTask
     
     # Extract the DataDictionary node.
     dataDictNode = rsfDataDict[1]$DataDictionary
@@ -137,9 +137,9 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
             # Determine if this extension is the RSF extension.
             mbteNode = rsfMiningBldTskExtn[i]$Extension
 
-            rsfFormula = mbteNode[names(ddeNode) == "X-RSF-Formula"]            
-            rsfBootSeed = mbteNode[names(ddeNode) == "X-RSF-BootstrapSeeds"]
-            rsfTimeInt = mbteNode[names(ddeNode) == "X-RSF-TimesOfInterest"]
+            rsfFormula = mbteNode[names(mbteNode) == "X-RSF-Formula"]            
+            rsfForestSeed = mbteNode[names(mbteNode) == "X-RSF-ForestSeed"]
+            rsfTimeInt = mbteNode[names(mbteNode) == "X-RSF-TimesOfInterest"]
 
 
             if (length(rsfFormula) == 1) {
@@ -152,35 +152,16 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
 
             formula = as.formula(xmlGetAttr(formulaNode, "name"))
 
-            if (length(rsfBootSeed) == 1) {
-                bootSeedNode = rsfBootSeed[1]$'X-RSF-BootstrapSeeds'
-                # Point to the Array node containing the bootstrap seeds.
-                rsfBSArray = bootSeedNode[names(bootSeedNode) == "Array"]
-                # Ensure there is one and only one Array node.
-                if (length(rsfBSArray) == 1) {
-                    bsaNode = rsfBSArray[1]$Array
-                    # Count the number of bootstrap seeds.
-                    numBootSeed = as.integer(xmlGetAttr(bsaNode, "n"))
-                    if (numBootSeed > 0) {
-                        # Extract the raw string of numbers.
-                        bootSeedStr = xmlValue(bsaNode)
-                        # Strip spaces and new line characters, convert to integer vector.
-                        bootstrapSeed = as.integer(strsplit(gsub(" ", "", bootSeedStr), "\n")[[1]])
-                        extnFlag = TRUE
-                    }
-                    else {
-                        stop("BootstrapSeeds array dimension invalid in PMML content.  Please ensure the data is valid.")    
-                    }
-                }
-                else {
-                    stop("BootstrapSeeds array not found in PMML content.  Please ensure the data is valid.")    
-                }
+            if (length(rsfForestSeed) == 1) {
+              forestSeedNode = rsfForestSeed[1]$'X-RSF-ForestSeed'
+              extnFlag = TRUE
             }
             else {
-              stop("BootstrapSeeds extension not found in PMML content.  Please ensure the data is valid.")    
+              stop("ForestSeed extension not found in PMML content.  Please ensure the data is valid.")    
             }
 
-
+            forestSeed = as.integer(xmlGetAttr(forestSeedNode, "value"))
+    
             if (length(rsfTimeInt) == 1) {
                 timeIntNode = rsfTimeInt[1]$'X-RSF-TimesOfInterest'
                 # Point to the Array node containing the time points of interest.
@@ -289,7 +270,7 @@ pmml_to_rsf <- function(pmmlRoot, ...) {
     # Delete the first and empty record in the nativeArray.  This is an artifact of initialization.
     recursiveOutput$nativeArray = recursiveOutput$nativeArray[-1,]
 
-    outputObject = list (nativeArray = recursiveOutput$nativeArray, timeInterest = timeInterest, predictorNames = predictorNames, formula = formula, bootstrapSeed = bootstrapSeed)
+    outputObject = list (nativeArray = recursiveOutput$nativeArray, timeInterest = timeInterest, predictorNames = predictorNames, formula = formula, seed = forestSeed)
     class(outputObject) = "rsfForest"
     return (outputObject)
 }

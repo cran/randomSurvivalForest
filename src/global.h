@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 2.1.0
+//  RANDOM SURVIVAL FOREST 3.0.0
 //
-//  Copyright 2006, Cleveland Clinic
+//  Copyright 2007, Cleveland Clinic
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -61,13 +61,18 @@
 #include <math.h>
 #include <float.h>
 #include <time.h>
+#include "node.h"
+#ifndef NULL
+#define NULL 0
+#endif
 #ifndef TRUE
 #define TRUE   0x01
 #endif
 #ifndef FALSE
 #define FALSE  0x00
 #endif
-#define ACTIVE 0x02
+#define ACTIVE   0x02
+#define INACTIVE 0xFF
 #define DL0_TRACE 0x01
 #define DL1_TRACE 0x02
 #define DL2_TRACE 0x04
@@ -77,6 +82,8 @@
 #define MUP_TREE 0x02
 #define MUP_PERF 0x04
 #define MUP_VIMP 0x08
+#define CENS_IDX -1
+#define TIME_IDX -2
 #define RSF_OUTP_ID   0  
 #define RSF_STRG_ID   1  
 #define RSF_FENS_ID   2  
@@ -90,13 +97,13 @@
 #define RSF_PARM_ID  10  
 #define RSF_SPLT_PT  11  
 #define RSF_SEED_ID  12  
-#define RSF_SEXP_CNT 13  
+#define RSF_MISS_ID  13  
+#define RSF_SEXP_CNT 14  
 #define RSF_GROW 0x10
 #define RSF_PRED 0x20
 #define LOG_RANK        1
 #define CONSERVE_EVENTS 2
 #define LOG_RANK_SCORE  3
 #define LOG_RANK_APPROX 4
-#define uchar unsigned char
 #define uint  unsigned int
 #define ulong unsigned long

@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 2.1.0
+//  RANDOM SURVIVAL FOREST 3.0.0
 //
-//  Copyright 2006, Cleveland Clinic
+//  Copyright 2007, Cleveland Clinic
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -56,8 +56,8 @@
 
 #ifndef NRUTIL_H
 #define NRUTIL_H
-#include "global.h"
 float ran1(int *idum);
+float ran2(int *idum);
 void hpsort(
   double *ra,
   uint n
@@ -67,25 +67,53 @@ void indexx(
   double *arr, 
   uint *indx
             );
+double ***dmatrix3(
+  ulong n3l,
+  ulong n3h,
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
 double **dmatrix(
   ulong nrl,
   ulong nrh,
   ulong ncl,
   ulong nch
 );
-double **pdvector(
-  ulong nl,
-  ulong nh
-);
-double *dvector(
-  ulong nl,
-  ulong nh
+int **imatrix(
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
 );
 uint **uimatrix(
   ulong nrl,
   ulong nrh,
   ulong ncl,
   ulong nch
+);
+char **cmatrix(
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
+double *dvector(
+  ulong nl,
+  ulong nh
+);
+double **pdvector(
+  ulong nl,
+  ulong nh
+);
+int *ivector(
+  ulong nl,
+  ulong nh
+);
+int **pivector(
+  ulong nl,
+  ulong nh
 );
 uint *uivector(
   ulong nl,
@@ -95,7 +123,20 @@ char *cvector(
   ulong nl,
   ulong nh
 );
+char **pcvector(
+  ulong nl,
+  ulong nh
+);
 void nrerror(char error_text[]);
+void free_dmatrix3(
+  double ***m,
+  ulong n3l,
+  ulong n3h,
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
 void free_dmatrix(
   double **m,
   ulong nrl,
@@ -103,15 +144,12 @@ void free_dmatrix(
   ulong ncl,
   ulong nch
 );
-void free_pdvector(
-  double **v,
-  ulong nl,
-  ulong nh
-);
-void free_dvector(
-  double *v,
-  ulong nl,
-  ulong nh
+void free_imatrix(
+  int **m,
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
 );
 void free_uimatrix(
   uint **m,
@@ -120,13 +158,45 @@ void free_uimatrix(
   ulong ncl,
   ulong nch
 );
+void free_cmatrix(
+  char **m,
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
+void free_dvector(
+  double *v,
+  ulong nl,
+  ulong nh
+);
+void free_pdvector(
+  double **v,
+  ulong nl,
+  ulong nh
+);
+void free_ivector(
+  int *v,
+  ulong nl,
+  ulong nh
+);
 void free_uivector(
   uint *v,
   ulong nl,
   ulong nh
 );
+void free_pivector(
+  int **v,
+  ulong nl,
+  ulong nh
+);
 void free_cvector(
   char *v,
+  ulong nl,
+  ulong nh
+);
+void free_pcvector(
+  char **v,
   ulong nl,
   ulong nh
 );

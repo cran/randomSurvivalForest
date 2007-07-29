@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -80,9 +80,9 @@ rsf_to_pmml <- function(rsfForest, ...) {
         stop("RSF formula content is NULL.  Please ensure the object is valid.")
     }
 
-    bootstrapSeed = rsfForest$bootstrapSeed
-    if (is.null(bootstrapSeed)) {
-        stop("RSF bootstrapSeed content is NULL.  Please ensure the object is valid.")
+    forestSeed = rsfForest$seed
+    if (is.null(forestSeed)) {
+        stop("RSF forestSeed content is NULL.  Please ensure the object is valid.")
     }
 
 
@@ -96,8 +96,8 @@ rsf_to_pmml <- function(rsfForest, ...) {
     rootString = 
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
          <PMML version=\"3.1\" xmlns=\"http:##www.dmg.org/PMML-3_1\" xmlns:xsi=\"http:##www.w3.org/2001/XMLSchema-instance\">
-           <Header copyright=\"Copyright 2006, Cleveland Clinic\" description=\"Random Survival Forest Tree Model\">
-              <Application name=\"Random Survival Forest\" version=\"2.1\"/>
+           <Header copyright=\"Copyright 2007, Cleveland Clinic\" description=\"Random Survival Forest Tree Model\">
+              <Application name=\"Random Survival Forest\" version=\"3.0\"/>
            </Header>
          </PMML>
        "
@@ -119,14 +119,8 @@ rsf_to_pmml <- function(rsfForest, ...) {
     # Add the formula to the Extension node.
     extensionNode = append.XMLNode(extensionNode, xmlNode("X-RSF-Formula", attrs=c(name=formula)))
 
-    # Add the bootstrap seeds to the Extension node.
-    extensionNode = append.XMLNode(extensionNode, 
-                                xmlNode("X-RSF-BootstrapSeeds", 
-                                  xmlNode("Array", 
-                                          attrs=c(type="integer", n=length(bootstrapSeed)), 
-                                          paste(bootstrapSeed, collapse="  \n  "))))
-    
-      
+    # Add the bootstrap seed to the Extension node.
+    extensionNode = append.XMLNode(extensionNode, xmlNode("X-RSF-ForestSeed", attrs=c(value=forestSeed)))
 
     # Add the times of interest to the Extension node.
     extensionNode = append.XMLNode(extensionNode, 

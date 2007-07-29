@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 2.1.0
+//  RANDOM SURVIVAL FOREST 3.0.0
 //
-//  Copyright 2006, Cleveland Clinic
+//  Copyright 2007, Cleveland Clinic
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -56,8 +56,8 @@
 
 #include   "global.h"
 #include   "nrutil.h"
-#include  "rsfUtil.h"
 #include "node_ops.h"
+extern uint getTraceFlag();
 Node *makeNode() {
   Node *parent = (Node*) malloc((size_t)sizeof(Node));
   parent -> permissibleSplit = uimatrix(1, _xSize, 1, 2);
@@ -106,9 +106,12 @@ void free_Node(Node *parent) {
 #undef FREE_ARG
 void getNodeInfo(Node *leaf) {
   uint i;
-  Rprintf("\nNodeInfo:  %10d  %10d  %10d", leaf -> leafCount, leaf -> splitParameter, leaf -> splitValueIndex);  
+  Rprintf("\nNodeInfo:  ");
+  Rprintf("\n   LeafCnt   SpltParm SpltValIdx");
+  Rprintf("\n%10d %10d %10d", leaf -> leafCount, leaf -> splitParameter, leaf -> splitValueIndex);
+  Rprintf("\n     Lower      Upper \n");
   for (i=1; i <= _xSize; i++) {
-    Rprintf("  Lower:      %10d     Upper:       %10d \n",
+    Rprintf("%10d %10d \n",
             (leaf -> permissibleSplit)[i][1],
             (leaf -> permissibleSplit)[i][2]);
   }
@@ -184,6 +187,7 @@ char forkNode (Node *parent, uint splitParameter, uint splitValueIndex, double s
   left -> leafCount       = 0;
   right -> splitValueIndex = 0;
   right -> splitParameter  = 0;
+  right -> splitValue      = 0.0;
   right -> splitFlag       = TRUE;
   right -> leafCount       = 0;
   (left  -> permissibleSplit)[splitParameter][1] = (parent -> permissibleSplit)[splitParameter][1];

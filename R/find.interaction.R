@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -66,18 +66,19 @@ find.interaction <- function (
     if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2)
       stop("Function only works for objects of class `(rsf, grow)'.")
 
-    ### extract data, predictor names, splitrule, ntree, and formula for subsequent calls
+    ### extract data, predictor names, splitrule, ntree, and formula for subsequent calls 
     ### special treatment needed if user passes predictorNames
     ### should predictors be sorted by importance?
     ### determine number of variables to be paired-up
     predictors <- x$predictors
+    if (!is.null(x$imputedIndv)) predictors[x$imputedIndv, ] <- x$imputedData
     cov.names <- x$predictorNames
     splitrule <- x$splitrule
     ntree <- x$ntree
     n.interact <- n.cov <- length(cov.names)
-    fNames <- all.vars(x$formula)
+    fNames <- all.vars(x$formula, max.names=1e7)
     rsf.f.org <- paste("Survrsf(",fNames[1], ",", fNames[2], ") ~", sep="")
-    newData <- as.data.frame(cbind(x$Time, x$Cens, predictors))
+    newData <- as.data.frame(cbind(x$time, x$cens, predictors))
     colnames(newData) <- c(fNames[1:2], cov.names)
     if (!is.null(predictorNames)) {
       if (sum(is.element(cov.names, predictorNames)) == 0) {

@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -60,17 +60,25 @@ plot.error <- function (x, ...) {
       sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
 
-    old.par <- par(no.readonly = TRUE)
-    if (is.null(x$importance)) {
-      err <- x$err.rate
-      par(mfrow = c(1,1))
-      plot(1:length(err), 
-           err,
-           xlab = "Number of Trees",
-           ylab = "Error Rate",
-           type = "l")
+    ### return if no non-missing values
+    if (all(is.na(x$err.rate)) & all(is.na(x$importance))) return()
+
+    ### decide what plots to generate
+    if (is.null(x$importance) | all(is.na(x$importance))) {
+      if (x$ntree > 1 & !all(is.na(x$err.rate))) {
+        old.par <- par(no.readonly = TRUE)
+        err <- x$err.rate
+        par(mfrow = c(1,1))
+        plot(1:length(err), 
+             err,
+             xlab = "Number of Trees",
+             ylab = "Error Rate",
+             type = "l")
+        par(old.par)      
+      }
     }
     else {
+      old.par <- par(no.readonly = TRUE)
       err <- x$err.rate
       imp <- x$importance 
       pred.order <- order(imp)
@@ -83,19 +91,30 @@ plot.error <- function (x, ...) {
       else {
         dotchart.labels <- x$predictorNames[pred.order]
       }
-      par(mfrow = c(1,2))
-      plot(1:length(err), 
-           err,
-           xlab = "Number of Trees",
-           ylab = "Error Rate",
-           type = "l")
+      if (x$ntree > 1 & !all(is.na(x$err.rate))) par(mfrow = c(1,2)) else par(mfrow = c(1,1))
+      if (x$ntree > 1 & !all(is.na(x$err.rate))) {
+        plot(1:length(err), 
+             err,
+             xlab = "Number of Trees",
+             ylab = "Error Rate",
+             type = "l")
+      }
       dotchart(imp[pred.order], dotchart.labels,
                xlab="Importance",
                bg="blue")
-      imp.out=as.data.frame(cbind(imp,x$predictorWt),row.names=x$predictorNames)[rev(pred.order),]
-      colnames(imp.out) <- c("Importance","predictorWt")
+      if (!is.null(x$predictorWt)) {
+        if (length(unique(x$predictorWt)) == 1) x$predictorWt <- 1
+        imp.out=as.data.frame(cbind(imp,imp/max(abs(imp),na.rm=T) ,x$predictorWt),
+                            row.names=x$predictorNames)[rev(pred.order),]
+        colnames(imp.out) <- c("Importance","Relative Imp","predictorWt")
+      }
+      else {
+        imp.out=as.data.frame(cbind(imp,imp/max(abs(imp),na.rm=T)),
+                            row.names=x$predictorNames)[rev(pred.order),]
+        colnames(imp.out) <- c("Importance","Relative Imp")
+      } 
       cat("\n")
       print(round(imp.out[1:min(n.pred,100),],4), justify="right", print.gap=3)
+      par(old.par)      
     } 
-    par(old.par)      
 }

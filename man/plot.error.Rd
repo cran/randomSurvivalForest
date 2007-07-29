@@ -5,7 +5,7 @@
 \description{
   Plot out-of-bag (OOB) error rate for the ensemble as a
   function of number of trees in the forest.  Also plots importance
-  values for predictors.  Note that this is the default plot method
+  values for predictors.  Note this is the default plot method
   for the package.
 }
 \usage{
@@ -18,25 +18,30 @@
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-  Plot of OOB error rate for the ensemble, with the b-th value being the
-  error rate for the ensemble formed using the first b trees.  Error
-  rate is 1-C, where C is Harrell's concordance index.  Rates given are
-  between 0 and 1, with 0.5 representing the benchmark value of a
-  procedure based on random guessing.  A value of 0 is perfect.
+  Plot of OOB error rate, with the b-th value being the error rate for
+  the ensemble computed using the first b trees.  Error rate is 1-C,
+  where C is Harrell's concordance index.  Rates given are between 0 and
+  1, with 0.5 representing the benchmark value of a procedure based on
+  random guessing.  A value of 0 is perfect.
 
-  If \code{importance}=TRUE used in original \code{rsf} call (the
-  default setting), importance values for predictors will be included in
-  the object \code{x}.  In this case, \code{plot.error} will plot, as
-  well as print, these values. The vector \code{predictorWt} is also
-  printed as a side effect.
+  In the orginal call if \code{importance}=TRUE (the default setting),
+  then importance values for predictors will be plotted.  A matrix with
+  3 columns is also printed.  First column are importance values, second
+  column are standardized importance values (divided by the maximum
+  importance value), third column is the vector \code{predictorWt}.  The
+  importance value indicates how much misclassification increases, or
+  decreases, for a new test case if the given predictor were not
+  available for that case, adjusting for all other predictors used in
+  growing the forest.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
-    H. Ishwaran and Udaya B. Kogalur (2006).  Random Survival
-    Forests.  \emph{Cleveland Clinic Technical Report}.
+    H. Ishwaran, Udaya B. Kogalur, Eugene H. Blackstone and Michael S. Lauer
+    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
+    Report}.
 
     L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
 

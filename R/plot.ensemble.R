@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -70,30 +70,36 @@ plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
     ### null case can occur for '(rsf, predict)' objects, so check 
     if (is.null(x$ndead)) return()
 
+    ### use imputed missing time or censoring indicators
+    if (!is.null(x$imputedIndv)) {
+      x$cens[x$imputedIndv]=x$imputedData[,1]
+      x$time[x$imputedIndv]=x$imputedData[,2]
+    }
+    
     ### no point in producing plots if sample size too small or
     ### not enough deaths
-    if (x$n < 5 | sum(x$Cens) < 2) return()
+    if (x$n < 5 | sum(x$cens) < 2) return()
 
     # survival curves
     survival.ensemble <- t(exp(-x$ensemble))
     survival.mean.ensemble <- apply(survival.ensemble,1,mean)
     if (!rsfPred) {
-      allTime.unique <- sort(unique(x$Time[x$Cens == 1]))
+      allTime.unique <- sort(unique(x$time[x$cens == 1]))
       unique.pt <- is.element(allTime.unique, x$timeInterest)
       Y <- apply(cbind(1:length(allTime.unique)),
                  1,
                  function(j, tau, t.unq) {sum(tau >= t.unq[j])},
-                 tau = x$Time,
+                 tau = x$time,
                  t.unq = allTime.unique)
       d <- apply(cbind(1:length(allTime.unique)),
                  1,
                  function(j, d, tau, t.unq) {sum(tau == t.unq[j])},
-                 tau = x$Time[x$Cens == 1],
+                 tau = x$time[x$cens == 1],
                  t.unq = allTime.unique)
       r <- d/(Y+1*(Y == 0))
       survival.aalen <- exp(-cumsum(r))[unique.pt]
     }
-    
+
     # Brier score
     # . all distinct time points
     # . stratified by mortality percentiles
@@ -102,7 +108,7 @@ plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
     delta <- t(apply(cbind(1:x$n),
                    1,
                    function(i, tau, t.unq) {1*(tau[i] > t.unq)},
-                   tau =  x$Time,
+                   tau =  x$time,
                    t.unq = x$timeInterest)  - survival.ensemble)^2
     for (k in 1:4){
       mort.pt <- (x$mortality > mort.perc[k]) & (x$mortality <= mort.perc[k+1])
@@ -159,21 +165,21 @@ plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
     text(x$timeInterest[point.x],brier.score[point.x,4],"75-100",col=4)
     rug(x$timeInterest, ticksize=0.03)
     if (plots.one.page) title("Brier Score",cex.main = 1.25)
-    plot(x$Time, x$mortality, xlab = "Time", ylab = "Ensemble Mortality", type = "n")
+    plot(x$time, x$mortality, xlab = "Time", ylab = "Ensemble Mortality", type = "n")
     if (plots.one.page) title("Mortality vs Time", cex.main = 1.25)
     if (x$n > 500) cex <- 0.5 else cex <- 0.75
-    points(x$Time[x$Cens == 1], x$mortality[x$Cens == 1], pch = 16, col = 4, cex = cex)
-    points(x$Time[x$Cens == 0], x$mortality[x$Cens == 0], pch = 16, cex = cex)
-    if (sum(x$Cens == 1) > 1)
-      points(supsmu(x$Time[x$Cens == 1][order(x$Time[x$Cens == 1])],
-                  x$mortality[x$Cens == 1][order(x$Time[x$Cens == 1])]),
+    points(x$time[x$cens == 1], x$mortality[x$cens == 1], pch = 16, col = 4, cex = cex)
+    points(x$time[x$cens == 0], x$mortality[x$cens == 0], pch = 16, cex = cex)
+    if (sum(x$cens == 1) > 1)
+      points(supsmu(x$time[x$cens == 1][order(x$time[x$cens == 1])],
+                  x$mortality[x$cens == 1][order(x$time[x$cens == 1])]),
              type = "l",
              lty = 3,
              col = 4,
              cex = cex)
-    if (sum(x$Cens == 0) > 1)
-      points(supsmu(x$Time[x$Cens == 0][order(x$Time[x$Cens == 0])],
-                  x$mortality[x$Cens == 0][order(x$Time[x$Cens == 0])]),
+    if (sum(x$cens == 0) > 1)
+      points(supsmu(x$time[x$cens == 0][order(x$time[x$cens == 0])],
+                  x$mortality[x$cens == 0][order(x$time[x$cens == 0])]),
              type = "l",
              lty = 3,
              cex = cex)

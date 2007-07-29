@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 2.1.0
+##  RANDOM SURVIVAL FOREST 3.0.0
 ##
-##  Copyright 2006, Cleveland Clinic
+##  Copyright 2007, Cleveland Clinic
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -59,11 +59,12 @@ plot.variable <- function (
     plots.per.page = 4,
     granule = 5,
     sort = TRUE,
-    freq = TRUE,                           
+    rel.freq = FALSE,                           
     partial = FALSE,
     predictorNames = NULL,
     n.pred = NULL,                           
     n.pts = 25,
+    subset = NULL, 
     ...) {
 
     ### check that object is interpretable
@@ -71,9 +72,22 @@ plot.variable <- function (
         sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
       stop("Function only works for objects of class `(rsf, grow)', '(rsf, predict)'.")
 
+    ### subset the data?
+    if (!is.null(subset) & is.logical(subset) & sum(subset)!=0) {
+      if (sum(subset) > 1) {
+        x$predictors <- x$predictors[subset, ]
+      }
+      else {
+        x$predictors <- t(as.matrix(x$predictors[subset, ]))
+      }
+      x$mortality <- x$mortality[subset]
+    }
+    
+    ### get predictor matrix (use imputed values if available)
     ### extract predictor names to be plotted
     ### should predictors be sorted by importance?
     predictors <- x$predictors
+    if (!is.null(x$imputedIndv)) predictors[x$imputedIndv, ] <- x$imputedData[,-c(1:2)]
     if (is.null(predictorNames)) {
       cov.names <- x$predictorNames
     }
@@ -85,9 +99,9 @@ plot.variable <- function (
            stop()
       }
       cov.names <- unique(cov.names[is.element(cov.names, x$predictorNames)])
-      n.cov <- length(cov.names)
       n.pred <- NULL
     }
+    n.cov <- length(cov.names)
     if (sort) {
       if (!is.null(x$importance)) {
         n.cov <- length(cov.names)
@@ -104,7 +118,8 @@ plot.variable <- function (
       cov.names <- cov.names[1:n.cov]
     }
     n <- dim(predictors)[1]
-      
+    
+    
     ### plots (marginal, partial)
     old.par <- par(no.readonly = TRUE)
     if (!partial) {
@@ -112,11 +127,11 @@ plot.variable <- function (
       plots.per.page <- max(round(min(plots.per.page,n.cov)), 1)
       granule <- max(round(granule),1)
       par(mfrow = c(min(plots.per.page, ceiling(n.cov/plots.per.page)), plots.per.page))
-      if (freq) {
+      if (!rel.freq) {
         mortality.ensemble <- x$mortality
       }
       else {
-        mortality.ensemble <- x$mortality/n
+        mortality.ensemble <- x$mortality/max(n, na.omit(x$mortality))
       }
       for (k in 1:n.cov) {
         y <- predictors[, x$predictorNames == cov.names[k]]
@@ -129,11 +144,11 @@ plot.variable <- function (
                  ylab = "",
                  type = "n",
                  cex.lab = 1.5)
-            points(y[x$Cens == 1], mortality.ensemble[x$Cens == 1],
+            points(y[x$cens == 1], mortality.ensemble[x$cens == 1],
                    pch = 16, col = 4, cex = cex)
-            points(y[x$Cens==0], mortality.ensemble[x$Cens == 0],
+            points(y[x$cens==0], mortality.ensemble[x$cens == 0],
                    pch = 16, cex = cex)
-            lines(lowess(y, mortality.ensemble), col = 2)
+            lines(lowess(y[!is.na(y)], mortality.ensemble[!is.na(y)]), col = 2)
         }
         else {
             boxplot(mortality.ensemble ~ y,
@@ -191,9 +206,10 @@ plot.variable <- function (
              mortality.y <- c(mortality.y, pred.temp)
            }
         }
+        if (rel.freq) nAdj <- max(n, mortality.y)
         if (n.y > granule | n.cov == 1) {
-            if (!freq) {
-              mortality.y <- mortality.y/n
+            if (rel.freq) {
+              mortality.y <- mortality.y/nAdj
               mortality.y.se <- mortality.y.se/n
             }
             plot(c(min(y), y.uniq, max(y), y.uniq, y.uniq),
@@ -211,11 +227,11 @@ plot.variable <- function (
             rug(y, ticksize=0.03)
         }
         else {
-            if (freq) {
+            if (!rel.freq) {
               y.se <- 2
             }
             else {
-              mortality.y <- mortality.y/n
+              mortality.y <- mortality.y/nAdj
               y.se <- 2/n
             }
             bxp.call <- boxplot(mortality.y ~ rep(y.uniq, rep(n, n.y)), range = 2, plot = F)

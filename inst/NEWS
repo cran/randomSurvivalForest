@@ -1,9 +1,30 @@
 Package: randomSurvivalForest
-Version: 2.1.0
-BUILD: release_2_0_bld20070502
+Version: 3.0.0
+BUILD: bld20070729
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.1.0
+CHANGES TO RELEASE 3.0.0
+
+Release 3.0.0 represents a major upgrade in the functionality of the
+2.x releases.  Key changes are as follows:
+
+o Missing data can be imputed in both grow and predict mode.  This
+  applies to variables as well as time and censoring outcome values.
+  Values are imputed dynamically as the tree is grown using a new tree
+  imputation methodology.  This produces an imputed forest which can be
+  used for prediction purposes on test data sets with missing data.
+
+o Importance values for variables are returned in predict mode when test
+  data contains outcomes as well as variables.
+
+o Fixed some bugs in plot.variable().  Thanks to Andy J. Minn for pointing this out.
+
+o Minor modification of PMML representation of RSF forest output to accomodate
+  imputation.  The method of random seed chain recovery has been altered.
+  Note that forests produced with prior releases will have to be 
+  regenerated using this release.  We apologize for the inconvenience.
+
+---------------------------------------------------------------------------------
 
 Release 2.1.0 represents a minor upgrade of the product, and will not affect
 most users of the prior version of the product.  Key changes are as follows:
@@ -27,7 +48,7 @@ o Only the top 100 predictors are now printed to the terminal when
   calling plot.error().  This deals with settings as above when one
   might have thousands of predictors.
 
-o Introduced a new wrapper "find.interaction()" for testing for
+o Introduced a new wrapper "find.interaction()" for testing of
   pairwise interactions between predictors.  
 
 ---------------------------------------------------------------------------------

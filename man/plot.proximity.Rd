@@ -5,33 +5,37 @@
     Multidimensional scaling plot of proximity matrix.
 }
 \usage{
-    plot.proximity(x, ...)
+    plot.proximity(x, plot = TRUE, ...)
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
 	predict)}. Note that \code{proximity}=TRUE must be used in
         the original \code{rsf} call.}
+    \item{plot}{Logical.  If TRUE, proximity is plotted.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-  Extracts proximity information from \code{x} and converts this to a
+  Extracts proximity information from \code{x} and transforms this to a
   symmetric proximity matrix.  Dissimilarities between points are then
   converted into distances using the R multidimensional scaling function
   \code{cmdscale} and then plotted.  Overlayed on the plot are mortality
   values, rescaled from 1-100, with 1 indicating low mortality, and 100
   indicating high mortality.  Mortality values will be well separated in
-  successful analyses.
+  successful analyses.  Note that points in blue correspond to events,
+  whereas black points are censored observations.
 }
 \value{
-   Invisibly, the proximity matrix.
+   Invisibly, the proximity matrix with entries transformed to relative
+   frequencies.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
-    H. Ishwaran and Udaya B. Kogalur (2006).  Random Survival
-    Forests.  \emph{Cleveland Clinic Technical Report}.
+    H. Ishwaran, Udaya B. Kogalur, Eugene H. Blackstone and Michael S. Lauer
+    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
+    Report}.
 }
 \seealso{
   \code{rsf},
@@ -39,7 +43,7 @@
 }
 \examples{
   data(pbc, package = "randomSurvivalForest") 
-  pbc.prox.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, proximity = TRUE)
+  pbc.prox.out <- rsf(Survrsf(days,status)~., pbc, ntree = 100, proximity = TRUE)
   plot.proximity(pbc.prox.out)
 }
 \keyword{file}

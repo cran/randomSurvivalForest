@@ -18,8 +18,9 @@
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
-    H. Ishwaran and Udaya B. Kogalur (2006).  Random Survival
-    Forests.  \emph{Cleveland Clinic Technical Report}.
+    H. Ishwaran, Udaya B. Kogalur, Eugene H. Blackstone and Michael S. Lauer
+    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
+    Report}.
 }
 \seealso{
   \code{rsf},
