@@ -1,12 +1,24 @@
 Package: randomSurvivalForest
-Version: 3.0.0
-BUILD: bld20070729
+Version: 3.0.1
+BUILD: bld20070803
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.0.0
+CHANGES TO RELEASE 3.0.1
 
-Release 3.0.0 represents a major upgrade in the functionality of the
-2.x releases.  Key changes are as follows:
+Release 3.0.1 represents a minor upgrade of the product, and will not affect
+most users of the prior version of the product.  Key changes are as follows:
+
+o A slight adjustment has been made to the variance used in the "logrankapprox"
+splitting rule.  This fixes the issue where a sizable fraction of trees
+in the forest were being stumped in some examples.
+
+o Illegal syntax fixes to C-code that manifest themselves on some compilers.
+  Thanks to Brian Ripley for pointing this out.
+
+---------------------------------------------------------------------------------
+
+Release 3.0.0 represents a major upgrade in the functionality of the product.
+Key changes are as follows:
 
 o Missing data can be imputed in both grow and predict mode.  This
   applies to variables as well as time and censoring outcome values.

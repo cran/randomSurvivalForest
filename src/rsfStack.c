@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.0
+//  RANDOM SURVIVAL FOREST 3.0.1
 //
 //  Copyright 2007, Cleveland Clinic
 //
@@ -158,7 +158,7 @@ char stackAndInitializeMissingArrays(uint       mode,
   *p_mTimeIndexFlag = FALSE;
   _xType = pcvector(1, _xSize);
   for (p = 1; p <= _xSize; p++) {
-    _xType[p] = CHAR(STRING_ELT(AS_CHARACTER(_sexp_xType), p-1));
+    _xType[p] = (char*) CHAR(STRING_ELT(AS_CHARACTER(_sexp_xType), p-1));
     if ((strcmp(_xType[p], "I") != 0) && (strcmp(_xType[p], "R") != 0)) {
       Rprintf("\nRSF:  Invalid predictor type:  [%10d] = %2s", p, _xType[p]);
       Rprintf("\nRSF:  Type must be 'I', or 'R'.");
@@ -304,7 +304,7 @@ char stackAndInitializeMissingArrays(uint       mode,
     for (i = 1; i <= _xSize+2; i++) {
       _mvIndex[i] = 0;
       switch (i) {
-      case (uint) abs(CENS_IDX):
+      case (uint) (-CENS_IDX):
         for (j = 1; j <= _mRecordSize; j++) {
           if (_mvSign[i][j] == 1) {
             _mvSize ++;
@@ -313,7 +313,7 @@ char stackAndInitializeMissingArrays(uint       mode,
           }
         }
         break;
-      case (uint) abs(TIME_IDX):
+      case (uint) (-TIME_IDX):
         for (j = 1; j <= _mRecordSize; j++) {
           if (_mvSign[i][j] == 1) {
             _mvSize ++;
@@ -456,7 +456,7 @@ char stackAndInitializeMissingArrays(uint       mode,
       for (i = 1; i <= _xSize+2; i++) {
         _fmvIndex[i] = 0;
         switch (i) {
-        case (uint) abs(CENS_IDX):
+        case (uint) (-CENS_IDX):
           for (j = 1; j <= _fmRecordSize; j++) {
             if (_fmvSign[i][j] == 1) {
               _fmvSize ++;
@@ -465,7 +465,7 @@ char stackAndInitializeMissingArrays(uint       mode,
             }
           }
           break;
-        case (uint) abs(TIME_IDX):
+        case (uint) (-TIME_IDX):
           for (j = 1; j <= _fmRecordSize; j++) {
             if (_fmvSign[i][j] == 1) {
               _fmvSize ++;

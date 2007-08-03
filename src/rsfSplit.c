@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.0
+//  RANDOM SURVIVAL FOREST 3.0.1
 //
 //  Copyright 2007, Cleveland Clinic
 //
@@ -219,10 +219,13 @@ char logRankApprox(
             Rprintf("%10d %10d %10d \n", localDeathTimeSize, leftDeathTimeSize, rightDeathTimeSize);
           }
           if ((leftDeathTimeSize >= (_minimumDeathCount)) && (rightDeathTimeSize >= (_minimumDeathCount))) {
-            deltaNum = sqrt(parentDeathCount) * (leftDeathCount - eOneMono);
-            deltaDen = eOneMono * (parentDeathCount - eOneMono);
-            deltaNum = fabs(deltaNum);
-            deltaDen = sqrt(deltaDen);
+            deltaNum = fabs(leftDeathCount - eOneMono);
+            if (eOneMono > (parentDeathCount - eOneMono)) {
+              deltaDen = eOneMono;
+            }
+            else {
+              deltaDen = (parentDeathCount - eOneMono);
+            }
             if (deltaDen <= EPSILON) {
               if (deltaNum <= EPSILON) {
                 delta = 0.0;

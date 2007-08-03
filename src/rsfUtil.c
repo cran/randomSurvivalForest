@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.0
+//  RANDOM SURVIVAL FOREST 3.0.1
 //
 //  Copyright 2007, Cleveland Clinic
 //
@@ -191,7 +191,7 @@ double getConcordanceIndex(uint size,
     Rprintf("\nStatus and Time used in Concordance Index Calculations:  ");
     Rprintf("\n       Status         Time");
     for (i=1; i <= size; i++) {
-      Rprintf("\n %12d %12.4f", (uint) round(statusPtr[i]), timePtr[i]);
+      Rprintf("\n %12d %12.4f", (uint) statusPtr[i], timePtr[i]);
     }
     Rprintf("\n");
   }
@@ -353,11 +353,15 @@ double getPerformance (uint      mode,
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\ngetPerformance() ENTRY ...\n");
   }
-  mStatusPtr = NULL;  
-  mTimePtr   = NULL;  
+  mStatusPtr  = NULL;  
+  mTimePtr    = NULL;  
+  orgOutcomePtr = NULL;  
+  newOutcomePtr = NULL;  
+  mOutcomePtr   = NULL;  
   mRecordSize = NA_REAL;  
   mvSize      = 0;        
   mvIndex     = NULL;     
+  unsignedIndex = 0;  
   if (leafCount == 0) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to compute performance on a rejected tree:  %10d", b);
