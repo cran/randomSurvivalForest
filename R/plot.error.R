@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -102,7 +102,7 @@ plot.error <- function (x, ...) {
       dotchart(imp[pred.order], dotchart.labels,
                xlab="Importance",
                bg="blue")
-      if (!is.null(x$predictorWt)) {
+      if (!is.null(x$predictorWt) & length(unique(x$predictorWt)) >1 ) {
         if (length(unique(x$predictorWt)) == 1) x$predictorWt <- 1
         imp.out=as.data.frame(cbind(imp,imp/max(abs(imp),na.rm=T) ,x$predictorWt),
                             row.names=x$predictorNames)[rev(pred.order),]

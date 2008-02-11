@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.1
+//  RANDOM SURVIVAL FOREST 3.2.0
 //
-//  Copyright 2007, Cleveland Clinic
+//  Copyright 2008, Cleveland Clinic Foundation
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -57,45 +57,72 @@
 #ifndef RSFSTACK_H
 #define RSFSTACK_H
 #include "extern.h"
-void stackPreDefinedCommonArrays(uint **p_oobSampleSize);
-void unstackPreDefinedCommonArrays(uint *oobSampleSize);
+void stackPreDefinedCommonArrays();
+void unstackPreDefinedCommonArrays();
 void stackPreDefinedGrowthArrays(double ***p_masterSplit,
-                                 uint    **p_masterSplitSize,
-                                 uint   ***p_masterSplitOrder);
+                                 uint    **p_masterSplitSize);
 void unstackPreDefinedGrowthArrays(double **masterSplit,
-                                   uint    *masterSplitSize,
-                                   uint   **masterSplitOrder);
+                                   uint    *masterSplitSize);
 void stackPreDefinedPredictArrays();
 void unstackPreDefinedPredictArrays();
-char stackAndInitializeMissingArrays(uint       mode,
-                                     char      *p_mTimeIndexFlag,
-                                     char    ***p_mRecordBootFlag,
-                                     double ****p_mvImputation);
+void stackPreDefinedInteractionArrays();
+void unstackPreDefinedInteractionArrays();
+void initializeArrays(uint mode,
+                      uint *sortedTimeInterestsize);
+char stackMissingSignatures (uint     obsSize, 
+                          double  *statusPtr, 
+                          double  *timePtr, 
+                          double **predictorPtr,
+                          uint    *recordMap,
+                          uint     recordSize, 
+                          uint   **p_recordIndex, 
+                          uint    *p_vSize,
+                          int   ***p_vSign, 
+                          int    **p_vIndex,
+                          int   ***p_vForestSign);
+char stackMissingArrays(uint       mode,
+                        char    ***p_dmRecordBootFlag,
+                        double ****p_dmvImputation);
 void unstackMissingArrays(uint      mode,
-                          char    **mRecordBootFlag,
-                          double ***mvImputation);
+                          char    **dmRecordBootFlag,
+                          double ***dmvImputation);
+void unstackMissingSignatures(uint      obsSize, 
+                              double   *statusPtr, 
+                              double   *timePtr, 
+                              double  **predictorPtr,
+                              uint     *recordMap,
+                              uint      recordSize, 
+                              uint     *recordIndex, 
+                              uint      vSize,
+                              int     **vSign, 
+                              int      *vIndex,
+                              int     **vForestSign);
 uint stackDefinedOutputObjects(uint      mode,
                                uint      sortedTimeInterestSize,
                                char    **sexpString,
                                Node   ***p_root,
-                               double ***p_oobEnsemblePtr,
-                               double ***p_fullEnsemblePtr,
-                               double  **p_ensembleRun,
-                               uint    **p_ensembleDen,
                                double  **p_oobEnsemble,
                                double  **p_fullEnsemble,
                                double  **p_performance,
                                uint    **p_leafCount,
                                uint    **p_proximity,
                                double  **p_varImportance,
-                               double ***p_vimpEnsembleRun,
                                int     **p_seed,
                                double  **p_imputation,
-                               double  **p_sImputeStatusPtr,
-                               double  **p_sImputeTimePtr,
-                               double ***p_sImputePredictorPtr,
+                               double  **p_oobImputation,
+                               double  **p_sumImputeStatusPtr,
+                               double  **p_sumImputeTimePtr,
+                               double ***p_sumImputePredictorPtr,
+                               double  **p_sumOOBimputeStatusPtr,
+                               double  **p_sumOOBimputeTimePtr,
+                               double ***p_sumOOBimputePredictorPtr,
+                               uint    **p_varUsed,
+                               uint   ***p_varUsedPtr,
                                uint     *stackCount,
                                SEXP     *sexpVector);
+void unstackDefinedOutputObjects(uint      mode,
+                                 uint      sortedTimeInterestSize,
+                                 Node    **root);
 uint stackVariableOutputObjects(uint     totalNodeCount,
                                 uint   **p_treeID,
                                 uint   **p_nodeID,
@@ -104,15 +131,4 @@ uint stackVariableOutputObjects(uint     totalNodeCount,
                                 uint     sexpLength,
                                 char   **sexpString,
                                 SEXP    *sexpVector);
-void unstackDefinedOutputObjects(uint      mode,
-                                 Node    **root,
-                                 uint      sortedTimeInterestSize,
-                                 double  **oobEnsemblePtr,
-                                 double  **fullEnsemblePtr,
-                                 double   *ensembleRun,
-                                 uint     *ensembleDen,
-                                 double  **vimpEnsembleRun,
-                                 double  **sImputePredictorPtr);
-void initializeArrays(uint mode,
-                      uint *sortedTimeInterestsize);
 #endif

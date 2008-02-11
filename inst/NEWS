@@ -1,9 +1,46 @@
 Package: randomSurvivalForest
-Version: 3.0.1
-BUILD: bld20070803
+Version: 3.2.0
+BUILD: bld20080211
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.0.1
+CHANGES TO RELEASE 3.2.0
+
+Release 3.2.0 represents a significant upgrade in the functionality of
+the product.  Key changes are as follows:
+
+o A second method of perturbing the data set in order to calculate
+variable importance (VIMP) has been implemented.  In addition to
+permuting the values for a single variable, a random split approach
+has been taken in which a data point is randomly assigned to the left
+or right daughter node when a split occurs on the specified variable.
+
+o The joint VIMP among multiple variables of a (potentially proper)
+subset of the GROW data can now be calculated using the new function
+interaction.rsf().  This represents a third mode of operation for the
+application, and follows rsf.default (GROW) and predict.rsf (PREDICT).
+See the documentation for details.
+
+o An additional option in GROW mode can now be specified.  The option
+'varUsed' allows users to quantify which variables have been split
+upon within a single tree or over the entire forest.  See the
+documentation for more details.
+
+o The ability to multiply impute data has been implemented.  This
+involves imputing data while growing a forest and using the results to
+grow a new forest in order to better impute the data.
+
+o In GROW mode, the application now outputs both the in-bag and OOB
+summary imputed values.
+
+o An additional split rule 'randomsplit' has been implemented.
+See the documentation for more details.
+
+o The split rule 'logrankscore' is now calculated correctly.  
+
+o The split rule 'logrankapprox' has been removed and replaced by
+the new split rule 'logrankrandom'.  See the documentation for more details.
+
+---------------------------------------------------------------------------------
 
 Release 3.0.1 represents a minor upgrade of the product, and will not affect
 most users of the prior version of the product.  Key changes are as follows:

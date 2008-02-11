@@ -7,44 +7,53 @@
   values.
 }
 \usage{
-    find.interaction(x,
-                  sort = TRUE,
+    find.interaction(object,
                   predictorNames = NULL,
-                  n.pred = NULL,
-                  n.rep = 1,
+                  sorted = TRUE,
+                  npred = NULL,
+                  subset = NULL, 
+                  nrep = 1,
+                  importance = c("randomsplit", "permute")[1],
                   ...)
 }
 \arguments{
-    \item{x}{An object of class \code{(rsf, grow)}.}
-    \item{sort}{Should variables be sorted by importance values (only
-        applies if importance values are available and
-        \code{predictorNames}=NULL)?  Default is TRUE.}
-    \item{predictorNames}{Character vector of variable names.  Only these
-        variables will be considered.  Default is all.}
-    \item{n.pred}{Number of variables to be plotted (only applies when
-	\code{predictorNames}=NULL).  Default is all.}
-    \item{n.rep}{Number of Monte Carlo replicates.}
+    \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
+      forest)}.  Note: \code{forest}=TRUE must be used in the
+      original \code{rsf} call.}
+    \item{predictorNames}{Character vector of variable names to be
+      considered.  Default is to use all variables.}
+    \item{sorted}{Should variables be sorted by importance values?  Only
+      applies when \code{predictorNames}=NULL.}
+    \item{npred}{Use the first npred variables as ordered by VIMP (only applies when
+      \code{predictorNames}=NULL).  Default uses all variables.}
+    \item{subset}{An index vector indicating which rows should be used.
+      Default is to use all the data.}
+    \item{nrep}{Number of Monte Carlo replicates.}
+    \item{importance}{Method used to compute variable importance (VIMP).}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-     Pairwise interactions between the first \code{n.pred} variables
-     are investigated (if \code{sort}=TRUE analysis is based on the
-     first \code{n.pred} as ordered by importance values).  Variables
-     are paired and then removed from the model.  The increase in error
-     rate is computed and is defined to be the 'Paired' importance value
-     of the two variables.  The increase in error rate if each
-     variable is removed individually is also computed and the sum of
-     these two values yields an 'Additive' importance value.  Large
-     positive or negative differences between 'Paired' and 'Additive'
-     values indicate potentially interesting associations.  
+     Using a previously grown forest, identify pairwise interactions for
+     all pairs of variables from a specified list.  Two variables are
+     paired and their paired VIMP calculated (refered to as 'Paired'
+     importance).  The VIMP for each separate variable is also
+     calculated.  The sum of these two values is refered to as
+     'Additive' importance.  A large positive or negative difference
+     between 'Paired' and 'Additive' indicates an association worth
+     pursuing if the VIMP's for each variable are reasonably large
+     (Ishwaran, 2007).
 
-     Computations can be fairly heavy if the data is large, thus users
-     should consider setting \code{n.pred} to a fairly small value to
-     gauge computational times.
-
-     If \code{n.rep} is greater than 1, the analysis is replicated
-     \code{n.rep} times.  Results reported are averaged values in this
+     Depending on the size of the data, computations might be slow.
+     Users should consider setting \code{npred} to a smaller number, or
+     restricting the analysis to a subset of the data, if that is the
      case.
+     
+     If \code{nrep} is greater than 1, the analysis is repeated
+     \code{nrep} times and results averaged over the replications.
+
+     \code{find.interaction} calls the lower level function
+     \code{interaction.rsf}.  For programming only, users may consider
+     doing likewise.
 }
 \value{
    Invisibly, the interaction table.
@@ -54,16 +63,16 @@
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
-    H. Ishwaran (2007).  Variable importance in binary
-    trees.  \emph{Cleveland Clinic Technical Report}.
+    H. Ishwaran (2007).  Variable importance in binary regression
+    trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+
 }
 \seealso{
-  \code{rsf},
-  \code{predict.rsf}.
+  \code{interaction.rsf}.
 }
 \examples{
   data(veteran, package = "randomSurvivalForest") 
-  v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000)
-  find.interaction(v.out, n.pred = 2, n.rep=1)
+  v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000, forest = TRUE)
+  find.interaction(v.out, npred = 2, nrep=1)
 }
 \keyword{file}

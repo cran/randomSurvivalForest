@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -77,20 +77,22 @@ rsf.default <- function(
     ntree = 1000,
     mtry = NULL,
     nodesize = NULL,
-    splitrule = c("logrank", "conserve", "logrankscore", "logrankapprox")[1],
-    importance = TRUE,
+    splitrule = c("logrank", "conserve", "logrankscore", "logrankrandom", "random")[1],
+    importance = c("randomsplit", "permute", "none")[1],
     big.data = FALSE,
     na.action = c("na.omit", "na.impute")[1],
+    nimpute = 1,
     predictorWt = NULL,
     forest = FALSE,
     proximity = FALSE,
+    varUsed = NULL,
     seed = NULL,
     ntime = NULL,
     add.noise = FALSE,
     do.trace = FALSE,
     ...)
 {
-    ## preliminary checks for formula and data
+    ## Preliminary checks for formula and data.
     if (!inherits(formula, "formula")) stop("'formula' is not a formula object.")
     if (is.null(data)) stop("'data' is missing.")
     if (!is.data.frame(data)) stop("'data' must be a data frame.")
@@ -104,11 +106,15 @@ rsf.default <- function(
         sum(is.element(names(data), fNames[1:2]))==2)) 
       stop("Outcome is not a random survival object.  Use 'Survrsf' for the formula.")
 
-    ## details for handling NA's
-    ## if all survival times or all censoring values missing stop
-    ## first remove all predictors will missing values in all entries
-    ## next remove all records with missing values in all entries
-    ## at each step check if enough data is left.
+    ## Ensure backward compatability with 3.0 user scripts.
+    if (importance == TRUE)  importance <- "permute"
+    if (importance == FALSE) importance <- "none"    
+
+    ## Details for handling NA's:
+    ## If all survival times or all censoring values missing stop.
+    ## First remove all predictors will missing values in all entries.
+    ## Next remove all records with missing values in all entries.
+    ## At each step check if enough data is left.
     pt.Time <- is.na(data[,is.element(names(data), fNames[1])])
     pt.Cens <- is.na(data[,is.element(names(data), fNames[2])])
     if (all(pt.Time) | all(pt.Cens))
@@ -134,12 +140,12 @@ rsf.default <- function(
     }
     else {
        predTempNames <- names(data)[!is.element(names(data), fNames[1:2])]
-       formula = as.formula(paste(paste("Survrsf(",fNames[1],",",fNames[2],") ~"),
+       formula <- as.formula(paste(paste("Survrsf(",fNames[1],",",fNames[2],") ~"),
                             paste(predTempNames, collapse="+")))
     }
 
-    ## More NA processing
-    ## Special treatment for big.data=T (coerce factors to real)
+    ## More NA processing:
+    ## Special treatment for big.data=T (coerce factors to real).
     ## Removing NA's depletes the data.  Check if enough data is left.
     if (na.action != "na.omit" & na.action != "na.impute") na.action <- "na.omit"
     if (!big.data) {
@@ -165,7 +171,8 @@ rsf.default <- function(
     n <- dim(predictors)[1]
     if (n <= 1)
       stop("Less than 2 records in the NA-processed data.  Analysis not meaningful.")
-    if (big.data) {###coerce factors to NA
+    if (big.data) {
+      ## Coerce factors to NA.
       predictors <- matrix(as.real(predictors), nrow = n, byrow = F)
       coerced.pt <- apply(predictors, 2, function(x){all(is.na(x))})
       if (sum(coerced.pt) == dim(predictors)[2])
@@ -176,7 +183,7 @@ rsf.default <- function(
       }
     }
 
-    ## add noise variable if requested (and adjust formula and predictorWt)
+    ## Add noise variable if requested (and adjust formula and predictorWt)
     if (add.noise || (length(predictorNames) == 1 && length(unique(predictors)) <= 10)) {
       noise <- rnorm(dim(predictors)[1])
       predictors <- cbind(predictors, noise)
@@ -193,7 +200,7 @@ rsf.default <- function(
     Cens <- data[,is.element(names(data), fNames[2])]
 
 
-    ## determine how many records having missing data
+    ## Determine how many records having missing data.
     nMiss <- sum(is.na(Cens) | is.na(Time) | apply(predictors, 1, function(x){any(is.na(x))}))
     
     ## set predictor types
@@ -208,8 +215,8 @@ rsf.default <- function(
       predictorType <- rep("R", ncov)
     }
 
-    ## check to see if there are deaths
-    ## check that censoring and time are properly coded
+    ## Check to see if there are deaths.  Check that censoring and
+    ## time are properly coded.
     if (all(na.omit(Cens) == 0)) {
       stop("No deaths in data: consider converting 0's to 1's.")
     }
@@ -220,9 +227,13 @@ rsf.default <- function(
       stop("Time must be strictly positive.")
     }
   
-    ## check that option parameters are correctly specified
+    ## Check that option parameters are correctly specified.
     ntree <- round(ntree)
     if (ntree < 1) stop("Invalid choice of 'ntree'.  Cannot be less than 1.")
+
+    nimpute <- round(nimpute)
+    if (nimpute < 1) stop("Invalid choice of 'nimpute'.  Cannot be less than 1.")
+
     if (!is.null(mtry)) {
       mtry <- round(mtry)
       if (mtry < 1 | mtry > ncov) mtry <- max(1, min(mtry, ncov))
@@ -230,11 +241,13 @@ rsf.default <- function(
     else {
       mtry <- max(floor(sqrt(ncov)), 1)
     }
-    splitrule.names = c("logrank", "conserve", "logrankscore", "logrankapprox")
-    splitrule.idx = which(splitrule.names == splitrule)
+
+    splitrule.names <- c("logrank", "conserve", "logrankscore", "logrankrandom", "random")
+    splitrule.idx <- which(splitrule.names == splitrule)
     if (length(splitrule.idx) != 1)
       stop("Invalid split rule specified:  ", splitrule)
 
+    
     ## seed details
     ## generate seed
     if (is.null(seed) || abs(seed)<1) seed <- runif(1,1,1e6)
@@ -280,93 +293,123 @@ rsf.default <- function(
         predictorWt <-predictorWt/sum(predictorWt)
       }
     }
-    ## do.trace details
+
+    ## Convert trace into native code parameter.
     if (!is.logical(do.trace)) {
-      if (do.trace >= 1){
-        do.trace <- 256*round(do.trace) + 1
+      if (do.trace >= 1) {
+        do.trace <- 256 * round(do.trace) + 1
       }
       else {
         do.trace <- 0
       }
     }
     else {
-      do.trace <- 1*(do.trace)
+      do.trace <- 1 * (do.trace)
     }
 
+    ## Convert importance option into native code parameter.
+    if (importance == "none") {
+      importanceBits <- 0
+    }
+    else if (importance == "permute") {
+      importanceBits <- 2048 + 0
+    }
+    else if (importance == "randomsplit") {
+      importanceBits <- 2048 + 512
+    }
+    else {
+      stop("Invalid choice for 'importance' option:  ", importance)
+    }
+
+
+    ## Convert varUsed option into native code parameter.
+    if (is.null(varUsed)) {
+      varUsedBits <- 0
+    }
+    else if (varUsed == "all.trees") {
+      varUsedBits <- 8192 + 0
+    }
+    else if (varUsed == "by.tree") {
+      varUsedBits <- 8192 + 4096
+    }
+    else {
+      stop("Invalid choice for 'varUsed' option:  ", varUsed)
+    }
+    
     ## #################################################################
-    ## Parameters passed the C function rsf(...) are as follows:
+    ## rsf.default(...)
+    ##
+    ## Parameters passed:
     ## #################################################################
-    ## 00 - C function name
+    ## 00 - C function call
+    ##
     ## 01 - trace output flag
     ##    -  0 = no trace output
     ##    - !0 = various levels of trace output
-    ## 02 - memory useage protocol (MUP) for return objects
-    ##    - any combination of the following are allowed
-    ##    - 0x00 = only the default objects are returned
-    ##    - 0x01 = return proximity information
-    ##    - 0x02 = return resulting forest
-    ##    - 0x04 = N/A
-    ##    - 0x08 = return variable importance
-    ## 03 - random seed for repeatability
-    ##    - integer < 0 
+    ##
+    ## 02 - option protocol for output objects.
+    ##    - only some of the following are relevant (*)
+    ##      GROW PRED INTR
+    ##       *         *    0x0001 = OENS
+    ##       *    *         0x0002 = FENS
+    ##       *    *    *    0x0004 = PERF
+    ##       **   *         0x0008 = PROX
+    ##       *    *    *    0x0010 = LEAF
+    ##       **             0x0020 = TREE \ part of 
+    ##       **             0x0040 = SEED / the forest 
+    ##       ***  ***       0x0080 = MISS
+    ##       ***       ***  0x0100 = OMIS
+    ##       **   **   *    0x0000 = \  VIMP_PERM
+    ##       **   **   *    0x0200 =  | VIMP_RAND
+    ##       **   **   *    0x0400 =  | VIMP_JOIN
+    ##       **   **   *    0x0800 = /  VIMP
+    ##       **             0x1000 = \  VUSE_TYPE
+    ##       **             0x1800 = /  VUSE
+    ##
+    ##       (*)   default  output
+    ##       (**)  optional output
+    ##       (***) default  output 
+    ##             - dependent on data and potentially suppressed
+    ##
+    ## 03 - random seed for repeatability, integer < 0 
     ## 04 - split rule to be used 
-    ##    - 1 = Log-Rank
-    ##    - 2 = Conservation of Events
-    ##    - 3 = Log-Rank Score
-    ##    - 4 = Approximate Log-Rank
+    ##       1 = Log-Rank
+    ##       2 = Conservation of Events
+    ##       3 = Log-Rank Score
+    ##       4 = Log-Rank Approximate
+    ##       5 = Random Split
     ## 05 - number of covariates to be randomly selected for
-    ##      growing tree
-    ##    - integer > 0
-    ## 06 - number of bootstrap iterations
-    ##    - integer > 0
-    ## 07 - minimum number of deaths allowed in a node
-    ##    - integer > 0
-    ## 08 - number of observations in data set
-    ##    - integer > 1
-    ## 09 - vector of observed times of death
-    ##    - vector of double values
+    ##      growing tree, integer > 0
+    ## 06 - number of bootstrap iterations, integer > 0
+    ## 07 - minimum number of deaths allowed in a node, integer > 0
+    ## 08 - number of observations in data set, integer > 1
+    ## 09 - vector of observed times of death, doubles > 0
     ## 10 - vector of observed event types
-    ##    - 0 = censored
-    ##    - 1 = death
-    ## 11 - number of predictors 
-    ##    - integer > 0
+    ##       0 = censored
+    ##       1 = death
+    ## 11 - number of predictors, integer > 0
     ## 12 - [p x n] matrix of predictor observations
-    ## 13 - number of time points of interest
-    ##    - integer > 0
-    ## 14 - vector of time points of interest
-    ##    - vector of double values
-    ## 15 - random covariate weight
-    ##    - vector of double values
+    ## 13 - number of time points of interest, integer > 0
+    ## 14 - vector of time points of interest, doubles
+    ## 15 - vector of random covariate weights, doubles
     ## 16 - vector of predictor types
-    ##      "R" - real value
-    ##      "I" - integer value 
-    ##      "C" - categorical 
+    ##       "R" - real value
+    ##       "I" - integer value 
+    ##       "C" - categorical 
+    ## 17 - number of impute iterations, integer > 0
     ## 
     ## #################################################################
 
-    ##############################################################
-    ## SEXP outputs (see native code for description):
-    ## Note that outputs depend on the MUP flags.
-    ##
-    ## fullEnsemble - default output
-    ## oobEnsemble  - default output
-    ## performance  - default output
-    ## leafCount    - default output
-    ## proximity    - optional
-    ## importance   - optional
-    ## treeID       \\
-    ## nodeID        \\
-    ## parmID         || - forest optional
-    ## spltPT        ##     in PRED mode
-    ## seed         ##
-    ## imputedData  - output is dependent on missing data
-    ##############################################################    
+    ## ###########################################################
+    ##  SEXP outputs:  See parameter 2 above and note "*".
+    ## ###########################################################    
 
     nativeOutput <- .Call("rsfGrow",
         as.integer(do.trace),
-        as.integer((8 * (if (importance) 1 else 0)) +
-                   (2 * (if (forest) 1 else 0)) +
-                   (if (proximity) 1 else 0)),
+        as.integer(varUsedBits +
+                   importanceBits +
+                   (32 * (if (forest) 1 else 0)) +
+                   (8  * (if (proximity) 1 else 0))),
         as.integer(seed),
         as.integer(splitrule.idx), 
         as.integer(mtry),
@@ -380,14 +423,15 @@ rsf.default <- function(
         as.integer(length(timeInterest)),
         as.double(timeInterest),
         as.double(predictorWt),
-        as.character(predictorType))
+        as.character(predictorType),
+        as.integer(nimpute))
 
     ## check for error return condition in the native code
     if(is.null(nativeOutput)) {
       stop("Error occurred in algorithm.  Please turn trace on for further analysis.")
     }
     
-    ## ensemble mortality (in-bag and OOB) 
+    ## Ensemble mortality (in-bag and OOB) 
     mortality <- apply(matrix(nativeOutput$fullEnsemble, 
                        nrow = n,
                        byrow = FALSE),
@@ -401,13 +445,74 @@ rsf.default <- function(
                        function(x, wt) {sum(x*wt)},
                        wt = Risk)
     
-    ## check if there was missing data
-    ## assign imputed data 
+    ## Check if there was missing data, and assign in-bag and OOB data
+    ## if necessary.
     if (nMiss > 0) {
       imputedData <- matrix(nativeOutput$imputation, nrow = nMiss, byrow = FALSE)
       imputedIndv <- imputedData[,1]
       imputedData <- as.matrix(imputedData[,-1])
       if (nMiss == 1) imputedData <- t(imputedData)
+
+      imputedOOBData <- matrix(nativeOutput$oobImputation, nrow = nMiss, byrow = FALSE)
+      imputedOOBData <- as.matrix(imputedOOBData[,-1])
+      if (nMiss == 1) imputedOOBData <- t(imputedOOBData)
+
+      ## Fill NA's in original GROW data with multiply imputed values.
+      ## This will now serve as the forest data set and will enable
+      ## recovery of terminal node membership with the head of the
+      ## seed chain.
+      if (nimpute > 1) {
+        if (nimpute == 2) {
+          ## The forest was grown using overlaid OOB summary values.
+          Cens[imputedIndv] <- imputedOOBData[, 1]
+          Time[imputedIndv] <- imputedOOBData[, 2]
+          predictors[imputedIndv, ] <- imputedOOBData[, -1:-2]
+        }
+        else {
+          ## The forest was grown using overlaid full (all) summary values.         
+          Cens[imputedIndv] <- imputedData[, 1]
+          Time[imputedIndv] <- imputedData[, 2]
+          predictors[imputedIndv, ] <- imputedData[, -1:-2]
+        }
+
+        ## Remove the imputed data outputs.
+        imputedIndv    <- NULL
+        imputedData    <- NULL
+        imputedOOBData <- NULL
+        
+      }  ## if (nimpute > 1) ...
+      else {
+        ## Add column names to the imputed data outputs in the absence
+        ## of multiple imputation.
+        ## names(Cens) = fNames[2]
+        ## names(Time) = fNames[1]    
+          colnames(imputedData) <- c(fNames[2], fNames[1], predictorNames)
+          colnames(imputedOOBData) <- c(fNames[2], fNames[1], predictorNames)      
+      }
+    }
+
+    ## Add column names to predictor matrix 
+    ## Add names to importance values
+    colnames(predictors) <- predictorNames
+    if (importance != "none") {
+      VIMP <- nativeOutput$importance-nativeOutput$performance[ntree]
+      names(VIMP) <- predictorNames
+    }
+    else {
+      VIMP <- NULL
+    }
+
+    ## Get varUsed information
+    ## Add names for nicety
+    if (!is.null(varUsed)) {
+      if (varUsed == "all.trees") {
+        varUsed <- nativeOutput$varUsed
+        names(varUsed) <- predictorNames
+      }
+      else {
+        varUsed <- matrix(nativeOutput$varUsed, nrow = ntree, byrow = TRUE)
+        colnames(varUsed) <- predictorNames
+      }
     }
 
     ## define the forest
@@ -431,13 +536,6 @@ rsf.default <- function(
       forest <- NULL
     }
 
-    ## add column names to predictor matrix
-    ## add column names to imputed data
-    colnames(predictors) <- predictorNames
-    if (nMiss > 0) {
-      colnames(imputedData) <- c(fNames[2], fNames[1], predictorNames)
-    }
-    
     ## create the output object
     rsfOutput <- list(
         call = match.call(),
@@ -445,6 +543,7 @@ rsf.default <- function(
         n = n,
         ndead = sum(na.omit(Cens) == 1),
         ntree = ntree,
+        nimpute = nimpute,                      
         mtry = mtry,
         nodesize = nodesize,
         splitrule = splitrule,
@@ -460,12 +559,13 @@ rsf.default <- function(
         oob.mortality = oob.mortality,
         err.rate = nativeOutput$performance,
         leaf.count = nativeOutput$leafCount,
-        importance = (if (importance) nativeOutput$importance-nativeOutput$performance[ntree]
-                      else NULL),
+        importance = VIMP,
         forest = forest,
         proximity = (if (proximity) nativeOutput$proximity else NULL),
+        varUsed = varUsed,
         imputedIndv = (if (nMiss>0) imputedIndv else NULL),
-        imputedData = (if (nMiss>0) imputedData else NULL)
+        imputedData = (if (nMiss>0) imputedData else NULL),
+        imputedOOBData = (if (nMiss>0) imputedOOBData else NULL)
     )
 
     if (!big.data) {

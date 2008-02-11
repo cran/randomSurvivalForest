@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.1
+//  RANDOM SURVIVAL FOREST 3.2.0
 //
-//  Copyright 2007, Cleveland Clinic
+//  Copyright 2008, Cleveland Clinic Foundation
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -57,6 +57,14 @@
 #ifndef RSFSPLIT_H
 #define RSFSPLIT_H
 #include "extern.h"
+char logRankRandom(Node    *parent,
+                   uint    *splitParameterMax,
+                   uint    *splitValueMax,
+                   double **masterSplit);
+char randomSplit(Node    *parent,
+                 uint    *splitParameterMax,
+                 uint    *splitValueMax,
+                 double **masterSplit);
 char logRankApprox(Node    *parent,
                    uint    *splitParameterMax,
                    uint    *splitValueMax,
@@ -64,8 +72,7 @@ char logRankApprox(Node    *parent,
 char logRankScore(Node    *parent,
                   uint    *splitParameterMax,
                   uint    *splitValueMax,
-                  double **masterSplit,
-                  uint   **masterSplitOrder);
+                  double **masterSplit);
 char conserveEvents(Node    *parent,
                     uint    *splitParameterMax,
                     uint    *splitValueMax,
@@ -76,4 +83,6 @@ char logRank(Node    *parent,
              double **masterSplit);
 uint selectRandomCovariates(Node *parent,
                             uint *covariateIndex);
+uint selectPermissibleElements (uint length,
+                                char *permissible);
 #endif

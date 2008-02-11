@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -55,90 +55,87 @@
 ##**********************************************************************
 
 find.interaction <- function (
-    x, 
-    sort = TRUE,
+    object, 
     predictorNames = NULL,
-    n.pred = NULL,
-    n.rep  = 1,
+    sorted = TRUE,
+    npred = NULL, 
+    subset = NULL,                              
+    nrep  = 1,
+    importance = c("randomsplit", "permute")[1],
     ...) {
+ 
+    ## Check that 'object' is of the appropriate type.
+    if (is.null(object)) stop("Object is empty!")
+    if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2    &
+        sum(inherits(object, c("rsf", "forest"), TRUE) == c(1, 2)) != 2)
+       stop("This function only works for objects of class `(rsf, grow)' or '(rsf, forest)'.")
+    if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) == 2) {
+      if (is.null(object$forest)) 
+        stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
+    }
 
-    ### check that object is interpretable
-    if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2)
-      stop("Function only works for objects of class `(rsf, grow)'.")
+    ### get ntree
+    ntree <- length(unique(object$nativeArray[,1]))
 
-    ### extract data, predictor names, splitrule, ntree, and formula for subsequent calls 
-    ### special treatment needed if user passes predictorNames
+    ### check importance option
+    if (importance != "randomsplit" &  importance != "permute")
+       stop("Invalid choice for 'importance' option:  " + importance)
+        
+    ### variable name details
+    ### special treatment needed if user passes predictor names
     ### should predictors be sorted by importance?
     ### determine number of variables to be paired-up
-    predictors <- x$predictors
-    if (!is.null(x$imputedIndv)) predictors[x$imputedIndv, ] <- x$imputedData
-    cov.names <- x$predictorNames
-    splitrule <- x$splitrule
-    ntree <- x$ntree
+    cov.names <- object$predictorNames
     n.interact <- n.cov <- length(cov.names)
-    fNames <- all.vars(x$formula, max.names=1e7)
-    rsf.f.org <- paste("Survrsf(",fNames[1], ",", fNames[2], ") ~", sep="")
-    newData <- as.data.frame(cbind(x$time, x$cens, predictors))
-    colnames(newData) <- c(fNames[1:2], cov.names)
     if (!is.null(predictorNames)) {
       if (sum(is.element(cov.names, predictorNames)) == 0) {
-           cat("Coefficient list does not match available predictors:","\n")
+           cat("Variables do not match original analysis:","\n")
            print(cov.names)
            stop()
       }
       predictorNames <- unique(predictorNames[is.element(predictorNames, cov.names)])
       if (length(predictorNames) == 1)
-        stop("Pairwise comparisons require more than one candidate predictor")
-      o.pt <- 1:(length(predictorNames))
-      for (k in 1:length(predictorNames)) {
-        o.pt[k] <- (1:n.cov)[cov.names == predictorNames[k]]
-      }
-      o.pt <- 2 + c(o.pt, setdiff(1:n.cov, o.pt))
-      newData <- newData[, c(1, 2, o.pt)]
-      cov.names <- names(newData)[-c(1, 2)]
-      sort <- F
-      n.pred <- NULL
+        stop("Pairwise comparisons require more than one candidate variable.")
+      cov.names <- predictorNames
+      sorted <- F
+      npred <- NULL
       n.interact <- length(predictorNames)
     }
-    if (sort) {
-      if (!is.null(x$importance)) {
-        o.r <- rev(order(x$importance))
-        newData <- newData[, c(1,2,(3:(2+n.cov))[o.r])]
+    if (sorted) {
+      if (!is.null(object$importance)) {
+        o.r <- rev(order(object$importance))
         cov.names <- cov.names[o.r]
       }
     }
-    if (!is.null(n.pred)) {
-      n.interact <- min(n.cov, max(round(n.pred), 1))
+    if (!is.null(npred)) {
+      n.interact <- min(n.cov, max(round(npred), 1))
     }
-    if (n.interact == 1) stop("Pairwise comparisons require more than one candidate predictor")
+    if (n.interact == 1) stop("Pairwise comparisons require more than one candidate variable.")
 
-    ### interaction loop: call RSF multiple times to work out various error rates
+    
+    ### interaction loop: call interaction.rsf
     interact.imp <- rownames.interact.imp <- NULL
-    rsf.f <- as.formula(paste(rsf.f.org,"."))
     for (k in 1:(n.interact-1)) {
-      n.2.cov <- n.interact-k
-      imp <- rep(0,1+n.2.cov)
-      imp.2 <- rep(0,n.2.cov)
+      n.joint.cov <- n.interact-k
+      imp <- rep(0,1+n.joint.cov)
+      imp.joint <- rep(0,n.joint.cov)
       for (l in (k+1):n.interact) {
         cat("Pairing",cov.names[k],"with",cov.names[l],"\n")
-        rsf.k.f <- as.formula(paste(rsf.f.org,paste(cov.names[-k],collapse="+")))
-        rsf.l.f <- as.formula(paste(rsf.f.org,paste(cov.names[-l],collapse="+")))
-        rsf.2.f <- as.formula(paste(rsf.f.org,paste(cov.names[-c(k,l)],collapse="+")))
-        for (m in 1:n.rep) {
-          seed <- -1*sample(1:1e5,1)
-          rsfOutput    <-  rsf(rsf.f,newData,ntree,splitrule=splitrule,seed=seed)
-          rsfOutput.k  <-  rsf(rsf.k.f,newData,ntree,splitrule=splitrule,seed=seed)
-          rsfOutput.l  <-  rsf(rsf.l.f,newData,ntree,splitrule=splitrule,seed=seed)
-          rsfOutput.2  <-  rsf(rsf.2.f,newData,ntree,splitrule=splitrule,seed=seed)
-          imp[1] <- imp[1]+rsfOutput.k$err[ntree]-rsfOutput$err[ntree]
-          imp[l-k+1] <- imp[l-k+1]+rsfOutput.l$err[ntree]-rsfOutput$err[ntree]
-          imp.2[l-k] <- imp.2[l-k]+rsfOutput.2$err[ntree]-rsfOutput$err[ntree]
+        for (m in 1:nrep) {
+          rsfOutput  <-  interaction.rsf(object, cov.names[c(k,l)], importance=importance,
+                                         subset=subset, joint=FALSE)
+          rsfOutput.joint  <-  interaction.rsf(object, cov.names[c(k,l)], importance=importance,
+                                           subset=subset)
+          imp[1] <- imp[1]+rsfOutput$importance[1]
+          imp[l-k+1] <- imp[l-k+1]+rsfOutput$importance[2]
+          imp.joint[l-k] <- imp.joint[l-k]+rsfOutput.joint$importance
         }
       }
-      imp[1] <- imp[1]/n.2.cov
-      imp <- imp/n.rep
-      imp.2 <- imp.2/n.rep
-      interact.imp <- rbind(interact.imp,cbind(imp.2,(imp[1]+imp)[-1],imp.2-(imp[1]+imp)[-1]))
+      imp[1] <- imp[1]/n.joint.cov
+      imp <- imp/nrep
+      imp.joint <- imp.joint/nrep
+      interact.imp <- rbind(interact.imp,
+                 cbind(imp.joint,(imp[1]+imp)[-1],imp.joint-(imp[1]+imp)[-1]))
       rownames.interact.imp <- c(rownames.interact.imp,
                                  paste(cov.names[k],":",cov.names[(k+1):n.interact],
                                  sep=""))
@@ -149,15 +146,14 @@ find.interaction <- function (
     ### output table
     cat("\n")
     cat("                    No. of variables: ", n.cov,               "\n", sep="")
-    cat("                   Variables sorted?: ", sort,                "\n", sep="")
+    cat("                   Variables sorted?: ", sorted,              "\n", sep="")
     cat("   No. of variables used for pairing: ", n.interact,          "\n", sep="")
     cat("    Total no. of paired interactions: ", dim(interact.imp)[1],"\n", sep="")
-    cat("            Monte Carlo replications: ", n.rep,               "\n", sep="")
-    cat("                      Splitting rule: ", x$splitrule,         "\n", sep="")
-    cat("                     Number of trees: ", x$ntree,             "\n",sep="")
+    cat("            Monte Carlo replications: ", nrep,                "\n", sep="")
+    cat("                                VIMP: ", importance,          "\n", sep="")
     cat("\n")
     print(round(interact.imp,4))
 
     ### return the goodies
-    invisible(list(interaction.table=interact.imp))
-  }
+    invisible(interact.imp)
+}

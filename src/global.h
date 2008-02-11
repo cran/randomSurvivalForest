@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.1
+//  RANDOM SURVIVAL FOREST 3.2.0
 //
-//  Copyright 2007, Cleveland Clinic
+//  Copyright 2008, Cleveland Clinic Foundation
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -78,10 +78,20 @@
 #define DL2_TRACE 0x04
 #define DL3_TRACE 0x08
 #define EPSILON 1.0e-7
-#define MUP_PROX 0x01
-#define MUP_TREE 0x02
-#define MUP_PERF 0x04
-#define MUP_VIMP 0x08
+#define OPT_FENS      0x0001
+#define OPT_OENS      0x0002
+#define OPT_PERF      0x0004
+#define OPT_PROX      0x0008
+#define OPT_LEAF      0x0010
+#define OPT_TREE      0x0020
+#define OPT_SEED      0x0040
+#define OPT_MISS      0x0080
+#define OPT_OMIS      0x0100
+#define OPT_VIMP_TYPE 0x0200
+#define OPT_VIMP_JOIN 0x0400
+#define OPT_VIMP      0x0800
+#define OPT_VUSE_TYPE 0x1000
+#define OPT_VUSE      0x2000
 #define CENS_IDX -1
 #define TIME_IDX -2
 #define RSF_OUTP_ID   0  
@@ -89,21 +99,26 @@
 #define RSF_FENS_ID   2  
 #define RSF_OENS_ID   3  
 #define RSF_PERF_ID   4  
-#define RSF_LEAF_ID   5  
-#define RSF_PROX_ID   6  
-#define RSF_VIMP_ID   7  
-#define RSF_TREE_ID   8  
-#define RSF_NODE_ID   9  
-#define RSF_PARM_ID  10  
-#define RSF_SPLT_PT  11  
-#define RSF_SEED_ID  12  
+#define RSF_PROX_ID   5  
+#define RSF_LEAF_ID   6  
+#define RSF_TREE_ID   7  
+#define RSF_NODE_ID   8  
+#define RSF_PARM_ID   9  
+#define RSF_SPLT_PT  10  
+#define RSF_SEED_ID  11  
+#define RSF_VIMP_ID  12  
 #define RSF_MISS_ID  13  
-#define RSF_SEXP_CNT 14  
+#define RSF_OMIS_ID  14  
+#define RSF_VUSE_ID  15  
+#define RSF_SEXP_CNT 16  
 #define RSF_GROW 0x10
 #define RSF_PRED 0x20
+#define RSF_INTR 0x40
 #define LOG_RANK        1
 #define CONSERVE_EVENTS 2
 #define LOG_RANK_SCORE  3
-#define LOG_RANK_APPROX 4
+#define LOG_RANK_RANDOM 4
+#define RANDOM_SPLIT    5
+#define LOG_RANK_APPROX 6
 #define uint  unsigned int
 #define ulong unsigned long

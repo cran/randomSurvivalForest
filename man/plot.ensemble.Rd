@@ -25,7 +25,7 @@
   stratified by ensemble mortality value (see Graf et al. for more
   background on Brier scores).  Stratification is into 4 groups
   corresponding to the 0-25, 25-50, 50-75 and 75-100 percentile values
-  of mortality.  Green line is non-stratified score.  (4) Plot of
+  of mortality.  Red line is non-stratified score.  (4) Plot of
   estimated mortality versus observed time.  Points in blue correspond
   to events, black points are censored observations.
 
@@ -37,14 +37,13 @@
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
-    H. Ishwaran, Udaya B. Kogalur, Eugene H. Blackstone and Michael S. Lauer
-    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
-    Report}.
-
     E. Graf, C. Schmoor, W. Sauerbrei and M. Schumacher M (1999).
     Assessment and comparison of prognostic classification
     schemes for survival data, \emph{Statistics in Medicine},
     18:2529-2545.
+
+    H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
+    \emph{Rnews}, 7/2:25-31.
 }
 \seealso{
   \code{rsf},

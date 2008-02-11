@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -72,7 +72,7 @@ print.rsf <- function(x, ...) {
     cat("\nCall:\n", deparse(x$call), "\n\n")
     cat("                         Sample size: ", x$n,                 "\n", sep="")
     cat("                    Number of deaths: ", x$ndead,             "\n", sep="")
-    if (!is.null(x$imputedData)) {
+    if (!is.null(x$imputedIndv)) {
       cat("                    Was data imputed: ", "yes",               "\n", sep="")
       cat("                         Missingness: ",
           round(100*length(x$imputedIndv)/x$n,2), "%\n", sep="")      

@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -57,7 +57,7 @@
 predict.rsf <- function(
     object = NULL,
     newdata = NULL,
-    importance = TRUE,
+    importance = c("randomsplit", "permute", "none")[1],
     na.action = c("na.omit", "na.impute")[1],
     proximity = FALSE,
     seed = NULL,
@@ -65,13 +65,15 @@ predict.rsf <- function(
     ...)
 {
 
-    ## check that 'object' and 'newdata' are appropriate types
-    ## flag class (rsf, grow, bigdata)
+    ## Check that 'object' is of the appropriate type.
     if (is.null(object)) stop("Object is empty!")
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2    &
         sum(inherits(object, c("rsf", "forest"), TRUE) == c(1, 2)) != 2  &
         sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+
+    ## Acquire the forest and flag class (rsf, grow, bigdata) for
+    ## special handling.
     big.data <- F
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) == 2) {
       if (is.null(object$forest)) 
@@ -79,25 +81,32 @@ predict.rsf <- function(
       if (inherits(object, c("rsf", "grow", "bigdata"), TRUE) [3] == 3) big.data <- T
       object <- object$forest
     }
+    
+    ## Check that the predict data set is coherent.
     if (is.null(newdata)) stop("'newdata' is null.")
     if (!is.data.frame(newdata)) stop("'newdata' must be a data frame.")
 
-    ## automatic pass given if object is of class (rsf, partial)
-    ## send void outcomes to native library
+    ## Ensure backward compatability with 3.0 user scripts.
+    if (importance == TRUE)  importance <- "permute"
+    if (importance == FALSE) importance <- "none"    
+
+    ## Automatic pass given if object is of class (rsf, partial).
+    ## Send void outcomes to the native code.
     if (sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) == 2) {
       predictorsTest  <- as.matrix(newdata)
       rownames(predictorsTest) <- colnames(predictorsTest) <- NULL
       Time <- rep(-1, dim(predictorsTest)[1])
       Cens <- rep(-1, dim(predictorsTest)[1])
       performance <- F
+      importance <- "none"
       remove(newdata)
     }
 
-    ## details for other rsf class objects
-    ## check that newdata matches original training data
-    ## add noise variable if necessary
-    ## extract predictor and outcome names
-    ## note special treatment for big.data
+    ## Details for other rsf class objects:
+    ## . Check that newdata matches original training data.
+    ## . Add noise variable if necessary.
+    ## . Extract predictor and outcome names.
+    ## . Note the special treatment for big.data.
     if (!(sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) == 2)) {
       fNames <- all.vars(object$formula, max.names=1e7)
       if (sum(is.element(fNames,"noise")) == 1) {
@@ -124,22 +133,42 @@ predict.rsf <- function(
           ftermLabels <- fNames[-c(1:2)]
         }
       }
-      ## NA processing
-      ## add bogus row to overcome model.matrix strangeness with all NA's 
-      ## special treatment for big.data=T (coerce factors to real)
-      ## remove records with all values NA
-      ## removing NA's depletes the data: check if enough data left
+      ## NA processing:
+      ## . Add bogus row to overcome model.matrix strangeness with all NA's.
+      ## . Additional finesse needed when all test values missing for a variable
+      ## . or if new columns created for character variables because of design expansion
+      ## . Special treatment for big.data=T (coerce factors to real).
       if (na.action != "na.omit" & na.action != "na.impute") na.action <- "na.omit"
       if (!big.data) { 
         old.na.action <- options()$na.action
         na.keep <- function(x){x}
         na.takeOut <- function(x){na.omit(x)}
         if (na.action == "na.omit") options(na.action=na.takeOut) else options(na.action=na.keep)
-        newdata <- rbind(rep(-1, dim(newdata)[2]), newdata)
+        bogus.row <- newdata[1, ]
+        for (k in 1:dim(newdata)[2]) {
+           if (sum(!is.na(newdata[, k])) > 0) {
+             bogus.row[k] <- newdata[!is.na(newdata[, k]), k][1]
+           }
+        }
+        bogus.row[is.na(bogus.row)] <- 1
+        newdata <- rbind(bogus.row, newdata)
         newdata <- as.data.frame(
                      model.matrix(as.formula(paste("~ -1 +",
                      paste(ftermLabels, collapse="+"))), newdata))
         newdata <- newdata[-1, ]
+        if (sum(is.element(names(newdata), fNames[1:2])) == 2) {
+          varnames <- names(newdata)[!is.element(names(newdata), fNames[1:2])]
+        }
+        else {
+          varnames <- names(newdata)
+        }
+        newdata[, varnames[!is.element(varnames, object$predictorNames)]] <- NA
+        na.col <- apply(newdata, 2, function(x){all(is.na(x))})
+        na.col <- na.col[is.element(names(na.col), varnames)]
+        if (sum(na.col) > 0) {
+          newdata <- newdata[, !is.element(names(newdata), names(na.col)[na.col])]
+        }
+        newdata[, object$predictorNames[!is.element(object$predictorNames, names(newdata))]] <- NA
         options(na.action=old.na.action)
         if (dim(newdata)[1] == 0)
             stop("No records in the NA-processed test data.  Consider imputing using na.impute.")
@@ -154,15 +183,18 @@ predict.rsf <- function(
          newdata <- newdata[,is.element(names(newdata), ftermLabels)]
         }
       }
-      pt.row <- apply(newdata, 1, function(x){all(is.na(x))})
-      newdata <- newdata[!pt.row, ]
-      if (dim(newdata)[1] == 0)
-        stop("No records in the NA-processed test data.  Consider imputing using na.impute.")
+
       ## extract the test predictor matrix
+      ## sort the columns 
       ## time and censoring processing
       ## if no outcomes present send void outcomes to native library
       ## allow for all time and or censoring to be missing
       predictorsTest  <- as.matrix(newdata[,is.element(names(newdata), object$predictorNames)])
+      sort.col <- NULL
+      for (k in 1:length(object$predictorNames)) {
+        sort.col[k] <- which(colnames(predictorsTest)==object$predictorNames[k])
+      }
+      predictorsTest <- predictorsTest[, sort.col]
       rownames(predictorsTest) <- colnames(predictorsTest) <- NULL
       if (sum(is.element(fNames[1:2], names(newdata))) == 2) {
         Time <- newdata[,is.element(names(newdata), fNames[1])]
@@ -181,6 +213,7 @@ predict.rsf <- function(
         Time <- rep(-1, dim(predictorsTest)[1])
         Cens <- rep(-1, dim(predictorsTest)[1])
         performance <- F
+        importance <- "none"
       }
       remove(newdata)
     }
@@ -227,53 +260,79 @@ predict.rsf <- function(
       do.trace <- 1*(do.trace)
     }
 
+    ## Convert importance option into native code parameter.
+    if (importance == "none") {
+      importance <- 0
+    }
+    else if (importance == "permute") {
+      importance <- 2048 + 0
+    }
+    else if (importance == "randomsplit") {
+      importance <- 2048 + 512
+    }
+    else {
+      stop("Invalid choice for 'importance' option:  ", importance)
+    }
+    
     ## #################################################################
-    ## Parameters passed the C function rsfPredict(...) are as follows:
+    ## predict.rsf(...)
+    ##
+    ## Parameters passed:
     ## #################################################################
-    ## 00 - C function name
-    ## 01 - trace output flag 
-    ##    - 0  = no trace output
+    ## 00 - C function call
+    ##
+    ## 01 - trace output flag
+    ##    -  0 = no trace output
     ##    - !0 = various levels of trace output
-    ## 02 - memory useage protocol for return objects
-    ##    - any combination of the following are allowed
-    ##    - 0x00 = only the default objects are returned
-    ##    - 0x01 = return proximity information
-    ##    - 0x02 = N/A
-    ##    - 0x04 = return performance measure
-    ##    - 0x08 = N/A
-    ## 03 - random seed for repeatability
-    ##    - integer < 0 
-    ## 04 - number of bootstrap iterations
-    ##    - integer > 0
-    ## 05 - number of observations in GROW data set
-    ##    - integer > 1
-    ## 06 - vector of GROW observed times of death
-    ##    - vector of double values > 0 
-    ##    - optional, invalid values permitted
+    ##
+    ## 02 - option protocol for output objects.
+    ##    - only some of the following are relevant (*)
+    ##      GROW PRED INTR
+    ##       *         *    0x0001 = OENS
+    ##       *    *         0x0002 = FENS
+    ##       *    *    *    0x0004 = PERF
+    ##       **   *         0x0008 = PROX
+    ##       *    *    *    0x0010 = LEAF
+    ##       **             0x0020 = TREE \ part of 
+    ##       **             0x0040 = SEED / the forest 
+    ##       ***  ***       0x0080 = MISS
+    ##       ***       ***  0x0100 = OMIS
+    ##       **   **   *    0x0000 = \  VIMP_PERM
+    ##       **   **   *    0x0200 =  | VIMP_RAND
+    ##       **   **   *    0x0400 =  | VIMP_JOIN
+    ##       **   **   *    0x0800 = /  VIMP
+    ##       **             0x1000 = \  VUSE_TYPE
+    ##       **             0x1800 = /  VUSE
+    ##
+    ##       (*)   default  output
+    ##       (**)  optional output
+    ##       (***) default  output 
+    ##             - dependent on data and potentially suppressed
+    ##
+    ## 03 - random seed for repeatability, integer < 0 
+    ## 04 - number of bootstrap iterations, integer > 0
+    ## 05 - number of observations in GROW data set, integer > 1
+    ## 06 - vector of GROW observed times of death, doubles > 0 
+    ##    - optional, invalid (negative) values permitted
     ## 07 - vector of GROW observed event types
-    ##    - 0 = censored
-    ##    - 1 = death
-    ##    - optional, invalid values permitted
-    ## 08 - number of GROW predictors 
-    ##    - integer > 0
-    ## 09 - [n x p] matrix of GROW predictor observations
-    ## 10 - number of observations in PRED data set
-    ##    - integer > 1
-    ## 11 - vector of PRED observed times of death
-    ##    - vector of double values > 0 
+    ##       0 = censored
+    ##       1 = death
+    ##    - optional, invalid (negative) values permitted
+    ## 08 - number of GROW predictors, integer > 0
+    ## 09 - [p x n] matrix of GROW predictor observations
+    ## 10 - number of observations in PRED data set, integer > 1
+    ## 11 - vector of PRED observed times of death, doubles > 0 
     ## 12 - vector of PRED observed event types
-    ##    - 0 = censored
-    ##    - 1 = death
+    ##       0 = censored
+    ##       1 = death
     ## 13 - [fn x p] matrix of PRED predictor observations
-    ## 14 - number of time points of interest
-    ##    - integer > 0
-    ## 15 - vector of time points of interest
-    ##    - vector of double values
+    ## 14 - number of time points of interest, integer > 0
+    ## 15 - vector of time points of interest, doubles > 0
     ## 16 - vector representing treeID
     ## 17 - vector representing nodeID
     ## 18 - vector representing parmID
     ## 19 - vector representing spltPT
-    ## 20 - vector of GROW bootstrap random seeds
+    ## 20 - GROW bootstrap random seed
     ## 21 - vector of predictor types
     ##      "R" - real value
     ##      "I" - integer value 
@@ -281,20 +340,15 @@ predict.rsf <- function(
     ## ###########################################################
 
     ## ###########################################################
-    ##  SEXP outputs (see native code for description):
-    ## Note that outputs depend on the MUP flags.
-    ##
-    ## fullEnsemble - default output
-    ## performance  - default output
-    ## leafCount    - default output
-    ## proximity    - optional
+    ##  SEXP outputs:  See parameter 2 above and note "*".
     ## ###########################################################    
 
     nativeOutput <- .Call("rsfPredict",
         as.integer(do.trace),
-        as.integer((8 * (if (importance) 1 else 0)) +
-                   (4 * (if (performance) 1 else 0)) +
-                   (if (proximity) 1 else 0)),
+        as.integer((importance) +
+                   (8 * (if (proximity) 1 else 0)) +
+                   (4 * (if (performance) 1 else 0))),
+
         as.integer(seed),
         as.integer(ntree),
         as.integer(dim(object$predictors)[1]),
@@ -328,8 +382,7 @@ predict.rsf <- function(
                        function(x, wt) {sum(x*wt)},
                        wt = Risk)
 
-    ## check if there was missing data
-    ## Assign imputed data
+    ## Check if there was missing data, and assign data if necessary.
     if (nMiss > 0) {
       imputedData <- matrix(nativeOutput$imputation, nrow = nMiss, byrow = FALSE)
       imputedIndv <- imputedData[,1]
@@ -337,9 +390,16 @@ predict.rsf <- function(
       if (nMiss == 1) imputedData <- t(imputedData)
     }
 
-    ## add column names to predictor matrix
-    ## add column names to imputed data
+    ## Add column names to predictor matrix and imputed data.
+    ## Add names to importance values
     colnames(predictorsTest) <- object$predictorNames
+    if (importance != "none" & performance) {
+      VIMP <- nativeOutput$importance-nativeOutput$performance[ntree]
+      names(VIMP) <- object$predictorNames
+    }
+    else {
+      VIMP <- NULL
+    }
     if (nMiss > 0) {
       colnames(imputedData) <- c(fNames[2], fNames[1], object$predictorNames)
     }
@@ -359,8 +419,7 @@ predict.rsf <- function(
         ensemble = matrix(nativeOutput$fullEnsemble, nrow = length(Cens), byrow = FALSE),
         mortality = mortality,
         err.rate = (if (performance) nativeOutput$performance else NULL),
-        importance = (if (importance) nativeOutput$importance-nativeOutput$performance[ntree]
-                      else NULL),
+        importance = VIMP,
         proximity = (if (proximity) nativeOutput$proximity else NULL),
         imputedIndv = (if (nMiss>0) imputedIndv else NULL),
         imputedData = (if (nMiss>0) imputedData else NULL)

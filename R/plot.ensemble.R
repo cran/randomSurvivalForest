@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -105,14 +105,23 @@ plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
     # . stratified by mortality percentiles
     brier.score <- matrix(NA, length(x$timeInterest), 4)
     mort.perc <- c(min(x$mortality)-1e-5, quantile(x$mortality, (1:4)/4))
+    brier.wt <- c(apply(cbind(1:x$n),
+                   1,
+                   function(i, tau, event, t.unq) {
+                     1*(tau[i] > t.unq) + 1*(tau[i] <= t.unq & event[i] == 1)
+                   },
+                   tau =  x$time, event = x$cens,
+                   t.unq = x$timeInterest))
     delta <- t(apply(cbind(1:x$n),
                    1,
-                   function(i, tau, t.unq) {1*(tau[i] > t.unq)},
-                   tau =  x$time,
+                   function(i, tau, event, t.unq) {1*(tau[i] > t.unq)},
+                   tau =  x$time, event = x$cens,
                    t.unq = x$timeInterest)  - survival.ensemble)^2
     for (k in 1:4){
       mort.pt <- (x$mortality > mort.perc[k]) & (x$mortality <= mort.perc[k+1])
-      brier.score[,k] <- apply(as.matrix(delta[mort.pt,]), 2, mean)
+      brier.score[,k] <- apply(as.matrix(delta[mort.pt,]), 2, function(x) {
+                         sum(brier.wt[mort.pt]*x)/(1*(sum(brier.wt[mort.pt])==0)
+                                 +sum(brier.wt[mort.pt]))})
     }                  
 
     # plots
@@ -157,7 +166,7 @@ plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
          type = "l",
          col  = 1,
          lty  = 1:4)
-    lines(x$timeInterest, apply(delta, 2, mean), col=3, lwd=1)
+    lines(x$timeInterest, apply(delta, 2, mean), col=2, lwd=3)
     point.x=round(length(x$timeInterest)*c(3,4)/4)
     text(x$timeInterest[point.x],brier.score[point.x,1],"0-25",col=4)
     text(x$timeInterest[point.x],brier.score[point.x,2],"25-50",col=4)

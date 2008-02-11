@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.1
+//  RANDOM SURVIVAL FOREST 3.2.0
 //
-//  Copyright 2007, Cleveland Clinic
+//  Copyright 2008, Cleveland Clinic Foundation
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -77,28 +77,30 @@ void saveTree(uint    b,
 Node* getMembership(Node    *parent,
                     double **predictor,
                     uint     index);
+Node* randomizeMembership(Node    *parent, 
+                          double **predictor, 
+                          uint     individual, 
+                          uint     splitParameter);
 double getConcordanceIndex(uint size, 
                            double *statusPtr, 
                            double *timePtr, 
                            double *mortality,
-                           uint *oobCount
-			   );
+                           uint *oobCount);
 void getCumulativeHazardEstimate(double **cumulativeHazard,
                                  Node   *parent,
-                                 uint    sortedTimeInterestSize
-                                 );
-double getPerformance (uint      mode,
-                       uint      sortedTimeInterestSize,
-                       uint      leafCount,
-                       double  **oobEnsemblePtr,
-                       double  **fullEnsemblePtr,
-                       double   *ensembleRun,
-                       uint     *ensembleDen,
-                       uint      oobSampleSize,
-                       Node     *rootPtr,
-                       double  **vimpEnsembleRun,
-                       uint      b,
-                       char    **mRecordBootFlag,
-                       double  ***mvImputation
-                       );
+                                 uint    sortedTimeInterestSize);
+void getVariableImportance(char     mode,
+                           uint     sortedTimeInterestSize,
+                           uint     leafCount,
+                           double **cumulativeHazard,
+                           Node    *rootPtr,
+                           uint     b);
+void getVariablesUsed(Node *rootPtr, uint *varUsedPtr);
+void updateEnsembleEvents (char multipleImputeFlag,
+                           uint      mode,
+                           uint      sortedTimeInterestSize,
+                           Node     *rootPtr,
+                           uint      b,
+                           char    **dmRecordBootFlag,
+                           double ***dmvImputation);
 #endif

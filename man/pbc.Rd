@@ -22,7 +22,7 @@
            status     \tab censoring indicator \cr
            drugs      \tab 1=D-penicillamine, 2=placebo \cr
            age        \tab age in days \cr
-           sex        \tab 0=male, 1=female \cr
+           sex        \tab 0=female, 1=male \cr
            asictes    \tab presence of asictes, 0=no 1=yes \cr
            hepatom    \tab presence of hepatomegaly, 0=no 1=yes \cr
            spiders    \tab presence of spiders, 0=no 1=yes \cr

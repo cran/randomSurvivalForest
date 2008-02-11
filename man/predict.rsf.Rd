@@ -7,7 +7,7 @@
 \usage{
   predict.rsf(object = NULL,
               newdata = NULL,
-              importance = TRUE,
+              importance = c("randomsplit", "permute", "none")[1],
               na.action = c("na.omit", "na.impute")[1],
               proximity = FALSE,
               seed = NULL,
@@ -20,9 +20,9 @@
         original \code{rsf} call for prediction to work.}
     \item{newdata}{Data frame containing test data. Missing values
         allowed.}
-    \item{importance}{Logical.  Should importance of variables be
-        estimated?  Only applies when test data contains outcomes.}
-    \item{na.action}{Action taken if the data contain NA's.  Possible
+    \item{importance}{Method used to compute variable importance (VIMP).  Only
+        applies when test data contains outcomes.}
+    \item{na.action}{Action to be taken if the data contain NA's.  Possible
         values are \code{na.omit}, which removes the entire record if
         even one of its entries is NA, and \code{na.impute}, which
         imputes the test data.  See details below.}
@@ -37,15 +37,15 @@
 }
 \details{
   \code{predict.rsf} takes a test data set, drops it down the forest
-   grown from the training data, and then computes an ensemble
-   cumulative hazard function (CHF).  CHF's are computed for all
-   individuals in the test data set at the unique death time points of
-   the original grow (training) data.  The error rate and importance
-   values for variables are computed on the test data if outcome
-   information is available.  Setting the option \code{na.action} to
-   \code{na.impute} imputes missing test data (x-variables or outcomes)
-   using the forest grown on the training data (Ishwaran et al. 2007).
-   Only training data is used in imputing test data.
+   grown from the training data, and computes an ensemble cumulative
+   hazard function (CHF).  CHF's are calculated for all individuals in
+   the test data set at the unique death time points of the original
+   grow (training) data.  The error rate and VIMP for variables are
+   computed on the test data if outcome information is available.
+   Setting the option \code{na.action} to \code{na.impute} imputes
+   missing test data (x-variables or outcomes) using the forest grown on
+   the training data (Ishwaran et al. 2007).  Only training data is used
+   in imputing test data to avoid biasing error rates.
 }    
 \value{
      An object of class \code{(rsf, predict)}, which is a list with the
@@ -71,8 +71,7 @@
          be interpreted in terms of total number of training deaths.}
      \item{err.rate}{Vector of length \code{ntree} containing error
          rate of the test data.  Can be NULL.}
-     \item{importance}{Importance measure of each variable in the test data.  
-         Can be NULL.}
+     \item{importance}{VIMP of each variable in the test data. Can be NULL.}
      \item{proximity}{If \code{proximity}=TRUE, a matrix recording
 	 proximity of the inputs from test data is computed.  Value
 	 returned is a vector of the lower diagonal of the matrix.  Use
@@ -95,11 +94,14 @@
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
+    L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
+
     H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
+    (2007).  Random survival forests, \emph{Cleveland Clinic Technical
     Report}.
 
-    L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
+    H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
+    \emph{Rnews}, 7/2:25-31.
 }	
 \seealso{
   \code{rsf},

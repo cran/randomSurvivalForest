@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.1
+//  RANDOM SURVIVAL FOREST 3.2.0
 //
-//  Copyright 2007, Cleveland Clinic
+//  Copyright 2008, Cleveland Clinic Foundation
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -174,6 +174,44 @@ Node* getMembership(Node *parent, double **predictor, uint index) {
   }
   return result;
 }
+Node* randomizeMembership(Node    *parent, 
+                          double **predictor, 
+                          uint     individual, 
+                          uint     splitParameter) {
+  char randomSplitFlag;
+  Node *result;
+  result = parent;
+  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+    randomSplitFlag = FALSE;
+    if (splitParameter > 0) {
+      if ((parent -> splitParameter) == splitParameter) {
+        randomSplitFlag = TRUE;
+      }
+    }
+    else {
+      if(_importanceFlag[parent -> splitParameter] == TRUE) {
+        randomSplitFlag = TRUE;
+      }
+    }
+    if(randomSplitFlag == TRUE) {
+      if (ran2(_seed2Ptr) <= 0.5) {
+        result = randomizeMembership(parent ->  left, predictor, individual, splitParameter);
+      }
+      else {
+        result = randomizeMembership(parent -> right, predictor, individual, splitParameter);
+      }
+    }
+    else {
+      if ( (predictor[parent -> splitParameter][individual]) <= (parent -> splitValue) ) {
+        result = randomizeMembership(parent ->  left, predictor, individual, splitParameter);
+      }
+      else {
+        result = randomizeMembership(parent -> right, predictor, individual, splitParameter);
+      }
+    }
+  }
+  return result;
+}
 double getConcordanceIndex(uint size, 
                            double *statusPtr, 
                            double *timePtr, 
@@ -313,85 +351,425 @@ void getCumulativeHazardEstimate(double **cumulativeHazard,
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
   free_uivector(nodeParentAtRisk, 1, _masterTimeSize);
 }
-double getPerformance (uint      mode,
-                       uint      sortedTimeInterestSize,
-                       uint      leafCount,
-                       double  **oobEnsemblePtr,
-                       double  **fullEnsemblePtr,
-                       double   *ensembleRun,
-                       uint     *ensembleDen,
-                       uint      oobSampleSize,
-                       Node     *rootPtr,
-                       double  **vimpEnsembleRun,
-                       uint      b,
-                       char    **mRecordBootFlag,
-                       double ***mvImputation
-) {
-  uint i,j,k,p,r;
+void getVariableImportance (char     mode,
+                            uint     sortedTimeInterestSize,
+                            uint     leafCount,
+                            double **cumulativeHazard,
+                            Node    *rootPtr,
+                            uint     b) {
+  uint i,j,k,p;
   uint obsSize;
-  uint permuteSize;
-  double **cumulativeHazard;
-  double **genericEnsemblePtr;
-  char   *randomVIMP;
+  uint varSize;
+  uint permuteObsSize;
+  uint permuteVarSize;
   uint   *indexVIMP;
   uint   *permuteVIMP;
-  double *originalVIMP;
+  double **originalVIMP;
+  double **predictorPtr;
+  char result;
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  getVariableImportance() ENTRY ...\n");  
+  }
+  if (!(_opt & OPT_VIMP)) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Attempt to compute variable importance though not requested.");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+  }
+  obsSize = 0;          
+  varSize = 0;          
+  permuteObsSize = 0;   
+  permuteVarSize = 0;   
+  predictorPtr = NULL;  
+  result = TRUE;
+  switch (mode) {
+  case RSF_GROW:
+    predictorPtr = _observation;
+    if (_oobSampleSize[b] == 0) {
+      result = FALSE;
+    }
+    break;
+  case RSF_PRED:
+    predictorPtr = _fobservation;
+    break;
+  case RSF_INTR:
+    predictorPtr = _fobservation;
+    if (_foobSampleSize[b] == 0) {
+      result = FALSE;
+    }
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
+  }
+  if (result == TRUE) {    
+    if (_opt & (~OPT_VIMP) & (~OPT_VIMP_JOIN) & OPT_VIMP_TYPE) {
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nType is VIMP_RAND.");  
+        Rprintf("\nRandom seed for ran2():  %20d", *_seed2Ptr);
+      }
+      switch (mode) {
+      case RSF_GROW:
+        for (p=1; p <= _xSize; p++) {
+          for (i=1; i <= _observationSize; i++) {
+            if ( _bootMembershipFlag[i] == FALSE ) {
+              k = randomizeMembership(rootPtr, predictorPtr, i, p) -> leafCount;
+              for (j=1; j <= sortedTimeInterestSize; j++) {
+                _vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+              }
+            }
+          }
+        }
+        break;
+      case RSF_PRED:
+        for (p=1; p <= _xSize; p++) {
+          for (i=1; i <= _fobservationSize; i++) {
+            k = randomizeMembership(rootPtr, predictorPtr, i, p) -> leafCount;
+            for (j=1; j <= sortedTimeInterestSize; j++) {
+              _vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+            }
+          }
+        }
+        break;
+      case RSF_INTR:
+        if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+          for (i=1; i <= _fobservationSize; i++) {
+            if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
+              k = randomizeMembership(rootPtr, predictorPtr, i, 0) -> leafCount;
+              for (j=1; j <= sortedTimeInterestSize; j++) {
+                _vimpEnsembleRun[1][i] += cumulativeHazard[j][k];
+              }
+            }
+          }
+        }  
+        else {
+          for (p=1; p <= _intrPredictorSize; p++) {
+            for (i=1; i <= _fobservationSize; i++) {
+              if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
+                k = randomizeMembership(rootPtr, predictorPtr, i, _intrPredictor[p]) -> leafCount;
+                for (j=1; j <= sortedTimeInterestSize; j++) {
+                  _vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+                }
+              }
+            }
+          }
+        }
+        break;
+      default:
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown case in switch encountered. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+        break;
+      }  
+      if (getTraceFlag() & DL0_TRACE) {
+        Rprintf("\nRSF:  VIMP random split calculation complete.");  
+      }
+    }  
+    else if (!(_opt & (~OPT_VIMP) & (~OPT_VIMP_JOIN) & OPT_VIMP_TYPE)) {
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nType is VIMP_PERM.");  
+        Rprintf("\nRandom seed for ran2():  %20d", *_seed2Ptr);
+      }
+      switch (mode) {
+      case RSF_GROW:
+        permuteObsSize = _oobSampleSize[b];
+        permuteVarSize = 1;
+        break;
+      case RSF_PRED:
+        permuteObsSize = _fobservationSize;
+        permuteVarSize = 1;
+        break;
+      case RSF_INTR:
+        permuteObsSize = _foobSampleSize[b];
+        if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+          permuteVarSize = _intrPredictorSize;
+        }
+        else {
+          permuteVarSize = 1;
+        }
+        break;
+      default:
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown case in switch encountered. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+        break;
+      }
+      indexVIMP = uivector(1, permuteObsSize);
+      permuteVIMP = uivector(1, permuteObsSize);
+      originalVIMP = dmatrix(1, permuteVarSize, 1, permuteObsSize);
+      k = 0;
+      switch (mode) {
+      case RSF_GROW:
+        for (i=1; i <= _observationSize; i++) {
+          if ( _bootMembershipFlag[i] == FALSE ) {
+            k++;
+            indexVIMP[k] = i;
+          }
+        }
+        break;
+      case RSF_PRED:
+        for (i=1; i <= _fobservationSize; i++) {
+          k++;
+          indexVIMP[k] = i;
+        }
+        break;
+      case RSF_INTR:
+        for (i=1; i <= _fobservationSize; i++) {
+          if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
+            k++;
+            indexVIMP[k] = i;
+          }
+        }
+        break;
+      default:
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown case in switch encountered. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+        break;
+      }
+      if (k != permuteObsSize) {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  VIMP candidate selection failed.");
+        Rprintf("\nRSF:  %10d available, %10d selected.", permuteObsSize, k);
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+      }
+      switch (mode) {
+      case RSF_GROW:
+        for (p=1; p <= _xSize; p++) {
+          for (k=1; k<= permuteObsSize; k++) {
+            originalVIMP[1][k] = predictorPtr[p][indexVIMP[k]];
+          }
+          permute(permuteObsSize, permuteVIMP);
+          for (k=1; k <= permuteObsSize; k++) {
+            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][permuteVIMP[k]];
+          }
+          for (i=1; i <= _observationSize; i++) {
+            if ( _bootMembershipFlag[i] == FALSE ) {
+              k = getMembership(rootPtr, predictorPtr, i) -> leafCount;
+              for (j=1; j <= sortedTimeInterestSize; j++) {
+                _vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+              }
+            }
+          }
+          for (k=1; k <= permuteObsSize; k++) {
+            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][k];
+          }
+        }
+        break;
+      case RSF_PRED:
+        for (p=1; p <= _xSize; p++) {
+          for (k=1; k<= permuteObsSize; k++) {
+            originalVIMP[1][k] = predictorPtr[p][indexVIMP[k]];
+          }
+          permute(permuteObsSize, permuteVIMP);
+          for (k=1; k <= permuteObsSize; k++) {
+            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][permuteVIMP[k]];
+          }
+          for (i=1; i <= _fobservationSize; i++) {
+            k = getMembership(rootPtr, predictorPtr, i) -> leafCount;
+            for (j=1; j <= sortedTimeInterestSize; j++) {
+              _vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+            }
+          }
+          for (k=1; k <= permuteObsSize; k++) {
+            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][k];
+          }
+        }
+        break;
+      case RSF_INTR:
+        if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+          for (p=1; p <= permuteVarSize; p++) {
+            for (k=1; k<= permuteObsSize; k++) {
+              originalVIMP[p][k] = predictorPtr[_intrPredictor[p]][indexVIMP[k]];
+            }
+            permute(permuteObsSize, permuteVIMP);
+            for (k=1; k <= permuteObsSize; k++) {
+              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[p][permuteVIMP[k]];
+            }
+          }
+          for (i=1; i <= _fobservationSize; i++) {
+            if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
+              k = getMembership(rootPtr, predictorPtr, i) -> leafCount;
+              for (j=1; j <= sortedTimeInterestSize; j++) {
+                _vimpEnsembleRun[1][i] += cumulativeHazard[j][k];
+              }
+            }
+          }
+          for (p=1; p <= permuteVarSize; p++) {
+            for (k=1; k <= permuteObsSize; k++) {
+              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[p][k];
+            }
+          }
+        }  
+        else {
+          for (p=1; p <= _intrPredictorSize; p++) {
+            for (k=1; k<= permuteObsSize; k++) {
+              originalVIMP[1][k] = predictorPtr[_intrPredictor[p]][indexVIMP[k]];
+            }
+            permute(permuteObsSize, permuteVIMP);
+            for (k=1; k <= permuteObsSize; k++) {
+              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[1][permuteVIMP[k]];
+            }
+            for (i=1; i <= _fobservationSize; i++) {
+              if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
+                k = getMembership(rootPtr, predictorPtr, i) -> leafCount;
+                for (j=1; j <= sortedTimeInterestSize; j++) {
+                  _vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+                }
+              }
+            }
+            for (k=1; k <= permuteObsSize; k++) {
+              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[1][k];
+            }
+          }
+        }  
+        break;
+      default:
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown case in switch encountered. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+        break;
+      }
+      free_uivector(indexVIMP, 1, permuteObsSize);
+      free_uivector(permuteVIMP, 1, permuteObsSize);
+      free_dmatrix(originalVIMP, 1, permuteVarSize, 1, permuteObsSize);
+      if (getTraceFlag() & DL0_TRACE) {
+        Rprintf("\nRSF:  VIMP permutation calculation complete.");  
+      }
+    }  
+    else {
+      Rprintf("\nRSF:  *** ERROR *** ");
+      Rprintf("\nRSF:  Unknown VIMP perturbation type encountered. ");
+      Rprintf("\nRSF:  Option flag is:  %10x", _opt);
+      Rprintf("\nRSF:  Please Contact Technical Support.");
+      Rprintf("\nRSF:  The application will now exit.\n");
+      exit(TRUE);
+    } 
+    if (getTraceFlag() & DL2_TRACE) {
+      switch (mode) {
+      case RSF_GROW:
+        obsSize = _observationSize;
+        varSize = _xSize;
+        break;
+      case RSF_PRED:
+        obsSize = _fobservationSize;
+        varSize = _xSize;
+        break;
+      case RSF_INTR:
+        obsSize = _fobservationSize;
+        varSize = 1;
+        break;
+      default:
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown case in switch encountered. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+        break;
+      }
+      Rprintf("\nTree specific variable importance calculation:  %10d \n", b);
+      Rprintf("          ");
+      for (i=1; i <= obsSize; i++) {
+        Rprintf("%10d", i);
+      }
+      Rprintf("\n");
+      for (p=1; p <= varSize; p++) {
+        Rprintf("%10d", p);
+        for (i=1; i <= obsSize; i++) {
+          Rprintf("%10.4f", _vimpEnsembleRun[p][i]);
+        }
+        Rprintf("\n");
+      }
+    }
+  }  
+  else {
+    if (getTraceFlag() & DL1_TRACE) {
+      Rprintf("\nVIMP omitted since OOB sample size is zero. \n");      
+    }
+  }
+  if (getTraceFlag() & DL0_TRACE) {
+    Rprintf("\nRSF:  getVariableImportance() EXIT ...\n");  
+  }
+}
+void getVariablesUsed(Node *parent, uint *varUsedPtr) {
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\ngetVariablesUsed() ENTRY ...\n");  
+  }
+  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+    varUsedPtr[parent -> splitParameter] ++;
+     getVariablesUsed(parent ->  left, varUsedPtr);
+     getVariablesUsed(parent -> right, varUsedPtr);
+  }
+  if (getTraceFlag() & DL1_TRACE) {
+    Rprintf("\ngetVariablesUsed() EXIT ...\n");  
+  }
+  return;
+}
+void updateEnsembleEvents (char      multipleImputeFlag,
+                           uint      mode,
+                           uint      sortedTimeInterestSize,
+                           Node     *rootPtr,
+                           uint      b,
+                           char    **dmRecordBootFlag,
+                           double ***dmvImputation) {
+  uint i,j,k,r;
+  uint obsSize;
+  double **cumulativeHazard;
+  double **genericEnsemblePtr;
+  uint    *genericEnsembleDenPtr;
   double *statusPtr, *orgStatusPtr, *mStatusPtr;
   double *timePtr, *orgTimePtr, *mTimePtr;
-  uint    *mRecordMap;
-  uint     mRecordSize;
-  uint     mvSize;
-  int    **mvSign;
-  int     *mvIndex;
-  double **predictorPtr;
-  double *orgOutcomePtr, *newOutcomePtr, *mOutcomePtr;
-  char outcomeFlag, mPredictorFlag;
-  char imputeFlag;
-  uint unsignedIndex;
+  uint *varUsedRow;
+  char concordanceImputeFlag;
   double concordanceIndex;
-  double performance;
   if (getTraceFlag() & DL1_TRACE) {
-    Rprintf("\ngetPerformance() ENTRY ...\n");
+    Rprintf("\nupdateEnsembleEvents() ENTRY ...\n");
   }
+  statusPtr   = NULL;  
+  timePtr     = NULL;  
   mStatusPtr  = NULL;  
   mTimePtr    = NULL;  
-  orgOutcomePtr = NULL;  
-  newOutcomePtr = NULL;  
-  mOutcomePtr   = NULL;  
-  mRecordSize = NA_REAL;  
-  mvSize      = 0;        
-  mvIndex     = NULL;     
-  unsignedIndex = 0;  
-  if (leafCount == 0) {
+  genericEnsemblePtr    = NULL;  
+  genericEnsembleDenPtr = NULL;  
+  obsSize = 0;  
+  if (_leafCount_[b] == 0) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to compute performance on a rejected tree:  %10d", b);
     Rprintf("\nRSF:  Please Contact Technical Support.");
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-  performance = NA_REAL;
-  cumulativeHazard = dmatrix(1, sortedTimeInterestSize, 1, leafCount);
-  if (mode == RSF_GROW) {
-    obsSize = _observationSize;
-  }
-  else {
-    obsSize = _fobservationSize;
-  }
-  for (i=1; i <= leafCount; i++) {
+  cumulativeHazard = dmatrix(1, sortedTimeInterestSize, 1, _leafCount_[b]);
+  for (i=1; i <= _leafCount_[b]; i++) {
     k = 0;
     for (j = 1; j <= _observationSize; j++) {
-      if (_bootMembershipFlag[j] == TRUE) {
-        if ((_nodeMembership[j] -> leafCount) == i) {
-          k = j;
-          j = _observationSize;
-        }
+      if ((_nodeMembership[j] -> leafCount) == i) {
+        k = j;
+        j = _observationSize;
       }
     }
     if (k == 0) {
       Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  CHE Node membership not found for leaf:  %10d", i);
+      Rprintf("\nRSF:  CHE Node membership not found.");
       Rprintf("\nRSF:  Please Contact Technical Support.");
       Rprintf("\nRSF:  The application will now exit.\n");
+      Rprintf("\n         tree         leaf \n");
+      Rprintf(" %12d %12d \n", b, i);
       Rprintf("\nDiagnostic Trace of (individual, boot, node, leaf) vectors in data set:  ");
       Rprintf("\n        index         boot         node         leaf \n");
       for (r = 1; r <= _observationSize; r++) {
@@ -406,152 +784,117 @@ double getPerformance (uint      mode,
   if (getTraceFlag() & DL0_TRACE) {
     Rprintf("\nRSF:  CHE calculation complete.");  
   }
+  switch (mode) {
+  case RSF_GROW:
+    obsSize = _observationSize;
+    break;
+  case RSF_PRED:
+    obsSize = _fobservationSize;
+    break;
+  case RSF_INTR:
+    obsSize = _fobservationSize;
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
+  }
   if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nTree specific cumulative hazard calculation: \n");
+    Rprintf("\nTree specific cumulative hazard matrix:  %10d \n", b);
     Rprintf("          ");
-    for (i=1; i <= leafCount; i++) {
+    for (i=1; i <= _leafCount_[b]; i++) {
       Rprintf("%10d", i);
     }
     Rprintf("\n");
     for (j=1; j <= sortedTimeInterestSize; j++) {
       Rprintf("%10d", j);
-      for (i=1; i <= leafCount; i++) {
+      for (i=1; i <= _leafCount_[b]; i++) {
         Rprintf("%10.4f", cumulativeHazard[j][i]);
       }
       Rprintf("\n");
     }
   }
-  if (mode == RSF_GROW) {
+  switch (mode) {
+  case RSF_GROW:
     for (i=1; i <= _observationSize; i++) {
       k = _nodeMembership[i] -> leafCount;
-      if ( _bootMembershipFlag[i] == FALSE ) {
-        for (j=1; j <= sortedTimeInterestSize; j++) {
-          oobEnsemblePtr[j][i] += cumulativeHazard[j][k];
+      if (_oobSampleSize[b] > 0) {
+        if ( _bootMembershipFlag[i] == FALSE ) {
+          for (j=1; j <= sortedTimeInterestSize; j++) {
+            _oobEnsemblePtr[j][i] += cumulativeHazard[j][k];
+          }
+          _oobEnsembleDen[i] ++;
         }
-        ensembleDen[i] ++;
       }
       for (j=1; j <= sortedTimeInterestSize; j++) {
-        fullEnsemblePtr[j][i] += cumulativeHazard[j][k];
+        _fullEnsemblePtr[j][i] += cumulativeHazard[j][k];
       }
+      _fullEnsembleDen[i] ++;
     }
-  }
-  else {
+    break;
+  case RSF_PRED:
     for (i=1; i <= _fobservationSize; i++) {
       k = _fnodeMembership[i] -> leafCount;
       for (j=1; j <= sortedTimeInterestSize; j++) {
-        fullEnsemblePtr[j][i] += cumulativeHazard[j][k];
+        _fullEnsemblePtr[j][i] += cumulativeHazard[j][k];
       }
-      ensembleDen[i] ++;
+      _fullEnsembleDen[i] ++;
     }
-  }
-  if ((_mup & MUP_VIMP) && (oobSampleSize > 0)) {
-    if (mode == RSF_GROW) {
-      permuteSize = oobSampleSize;
-      predictorPtr = _observation;
-    }
-    else {
-      permuteSize = _fobservationSize;
-      predictorPtr = _fobservation;
-    }
-    indexVIMP = uivector(1, permuteSize);
-    randomVIMP = cvector(1, permuteSize);
-    permuteVIMP = uivector(1, permuteSize);
-    originalVIMP = dvector(1, permuteSize);
-    k = 0;
-    if (mode == RSF_GROW) {
-      for (i=1; i <= _observationSize; i++) {
-        if ( _bootMembershipFlag[i] == FALSE ) {
-          k++;
-          indexVIMP[k] = i;
-        }
-      }
-    }
-    else {
-      for (i=1; i <= _fobservationSize; i++) {
-        k++;
-        indexVIMP[k] = i;
-      }
-    }
-    if (k != permuteSize) {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  VIMP candidate selection failed.");
-      Rprintf("\nRSF:  %10d available, %10d selected.", permuteSize, k);
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-    }
-    for (p=1; p <= _xSize; p++) {
-      for (k=1; k<= permuteSize; k++) {
-        originalVIMP[k] = predictorPtr[p][indexVIMP[k]];
-        randomVIMP[k] = TRUE;
-      }
-      for (i=permuteSize; i > 0; i--) {
-        k = ceil(ran2(_seed2Ptr)*(i*1.0));
-        for (j = 1; k > 0; j++) {
-          if (randomVIMP[j] == TRUE) {
-            k--;
-          }
-        }
-        randomVIMP[j-1] = ACTIVE;
-        permuteVIMP[i] = j-1;
-      }
-      if (getTraceFlag() & DL3_TRACE) {
-        Rprintf("\nCovariate Permutation:  %10d\n", p);
-          Rprintf("     index   indexVIMP    permVIMP\n");
-        for (i=1; i <= permuteSize; i++) {
-          Rprintf("%10d %10d %10d \n", i, indexVIMP[i], permuteVIMP[i]);
-        }
-      }
-      for (k=1; k <= permuteSize; k++) {
-        predictorPtr[p][indexVIMP[k]] = originalVIMP[permuteVIMP[k]];
-      }
-      if (mode == RSF_GROW) {
-        for (i=1; i <= _observationSize; i++) {
-          if ( _bootMembershipFlag[i] == FALSE ) {
-            k = getMembership(rootPtr, predictorPtr, i) -> leafCount;
-            for (j=1; j <= sortedTimeInterestSize; j++) {
-              vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
-            }
-          }
-        }
-      }
-      else {
-        for (i=1; i <= _fobservationSize; i++) {
-          k = getMembership(rootPtr, predictorPtr, i) -> leafCount;
+    break;
+  case RSF_INTR:
+    for (i=1; i <= _fobservationSize; i++) {
+      k = _nodeMembership[_intrObservation[i]] -> leafCount;
+      if (_foobSampleSize[b] > 0) {
+        if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
           for (j=1; j <= sortedTimeInterestSize; j++) {
-            vimpEnsembleRun[p][i] += cumulativeHazard[j][k];
+            _oobEnsemblePtr[j][i] += cumulativeHazard[j][k];
           }
+          _oobEnsembleDen[i] ++;
         }
       }
-      for (k=1; k <= permuteSize; k++) {
-        predictorPtr[p][indexVIMP[k]] = originalVIMP[k];
-      }
-    }  
+    }
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
+  }
+  if (_opt & OPT_VIMP) {
+    getVariableImportance(mode,
+                          sortedTimeInterestSize,
+                          _leafCount_[b],
+                          cumulativeHazard,
+                          rootPtr,
+                          b);
+  }
+  free_dmatrix(cumulativeHazard, 1, sortedTimeInterestSize, 1, _leafCount_[b]);
+  if (_opt & OPT_VUSE) {
+    if (_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
+      varUsedRow = _varUsedPtr[b];
+    }
+    else {
+      varUsedRow = _varUsedPtr[1];
+    }
+    getVariablesUsed(rootPtr, varUsedRow);
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nTree specific variable importance calculation: \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
+      Rprintf("\nVariables Used Counts by Parameter:  \n");
+      for (i=1; i <= _xSize; i++) {
+        Rprintf(" %12d", i);
       }
       Rprintf("\n");
-      for (p=1; p <= _xSize; p++) {
-        Rprintf("%10d", p);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", vimpEnsembleRun[p][i]);
-        }
-        Rprintf("\n");
+      for (i=1; i <= _xSize; i++) {
+        Rprintf(" %12d", varUsedRow[i]);
       }
+      Rprintf("\n");
     }
-    free_uivector(indexVIMP, 1, permuteSize);
-    free_cvector(randomVIMP, 1, permuteSize);
-    free_uivector(permuteVIMP, 1, permuteSize);
-    free_dvector(originalVIMP, 1, permuteSize);
-    if (getTraceFlag() & DL0_TRACE) {
-      Rprintf("\nRSF:  VIMP calculation complete.");  
-    }
-  }  
-  free_dmatrix(cumulativeHazard, 1, sortedTimeInterestSize, 1, leafCount);
-  if ((getTraceFlag() & RSF_GROW) && (getTraceFlag() & DL2_TRACE)) {
+  }
+  if ((_opt & OPT_OENS) && (getTraceFlag() & DL2_TRACE)) {
     Rprintf("\nOOB Ensemble Estimator Numerator calculation: \n");
     Rprintf("          ");
     for (i=1; i <= _observationSize; i++) {
@@ -561,12 +904,12 @@ double getPerformance (uint      mode,
     for (j=1; j <= sortedTimeInterestSize; j++) {
       Rprintf("%10d", j);
       for (i=1; i <= _observationSize; i++) {
-        Rprintf("%10.4f", oobEnsemblePtr[j][i]);
+        Rprintf("%10.4f", _oobEnsemblePtr[j][i]);
       }
       Rprintf("\n");
     }
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if ((_opt & OPT_FENS) && (getTraceFlag() & DL2_TRACE)) {
     Rprintf("\nFull Ensemble Estimator Numerator calculation: \n");
     Rprintf("          ");
     for (i=1; i <= obsSize; i++) {
@@ -576,28 +919,43 @@ double getPerformance (uint      mode,
     for (j=1; j <= sortedTimeInterestSize; j++) {
       Rprintf("%10d", j);
       for (i=1; i <= obsSize; i++) {
-        Rprintf("%10.4f", fullEnsemblePtr[j][i]);
+        Rprintf("%10.4f", _fullEnsemblePtr[j][i]);
       }
       Rprintf("\n");
     }
   }
-  if (mode == RSF_GROW) {
-    genericEnsemblePtr = oobEnsemblePtr;
-  }
-  else {
-    genericEnsemblePtr = fullEnsemblePtr;
+  switch (mode) {
+  case RSF_GROW:
+    genericEnsemblePtr = _oobEnsemblePtr;
+    genericEnsembleDenPtr = _oobEnsembleDen;
+    break;
+  case RSF_PRED:
+    genericEnsemblePtr = _fullEnsemblePtr;
+    genericEnsembleDenPtr = _fullEnsembleDen;
+    break;
+  case RSF_INTR:
+    genericEnsemblePtr = _oobEnsemblePtr;
+    genericEnsembleDenPtr = _oobEnsembleDen;
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
   }
   for (i = 1; i <= obsSize; i++) {
-    ensembleRun[i] = 0.0;
+    _ensembleRun[i] = 0.0;
     for (j=1; j <= sortedTimeInterestSize; j++) {
-      ensembleRun[i] += genericEnsemblePtr[j][i];
+      _ensembleRun[i] += genericEnsemblePtr[j][i];
     }
-    if (ensembleDen[i] != 0) {
-      ensembleRun[i] = ensembleRun[i] / ensembleDen[i];
+    if (genericEnsembleDenPtr[i] != 0) {
+      _ensembleRun[i] = _ensembleRun[i] / genericEnsembleDenPtr[i];
     }
   }
   if (getTraceFlag() & DL0_TRACE) {
-    Rprintf("\nRSF:  Tree ensemble estimate complete.");  
+    Rprintf("\nRSF:  Tree specific ensemble estimate complete:  %10d", b);  
   }
   if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nEnsemble Estimator Denominator calculation: \n");
@@ -607,7 +965,7 @@ double getPerformance (uint      mode,
     }
     Rprintf("\n          ");
     for (i=1; i <= obsSize; i++) {
-      Rprintf("%10d", ensembleDen[i]);
+      Rprintf("%10d", genericEnsembleDenPtr[i]);
     }
     Rprintf("\n");
     Rprintf("\nRunning Ensemble Estimator:  \n");
@@ -617,18 +975,18 @@ double getPerformance (uint      mode,
     }
     Rprintf("\n          ");
     for (i=1; i <= obsSize; i++) {
-      Rprintf("%10.4f", ensembleRun[i]);
+      Rprintf("%10.4f", _ensembleRun[i]);
     }
     Rprintf("\n");
   }
   if ((getTraceFlag() & RSF_GROW) && (getTraceFlag() & DL2_TRACE)) {
     Rprintf("\nClassification of OOB elements:  ");
     Rprintf("\n       Leaf     Indiv            EE      predictors ->  ");
-    for (i=1; i <= leafCount; i++) {
+    for (i=1; i <= _leafCount_[b]; i++) {
       for (j = 1; j <= _observationSize; j++) {
 	if (_bootMembershipFlag[j] == FALSE) {
 	  if ((_nodeMembership[j] -> leafCount) == i) {
-	    Rprintf("\n %10d %10d %12.4f", i, j, ensembleRun[j]);
+	    Rprintf("\n %10d %10d %12.4f", i, j, _ensembleRun[j]);
 	    for (k = 1; k <= _xSize; k++) {
 	      Rprintf("%12.4f", _observation[k][j]);
 	    }
@@ -638,129 +996,63 @@ double getPerformance (uint      mode,
     }
     Rprintf("\n");
   }
-  if (_mup & MUP_PERF) {
-    imputeFlag = FALSE;
+  if (_opt & OPT_PERF) {
+    concordanceImputeFlag = FALSE;
     if (mode == RSF_GROW) {
       statusPtr = orgStatusPtr = _status;
       timePtr = orgTimePtr = _time;
-      if (_mRecordSize > 0) {
-        imputeFlag = TRUE;
-        obsSize = _observationSize;
-        mRecordMap = _mRecordMap;
-        mRecordSize = _mRecordSize;
-        mvSize = _mvSize;
-        mvSign = _mvSign;
-        mvIndex = _mvIndex;
+      if (multipleImputeFlag == FALSE) {
+        if (_mRecordSize > 0) {
+          concordanceImputeFlag = TRUE;
+          obsSize = _observationSize;
+        }
       }
-    }
+    } 
     else {
       statusPtr = orgStatusPtr = _fstatus;
       timePtr = orgTimePtr = _ftime;
       if (_fmRecordSize > 0) {
-        imputeFlag = TRUE;
+        concordanceImputeFlag = TRUE;
         obsSize = _fobservationSize;
-        mRecordMap = _fmRecordMap;
-        mRecordSize = _fmRecordSize;
-        mvSize = _fmvSize;
-        mvSign = _fmvSign;
-        mvIndex = _fmvIndex;
       }
-    }
-    if (imputeFlag == TRUE) {
-      outcomeFlag = TRUE;
-      for (p=1; p <= mvSize; p++) {
-        switch (mvIndex[p]) {
-        case CENS_IDX:
-          statusPtr = dvector(1, obsSize);
-          mStatusPtr = dvector(1, mRecordSize);
-          unsignedIndex = abs(mvIndex[p]);
-          orgOutcomePtr  = orgStatusPtr;
-          newOutcomePtr = statusPtr;
-          mOutcomePtr = mStatusPtr;
-          break;
-        case TIME_IDX:
-          timePtr = dvector(1, obsSize);
-          mTimePtr = dvector(1, mRecordSize);
-          unsignedIndex = abs(mvIndex[p]);
-          orgOutcomePtr = orgTimePtr;
-          newOutcomePtr = timePtr;
-          mOutcomePtr = mTimePtr;
-          break;
-        default:
-          outcomeFlag = FALSE;
-          break;
-        }
-        if (outcomeFlag == TRUE) {
-          for (i=1; i <= obsSize; i++) {
-            mPredictorFlag = TRUE;
-            if (mRecordMap[i] == 0) {
-              mPredictorFlag = FALSE;
-              newOutcomePtr[i] = orgOutcomePtr[i];
-            }
-            else {
-              if (mvSign[unsignedIndex][mRecordMap[i]] == 0) {
-                mPredictorFlag = FALSE;
-                newOutcomePtr[i] = orgOutcomePtr[i];
-                mOutcomePtr[mRecordMap[i]] = orgOutcomePtr[i];
-              }
-            }
-            if (mPredictorFlag == TRUE) {
-              mOutcomePtr[mRecordMap[i]] = NA_REAL;
-            }
-          }  
-        }  
-        else {
-          p = mvSize;
-        }
-      } 
+    }  
+    if (concordanceImputeFlag == TRUE) {
+      mStatusPtr = dvector(1, obsSize);
+      mTimePtr   = dvector(1, obsSize);
+      for (i=1; i <= obsSize; i++) {
+        mStatusPtr[i] = orgStatusPtr[i];
+        mTimePtr[i]   = orgTimePtr[i];
+      }
       imputeConcordance(mode,
                         b,
-                        mRecordBootFlag,
-                        mvImputation,
+                        dmRecordBootFlag,
+                        dmvImputation,
                         mStatusPtr,
-                        mTimePtr,
-                        statusPtr,
-                        timePtr);
+                        mTimePtr);
+      statusPtr = mStatusPtr;
+      timePtr   = mTimePtr;
     }  
     concordanceIndex = getConcordanceIndex(obsSize, 
                                            statusPtr, 
                                            timePtr, 
-                                           ensembleRun, 
-                                           ensembleDen);
+                                           _ensembleRun, 
+                                           genericEnsembleDenPtr);
     if (ISNA(concordanceIndex)) {
-      performance = NA_REAL;
+      _performance_[b] = NA_REAL;
     }
     else {
-      performance = 1.0 - concordanceIndex;
+      _performance_[b] = 1.0 - concordanceIndex;
     }
     if (getTraceFlag() & DL0_TRACE) {
-      Rprintf("\nRSF:  Error Rate:      %20.4f", performance);
+      Rprintf("\nRSF:  Error Rate:      %20.4f", _performance_[b]);
       Rprintf("\n");
     }
-    if (imputeFlag > 0) {
-      outcomeFlag = TRUE;
-      for (p=1; p <= mvSize; p++) {
-        switch (mvIndex[p]) {
-        case CENS_IDX:
-          free_dvector(statusPtr, 1, obsSize);
-          free_dvector(mStatusPtr, 1, mRecordSize);
-          break;
-        case TIME_IDX:
-          free_dvector(timePtr, 1,  obsSize);
-          free_dvector(mTimePtr, 1, mRecordSize);
-          break;
-        default:
-          outcomeFlag = FALSE;
-          break;
-        }
-        if (outcomeFlag == FALSE) {
-          p = mvSize;
-        }
-      }  
+    if (concordanceImputeFlag > 0) {
+      free_dvector(mStatusPtr, 1, obsSize);
+      free_dvector(mTimePtr, 1, obsSize);
     }  
   }  
   if (getTraceFlag() & DL1_TRACE) {
-    Rprintf("\ngetPerformance() EXIT ...\n");
+    Rprintf("\nupdateEnsembleEvents() EXIT ...\n");
   }
-  return performance;
 }

@@ -1,9 +1,9 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.0.1
+//  RANDOM SURVIVAL FOREST 3.2.0
 //
-//  Copyright 2007, Cleveland Clinic
+//  Copyright 2008, Cleveland Clinic Foundation
 //
 //  This program is free software; you can redistribute it and/or
 //  modify it under the terms of the GNU General Public License
@@ -62,11 +62,19 @@ void hpsort(
   double *ra,
   uint n
 );
+void hpsortui(
+  uint *ra,
+  uint n
+);
 void indexx(
   uint n,
   double *arr, 
   uint *indx
-            );
+);
+void permute(
+  uint n,
+  uint *indx
+);
 double ***dmatrix3(
   ulong n3l,
   ulong n3h,
@@ -117,6 +125,10 @@ int **pivector(
 );
 uint *uivector(
   ulong nl,
+  ulong nh
+);
+uint **puivector(
+  ulong nl, 
   ulong nh
 );
 char *cvector(
@@ -187,6 +199,11 @@ void free_uivector(
 );
 void free_pivector(
   int **v,
+  ulong nl,
+  ulong nh
+);
+void free_puivector(
+  uint **v,
   ulong nl,
   ulong nh
 );

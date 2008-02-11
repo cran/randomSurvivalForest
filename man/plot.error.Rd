@@ -24,15 +24,12 @@
   1, with 0.5 representing the benchmark value of a procedure based on
   random guessing.  A value of 0 is perfect.
 
-  In the orginal call if \code{importance}=TRUE (the default setting),
-  then importance values for predictors will be plotted.  A matrix with
-  3 columns is also printed.  First column are importance values, second
-  column are standardized importance values (divided by the maximum
-  importance value), third column is the vector \code{predictorWt}.  The
-  importance value indicates how much misclassification increases, or
-  decreases, for a new test case if the given predictor were not
-  available for that case, adjusting for all other predictors used in
-  growing the forest.
+  In the orginal call, if \code{importance}=TRUE (the default setting),
+  then variable importance (VIMP) values for predictors are plotted.  A
+  matrix with up to 3 columns is also printed.  First column are VIMP
+  values, second column are standardized VIMP values (divided by the
+  maximum importance value), third column is the vector
+  \code{predictorWt} (only printed if values are distinct).
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and

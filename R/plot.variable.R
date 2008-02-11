@@ -1,9 +1,9 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.0.1
+##  RANDOM SURVIVAL FOREST 3.2.0
 ##
-##  Copyright 2007, Cleveland Clinic
+##  Copyright 2008, Cleveland Clinic Foundation
 ##
 ##  This program is free software; you can redistribute it and/or
 ##  modify it under the terms of the GNU General Public License
@@ -54,188 +54,217 @@
 ##**********************************************************************
 ##**********************************************************************
 
-plot.variable <- function (
+plot.variable <- function(
     x, 
     plots.per.page = 4,
     granule = 5,
-    sort = TRUE,
-    rel.freq = FALSE,                           
+    sorted = TRUE,
+    type = c("mort", "rel.freq", "surv")[1],
     partial = FALSE,
     predictorNames = NULL,
-    n.pred = NULL,                           
-    n.pts = 25,
+    npred = NULL,                           
+    npts = 25,
     subset = NULL, 
     ...) {
 
+    ### don't want to use x for object 
     ### check that object is interpretable
-    if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
-        sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
+    object <- x
+    rm(x)
+    if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
+        sum(inherits(object, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
       stop("Function only works for objects of class `(rsf, grow)', '(rsf, predict)'.")
-
+    if (type != "mort" & type != "rel.freq" & type != "surv")
+      stop("Invalid choice for 'type:  " + type)
+    
     ### subset the data?
-    if (!is.null(subset) & is.logical(subset) & sum(subset)!=0) {
-      if (sum(subset) > 1) {
-        x$predictors <- x$predictors[subset, ]
+    if (!is.null(subset) & length(unique(subset)) != 0) {
+      subset <- subset[subset >=1 & subset <= dim(object$predictors)[1]]
+      subset <- unique(subset)
+      if (length(subset) == 0) stop("'subset' not set properly.")
+      if (length(subset) > 1) {
+        object$predictors <- object$predictors[subset, ]
       }
       else {
-        x$predictors <- t(as.matrix(x$predictors[subset, ]))
+        object$predictors <- t(as.matrix(object$predictors[subset, ]))
       }
-      x$mortality <- x$mortality[subset]
+      object$mortality <- object$mortality[subset]
+      if (sum(subset) > 1) {
+        object$ensemble <- object$ensemble[subset, ]
+      }
+      else {
+        object$ensemble <- t(as.matrix(object$ensemble[subset, ]))
+      }
     }
-    
+   
     ### get predictor matrix (use imputed values if available)
     ### extract predictor names to be plotted
     ### should predictors be sorted by importance?
-    predictors <- x$predictors
-    if (!is.null(x$imputedIndv)) predictors[x$imputedIndv, ] <- x$imputedData[,-c(1:2)]
+    predictors <- object$predictors
+    if (!is.null(object$imputedIndv)) predictors[object$imputedIndv, ] <- object$imputedData[,-c(1:2)]
     if (is.null(predictorNames)) {
-      cov.names <- x$predictorNames
+      cov.names <- object$predictorNames
     }
     else {
       cov.names <- predictorNames
-      if (sum(is.element(x$predictorNames, cov.names)) == 0){
+      if (sum(is.element(object$predictorNames, cov.names)) == 0){
            cat("Coefficient list does not match available predictors:","\n")
-           print(x$predictorNames)
+           print(object$predictorNames)
            stop()
       }
-      cov.names <- unique(cov.names[is.element(cov.names, x$predictorNames)])
-      n.pred <- NULL
+      cov.names <- unique(cov.names[is.element(cov.names, object$predictorNames)])
+      npred <- NULL
     }
     n.cov <- length(cov.names)
-    if (sort) {
-      if (!is.null(x$importance)) {
+    if (sorted) {
+      if (!is.null(object$importance)) {
         n.cov <- length(cov.names)
         cov.imp <- rep(0, n.cov)
         for (k in 1:n.cov) {
-          cov.imp[k] <- x$importance[x$predictorNames == cov.names[k]]
+          cov.imp[k] <- object$importance[object$predictorNames == cov.names[k]]
         }
         cov.names <- cov.names[rev(order(cov.imp))]
       }
     }
-    if (!is.null(n.pred)) {
-      n.pred <- max(round(n.pred), 1)
-      n.cov <- min(length(cov.names), n.pred)
+    if (!is.null(npred)) {
+      npred <- max(round(npred), 1)
+      n.cov <- min(length(cov.names), npred)
       cov.names <- cov.names[1:n.cov]
     }
     n <- dim(predictors)[1]
     
-    
-    ### plots (marginal, partial)
+
+    ## Save par settings
     old.par <- par(no.readonly = TRUE)
+
+    ## Marginal plots
     if (!partial) {
       if (n > 500) cex <- 0.5 else cex <- 0.75
       plots.per.page <- max(round(min(plots.per.page,n.cov)), 1)
       granule <- max(round(granule),1)
       par(mfrow = c(min(plots.per.page, ceiling(n.cov/plots.per.page)), plots.per.page))
-      if (!rel.freq) {
-        mortality.ensemble <- x$mortality
+      if (type == "mort") {
+        yhat <- object$mortality
+      }
+      else if (type == "rel.freq") {
+        yhat <- object$mortality/max(n, na.omit(object$mortality))
       }
       else {
-        mortality.ensemble <- x$mortality/max(n, na.omit(x$mortality))
+        yhat <-
+          100*exp(-object$ensemble[,max(which(object$timeInterest<=median(object$time)))])
       }
       for (k in 1:n.cov) {
-        y <- predictors[, x$predictorNames == cov.names[k]]
-        y.uniq <- unique(y)
-        n.y <- length(y.uniq)
-        if (n.y > granule) {
-            plot(y,
-                 mortality.ensemble,
+        x <- predictors[, object$predictorNames == cov.names[k]]
+        x.uniq <- unique(x)
+        n.x <- length(x.uniq)
+        if (n.x > granule) {
+            plot(x,
+                 yhat,
                  xlab=cov.names[k],
                  ylab = "",
                  type = "n",
                  cex.lab = 1.5)
-            points(y[x$cens == 1], mortality.ensemble[x$cens == 1],
+            points(x[object$cens == 1], yhat[object$cens == 1],
                    pch = 16, col = 4, cex = cex)
-            points(y[x$cens==0], mortality.ensemble[x$cens == 0],
+            points(x[object$cens==0], yhat[object$cens == 0],
                    pch = 16, cex = cex)
-            lines(lowess(y[!is.na(y)], mortality.ensemble[!is.na(y)]), col = 2)
+            lines(lowess(x[!is.na(x)], yhat[!is.na(x)]), col = 2, lwd=3)
         }
         else {
-            boxplot(mortality.ensemble ~ y,
+            boxplot(yhat ~ x,
                     xlab = cov.names[k],
                     notch = T,
                     outline = F,
                     data = predictors,
                     col = "bisque",
-                    names = rep("", n.y),
+                    names = rep("", n.x),
                     xaxt = "n",
                     pars = list(cex.lab = 1.5))
-            at.pretty <- unique(round(pretty(1:n.y, min(30, n.y))))
-            at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.y]
+            at.pretty <- unique(round(pretty(1:n.x, min(30, n.x))))
+            at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
             axis(1,
                  at = at.pretty,
-                 labels = format(sort(y.uniq)[at.pretty], trim = T, digits = 4),
+                 labels = format(sort(x.uniq)[at.pretty], trim = T, digits = 4),
                  tick = T)
         }
       }
     }
+
+    ## Partial plots
     else {
-      if (is.null(x$forest)) {
+      if (is.null(object$forest)) {
         stop("Forest is empty!  Re-run rsf (grow) analysis with forest set to 'TRUE'.")
       }
       plots.per.page <- max(round(min(plots.per.page,n.cov)), 1)
       granule <- max(round(granule),1)
       par(mfrow = c(min(plots.per.page, ceiling(n.cov/plots.per.page)), plots.per.page))
-      baseForest <- x$forest
+      baseForest <- object$forest
       class(baseForest) <- c("rsf", "partial")
-      if (n.pts < 1) n.pts <- 1 else n.pts <- round(n.pts)
+      if (npts < 1) npts <- 1 else npts <- round(npts)
       for (k in 1:n.cov) {
-        y <- predictors[, x$predictorNames == cov.names[k]]
-        n.y <- length(unique(y))
-        if (n.y > n.pts) {
-          y.uniq <- sort(unique(y))[unique(as.integer(seq(1, n.y, length = min(n.pts, n.y))))]
+        x <- predictors[, object$predictorNames == cov.names[k]]
+        n.x <- length(unique(x))
+        if (n.x > npts) {
+          x.uniq <- sort(unique(x))[unique(as.integer(seq(1, n.x, length = min(npts, n.x))))]
         }
         else {
-           y.uniq <- sort(unique(y))
+           x.uniq <- sort(unique(x))
         }
-        n.y <- length(y.uniq)
-        if (n.y > 25) cex <- 0.5 else cex <- 0.75
-        mortality.y <- mortality.y.se <- NULL
-        newdata.y <- as.data.frame(predictors)
-        colnames(newdata.y) <- x$predictorNames
-        for (l in 1:n.y) {
-           newdata.y[, x$predictorNames == cov.names[k]] <- rep(y.uniq[l], n)
-           pred.temp <- predict.rsf(baseForest, newdata.y)$mortality
-           if (n.y > granule | n.cov == 1) {
-             mortality.y <- c(mortality.y, mean(pred.temp))
-             mortality.y.se <- c(mortality.y.se, sd(pred.temp/sqrt(n)))
-           }
-           else {
-             mean.temp <- mean(pred.temp)
-             pred.temp <- mean.temp + (pred.temp-mean.temp)/sqrt(n)
-             mortality.y <- c(mortality.y, pred.temp)
-           }
+        n.x <- length(x.uniq)
+        if (n.x > 25) cex <- 0.5 else cex <- 0.75
+        yhat <- yhat.se <- NULL
+        newdata.x <- as.data.frame(predictors)
+        colnames(newdata.x) <- object$predictorNames
+        for (l in 1:n.x) {
+          newdata.x[, object$predictorNames == cov.names[k]] <- rep(x.uniq[l], n)
+          if (type == "mort" | type == "rel.freq") {
+            pred.temp <- predict.rsf(baseForest, newdata.x)$mortality
+          }
+          else if (type == "surv") {
+            pred.temp <-
+             100*exp(-predict.rsf(baseForest, newdata.x)$ensemble[,
+                        max(which(object$timeInterest<=median(object$time)))])
+          }
+          if (n.x > granule | n.cov == 1) {
+            yhat <- c(yhat, mean(pred.temp))
+            yhat.se <- c(yhat.se, sd(pred.temp/sqrt(n)))
+          }
+          else {
+            mean.temp <- mean(pred.temp)
+            pred.temp <- mean.temp + (pred.temp-mean.temp)/sqrt(n)
+            yhat <- c(yhat, pred.temp)
+          }
         }
-        if (rel.freq) nAdj <- max(n, mortality.y)
-        if (n.y > granule | n.cov == 1) {
-            if (rel.freq) {
-              mortality.y <- mortality.y/nAdj
-              mortality.y.se <- mortality.y.se/n
-            }
-            plot(c(min(y), y.uniq, max(y), y.uniq, y.uniq),
-                 c(NA, mortality.y, NA, mortality.y+2*mortality.y.se, mortality.y-2*mortality.y.se),
-                 xlab=cov.names[k],
-                 ylab = "",
-                 type = "n",
-                 cex.lab = 1.5)
-            points(y.uniq, mortality.y, pch = 16, cex = cex, col = 2)
-            if (any(mortality.y.se > 0)) {
-              lines(lowess(y.uniq, mortality.y+2*mortality.y.se), lty = 3, col = 2)
-              lines(lowess(y.uniq, mortality.y-2*mortality.y.se), lty = 3, col = 2)
-            }
-            lines(lowess(y.uniq, mortality.y), lty = 2)
-            rug(y, ticksize=0.03)
+        if (type == "rel.freq") nAdj <- max(n, yhat)
+        if (n.x > granule | n.cov == 1) {
+          if (type == "rel.freq") {
+            yhat <- yhat/nAdj
+            yhat.se <- yhat.se/n
+          }
+          plot(c(min(x), x.uniq, max(x), x.uniq, x.uniq),
+               c(NA, yhat, NA, yhat+2*yhat.se, yhat-2*yhat.se),
+               xlab=cov.names[k],
+               ylab = "",
+               type = "n",
+               cex.lab = 1.5)
+          points(x.uniq, yhat, pch = 16, cex = cex, col = 2)
+          if (!is.na(yhat.se) && any(yhat.se > 0)) {
+            lines(lowess(x.uniq, yhat+2*yhat.se), lty = 3, col = 2)
+            lines(lowess(x.uniq, yhat-2*yhat.se), lty = 3, col = 2)
+          }
+          lines(lowess(x.uniq, yhat), lty = 2, lwd=2)
+          rug(x, ticksize=0.03)
         }
         else {
-            if (!rel.freq) {
+            if (type != "rel.freq") {
               y.se <- 2
             }
             else {
-              mortality.y <- mortality.y/nAdj
+              yhat <- yhat/nAdj
               y.se <- 2/n
             }
-            bxp.call <- boxplot(mortality.y ~ rep(y.uniq, rep(n, n.y)), range = 2, plot = F)
-            boxplot(mortality.y ~ rep(y.uniq, rep(n, n.y)),
+            bxp.call <- boxplot(yhat ~ rep(x.uniq, rep(n, n.x)), range = 2, plot = F)
+            boxplot(yhat ~ rep(x.uniq, rep(n, n.x)),
                     xlab = cov.names[k],
                     notch = T,
                     outline = F,
@@ -243,17 +272,21 @@ plot.variable <- function (
                     ylim = c(min(bxp.call$stats[1,])-y.se,max(bxp.call$stats[5,])+y.se),
                     data = predictors,
                     col = "bisque",
-                    names = rep("",n.y),
+                    names = rep("",n.x),
                     xaxt = "n",
                     pars = list(cex.lab = 1.5))
-            at.pretty <- unique(round(pretty(1:n.y, min(30,n.y))))
-            at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.y]
+            at.pretty <- unique(round(pretty(1:n.x, min(30,n.x))))
+            at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
             axis(1,
                  at = at.pretty,
-                 labels = format(sort(y.uniq)[at.pretty], trim = T, digits = 4),
+                 labels = format(sort(x.uniq)[at.pretty], trim = T, digits = 4),
                  tick = T)
         }
       }
     }
+
+    ## Restore par settings
     par(old.par)
+
+
   }
