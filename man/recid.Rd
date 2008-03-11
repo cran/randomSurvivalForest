@@ -29,6 +29,5 @@
 \references{P.H. Rossi and R.A. Berk and K.J. Lenihan (1980).
     \emph{Money, Work and Crime: Some Experimental Results},
      Academic Press:New York.}
-}
 \examples{data(recid, package = "randomSurvivalForest")}
 \keyword{datasets}

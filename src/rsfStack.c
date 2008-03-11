@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -89,24 +89,18 @@ void unstackPreDefinedCommonArrays() {
     Rprintf("\nunstackPreDefinedCommonArrays() EXIT ...\n");
   }
 }
-void stackPreDefinedGrowthArrays(double ***p_masterSplit,
-                                 uint    **p_masterSplitSize) {
+void stackPreDefinedGrowthArrays() {
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nstackPreDefinedGrowthArrays() ENTRY ...\n");
   }
-  *p_masterSplit = dmatrix(1, _xSize, 1, _observationSize);
-  *p_masterSplitSize = uivector(1, _xSize);
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nstackPreDefinedGrowthArrays() EXIT ...\n");
   }
 }
-void unstackPreDefinedGrowthArrays(double **masterSplit,
-                                   uint    *masterSplitSize) {
+void unstackPreDefinedGrowthArrays() {
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nunstackPreDefinedGrowthArrays() ENTRY ...\n");
   }
-  free_dmatrix(masterSplit, 1, _xSize, 1, _observationSize);
-  free_uivector(masterSplitSize, 1, _xSize);
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nunstackPreDefinedGrowthArrays() EXIT ...\n");
   }
@@ -162,12 +156,13 @@ void initializeArrays(uint mode, uint *sortedTimeInterestSize) {
   uint leadingIndex;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nCommon Incoming Parameters:  ");
-    Rprintf("\n         traceFlag:  %10d", getTraceFlag());
-    Rprintf("\n               opt:  %10x", _opt);
-    Rprintf("\n        forestSize:  %10d", _forestSize);
-    Rprintf("\n   observationSize:  %10d", _observationSize);
-    Rprintf("\n  timeInterestSize:  %10d", _timeInterestSize);
-    Rprintf("\n             xSize:  %10d", _xSize);
+    Rprintf("\n            traceFlag:  %10d", getTraceFlag());
+    Rprintf("\n                  opt:  %10x", _opt);
+    Rprintf("\n           forestSize:  %10d", _forestSize);
+    Rprintf("\n      observationSize:  %10d", _observationSize);
+    Rprintf("\n     timeInterestSize:  %10d", _timeInterestSize);
+    Rprintf("\n                xSize:  %10d", _xSize);
+    Rprintf("\n randomCovariateCount:  %10d", _randomCovariateCount);
     Rprintf("\n");
   }
   if ((getTraceFlag() & RSF_GROW) && (getTraceFlag() & DL1_TRACE)) {
@@ -771,8 +766,20 @@ char stackMissingArrays(uint       mode,
       }
     }
   }
-  if (_mTimeIndexFlag == FALSE) {
-      updateTimeIndexArray(NULL);
+  for (i=1; i <= _observationSize; i++) {
+    if (!ISNA(_time[i])) {
+      k = 1;
+      while (k <= _masterTimeSize) {
+        if (_time[i] == _masterTime[k]) {
+          _masterTimeIndex[i] = k;
+          k = _masterTimeSize;
+        }
+        k++;
+      }
+    }
+    else {
+      _masterTimeIndex[i] = 0;
+    }
   }
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nstackMissingArrays() EXIT ...\n");
@@ -972,7 +979,12 @@ uint stackDefinedOutputObjects(uint      mode,
     predictorPtr = _observation;
     mRecordIndex = _mRecordIndex;
     *stackCount = 4;
-    ensembleSize = sortedTimeInterestSize * obsSize;
+    if (_opt & (OPT_POUT_TYPE)) {
+      ensembleSize = 1;
+    }
+    else {
+      ensembleSize = sortedTimeInterestSize;
+    }
     if (_opt & OPT_PROX) {
       proximitySize = ((obsSize + 1)  * obsSize) / 2; 
       (*stackCount) += 1;
@@ -1016,7 +1028,12 @@ uint stackDefinedOutputObjects(uint      mode,
     predictorPtr = _fobservation;
     mRecordIndex = _fmRecordIndex;
     *stackCount = 2;
-    ensembleSize = sortedTimeInterestSize * obsSize;
+    if (_opt & (OPT_POUT_TYPE)) {
+      ensembleSize = 1;
+    }
+    else {
+      ensembleSize = sortedTimeInterestSize;
+    }
     if (_opt & OPT_PERF) {
       (*stackCount) += 1;
     }
@@ -1051,7 +1068,12 @@ uint stackDefinedOutputObjects(uint      mode,
       }
       (*stackCount) += 1;
     }
-    ensembleSize = sortedTimeInterestSize * obsSize;
+    if (_opt & (OPT_POUT_TYPE)) {
+      ensembleSize = 1;
+    }
+    else {
+      ensembleSize = sortedTimeInterestSize;
+    }
     if (_opt & OPT_OMIS) {
       imputationSize = (_xSize + 3) * mRecordSize;
       (*stackCount) += 1;
@@ -1076,26 +1098,26 @@ uint stackDefinedOutputObjects(uint      mode,
   setAttrib(sexpVector[RSF_OUTP_ID], R_NamesSymbol, sexpVector[RSF_STRG_ID]);
   sexpIndex = 0;
   if (_opt & OPT_FENS) {
-    PROTECT(sexpVector[RSF_FENS_ID] = NEW_NUMERIC(ensembleSize));
+    PROTECT(sexpVector[RSF_FENS_ID] = NEW_NUMERIC(ensembleSize * obsSize));
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nFENS memory mapped at: %20x", sexpVector + RSF_FENS_ID);  
       Rprintf("\nFENS memory:           %20x", sexpVector[RSF_FENS_ID]);  
-      Rprintf("\nFENS memory sized:     %20d", ensembleSize);  
+      Rprintf("\nFENS memory sized:     %20d", ensembleSize * obsSize);
       Rprintf("\nFENS SEXP index:       %20d", sexpIndex);  
     }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_FENS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_FENS_ID]));
     *p_fullEnsemble = NUMERIC_POINTER(sexpVector[RSF_FENS_ID]);
-    _fullEnsemblePtr = pdvector(1, sortedTimeInterestSize);
+    _fullEnsemblePtr = pdvector(1, ensembleSize);
     _fullEnsembleDen = uivector(1, obsSize);
     if (_ensembleRun == NULL) {
       _ensembleRun     = dvector(1, obsSize);
     }
-    for (i = 1; i <= sortedTimeInterestSize; i++) {
+    for (i = 1; i <= ensembleSize; i++) {
       _fullEnsemblePtr[i] = (*p_fullEnsemble) + ((i-1)*(obsSize)) - 1;
     }
     for (i = 1; i <= obsSize; i++) {
-      for (j = 1; j <= sortedTimeInterestSize; j++) {
+      for (j = 1; j <= ensembleSize; j++) {
         _fullEnsemblePtr[j][i] = 0.0;
       }
       _fullEnsembleDen[i] = 0;
@@ -1106,26 +1128,26 @@ uint stackDefinedOutputObjects(uint      mode,
     }
   }
   if (_opt & OPT_OENS) {
-    PROTECT(sexpVector[RSF_OENS_ID] = NEW_NUMERIC(ensembleSize));
+    PROTECT(sexpVector[RSF_OENS_ID] = NEW_NUMERIC(ensembleSize * obsSize));
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nOENS memory mapped at: %20x", sexpVector + RSF_OENS_ID);  
       Rprintf("\nOENS memory:           %20x", sexpVector[RSF_OENS_ID]);  
-      Rprintf("\nOENS memory sized:     %20d", ensembleSize);  
+      Rprintf("\nOENS memory sized:     %20d", ensembleSize * obsSize);
       Rprintf("\nOENS SEXP index:       %20d", sexpIndex);  
     }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_OENS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_OENS_ID]));
     *p_oobEnsemble = NUMERIC_POINTER(sexpVector[RSF_OENS_ID]);
-    _oobEnsemblePtr  = pdvector(1, sortedTimeInterestSize);
+    _oobEnsemblePtr  = pdvector(1, ensembleSize);
     _oobEnsembleDen  = uivector(1, obsSize);
     if (_ensembleRun == NULL) {
       _ensembleRun     = dvector(1, obsSize);
     }
-    for (i = 1; i <= sortedTimeInterestSize; i++) {
+    for (i = 1; i <= ensembleSize; i++) {
       _oobEnsemblePtr[i]  = (*p_oobEnsemble)  + ((i-1)*(obsSize)) - 1;
     }
     for (i = 1; i <= obsSize; i++) {
-      for (j = 1; j <= sortedTimeInterestSize; j++) {
+      for (j = 1; j <= ensembleSize; j++) {
         _oobEnsemblePtr[j][i]  = 0.0;
       }
       _oobEnsembleDen[i]  = 0;

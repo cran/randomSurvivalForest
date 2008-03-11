@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -95,9 +95,8 @@ void setRightDaughter(
   Node *parent
 );
 char forkNode(
-  Node *parent,
-  uint splitParameter,
-  uint splitValueIndex,
+  Node  *parent,
+  uint   splitParameter,
   double splitValue
 );
 #endif

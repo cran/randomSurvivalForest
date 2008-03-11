@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.0
+##  RANDOM SURVIVAL FOREST 3.2.1
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -67,16 +67,16 @@ plot.proximity <- function (x, plot = TRUE, ...) {
   if (length(x$proximity) == 1) return()
 
   ### generate plot
-  proxm <- matrix(0, x$n, x$n)
+  proximity <- matrix(0, x$n, x$n)
   count <- 0
   for (k in 1:x$n){
-    proxm[k,1:k] <- x$proximity[(count+1):(count+k)]
-    proxm[1:k,k] <- proxm[k,1:k]
+    proximity[k,1:k] <- x$proximity[(count+1):(count+k)]
+    proximity[1:k,k] <- proximity[k,1:k]
     count <- count+k
   }
-  proxm <- proxm/diag(proxm)
+  proximity <- proximity/diag(proximity)
   if (plot) {
-    loc <- cmdscale(sqrt(1-proxm))
+    loc <- cmdscale(sqrt(1-proximity))
     old.par <- par(no.readonly = TRUE)
     par(mfrow = c(1,1))
     plot(loc[,1], -loc[,2], type="n", xlab="", ylab="", main="cmdscale(Ensemble Mortality)")
@@ -93,5 +93,5 @@ plot.proximity <- function (x, plot = TRUE, ...) {
     }
     par(old.par)
   }
-  invisible(proximity=proxm)
+  invisible(proximity)
 }

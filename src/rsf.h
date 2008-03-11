@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,53 +58,12 @@ uint getTraceFlag();
 void updateTraceFlag(char reset);
 char getBestSplit(Node    *parent,
                   uint    *splitParameterMax,
-                  uint    *splitValueMax,
-                  double **masterSplit);
+                  double  *splitValueMax);
 char makeTree(char     imputeFlag,
               uint     b,
-              Node    *parent,
-              double **masterSplit);
+              Node    *parent);
 char forkAndUpdate(uint  *leafCount,
                    Node  *parent,
                    uint   splitParameter,
-                   uint   splitValueIndex,
                    double splitValue);
-SEXP rsfGrow(SEXP traceFlag,
-             SEXP opt,
-             SEXP seedPtr,
-             SEXP splitRule,
-             SEXP randomCovariateCount,
-             SEXP forestSize,
-             SEXP minimumDeathCount,
-             SEXP observationSize,
-             SEXP time,
-             SEXP status,
-             SEXP xSize,
-             SEXP xData,
-             SEXP timeInterestSize,
-             SEXP timeInterest,
-             SEXP randomCovariateWeight,
-             SEXP xType,
-             SEXP reimputeSize);
-SEXP rsfPredict(SEXP traceFlag,
-                SEXP opt,
-                SEXP seedPtr,  
-                SEXP forestsize,
-                SEXP observationSize,
-                SEXP time,
-                SEXP status,
-                SEXP xSize,
-                SEXP xData,
-                SEXP fobservationSize,
-                SEXP ftime,
-                SEXP fstatus,
-                SEXP fxData,
-                SEXP timeInterestSize,
-                SEXP timeInterest,
-                SEXP treeID,
-                SEXP nodeID,
-                SEXP parmID,
-                SEXP spltPT,
-                SEXP seedVector,
-                SEXP xType);
 SEXP rsf(char mode, uint traceFlag);

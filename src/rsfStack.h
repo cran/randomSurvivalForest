@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -59,10 +59,8 @@
 #include "extern.h"
 void stackPreDefinedCommonArrays();
 void unstackPreDefinedCommonArrays();
-void stackPreDefinedGrowthArrays(double ***p_masterSplit,
-                                 uint    **p_masterSplitSize);
-void unstackPreDefinedGrowthArrays(double **masterSplit,
-                                   uint    *masterSplitSize);
+void stackPreDefinedGrowthArrays();
+void unstackPreDefinedGrowthArrays();
 void stackPreDefinedPredictArrays();
 void unstackPreDefinedPredictArrays();
 void stackPreDefinedInteractionArrays();

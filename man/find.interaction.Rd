@@ -13,6 +13,7 @@
                   npred = NULL,
                   subset = NULL, 
                   nrep = 1,
+                  rough = FALSE,
                   importance = c("randomsplit", "permute")[1],
                   ...)
 }
@@ -29,6 +30,8 @@
     \item{subset}{An index vector indicating which rows should be used.
       Default is to use all the data.}
     \item{nrep}{Number of Monte Carlo replicates.}
+    \item{rough}{Logical value indicating whether fast approximation
+      should be used.  Default is FALSE.}
     \item{importance}{Method used to compute variable importance (VIMP).}
     \item{...}{Further arguments passed to or from other methods.}
 }
@@ -71,8 +74,17 @@
   \code{interaction.rsf}.
 }
 \examples{
-  data(veteran, package = "randomSurvivalForest") 
-  v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000, forest = TRUE)
-  find.interaction(v.out, npred = 2, nrep=1)
+data(veteran, package = "randomSurvivalForest") 
+v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000, forest = TRUE)
+find.interaction(v.out, npred = 2, nrep=1)
+
+\dontrun{
+# All pairwise interactions: PBC data.
+# Use fast approximation to speed up computations.
+data(pbc, package = "randomSurvivalForest") 
+rsf.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, forest = TRUE)
+find.interaction(rsf.out, nrep=3, rough=T)
+}
+
 }
 \keyword{file}

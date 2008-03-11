@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.0
+##  RANDOM SURVIVAL FOREST 3.2.1
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -59,6 +59,7 @@ interaction.rsf <- function(
                             predictorNames = NULL,
                             subset = NULL,
                             joint = TRUE,
+                            rough = FALSE,                            
                             importance = c("randomsplit", "permute", "none")[1],
                             seed = NULL,
                             do.trace = FALSE,
@@ -132,25 +133,36 @@ interaction.rsf <- function(
 
   ## Convert importance option into native code parameter.
   if (importance == "none") {
-    importance <- 0
+    importanceBits <- 0
   }
   else if (importance == "permute") {
-    importance <- 2048 + 0
+    importanceBits <- 2^11 + 0
   }
   else if (importance == "randomsplit") {
-    importance <- 2048 + 512
+    importanceBits <- 2^11 + 2^9
   }
   else {
     stop("Invalid choice for 'importance' option:  ", importance)
   }
   if (joint == TRUE) {
-    importance <- importance + 1024
+    importanceBits <- importanceBits + 2^10
   }
   else if (joint == FALSE) {
     ## Do nothing.  All is well.
   }
   else {
     stop("Invalid choice for 'joint' option:  ", joint)
+  }
+  if (rough == TRUE) {
+    ## Use the mean survival time as predicted outcome.
+    predictedOutcomeBits <- 2^14
+  }
+  else if (rough == FALSE) {
+    ## Use the CHF as predicted outcome.
+    predictedOutcomeBits <- 0    
+  }
+  else {
+    stop("Invalid choice for 'rough' option:  ", rough)
   }
     
   
@@ -177,12 +189,12 @@ interaction.rsf <- function(
   ##       **             0x0040 = SEED / the forest 
   ##       ***  ***       0x0080 = MISS
   ##       ***       ***  0x0100 = OMIS
-  ##       **   **   *    0x0000 = \  VIMP_PERM
-  ##       **   **   *    0x0200 =  | VIMP_RAND
+  ##       **   **   *    0x0200 = \  VIMP_TYPE
   ##       **   **   *    0x0400 =  | VIMP_JOIN
   ##       **   **   *    0x0800 = /  VIMP
   ##       **             0x1000 = \  VUSE_TYPE
-  ##       **             0x1800 = /  VUSE
+  ##       **             0x2000 = /  VUSE
+  ##       *    *    *    0x4000 = POUT_TYPE
   ##
   ##       (*)   default  output
   ##       (**)  optional output
@@ -223,7 +235,8 @@ interaction.rsf <- function(
 
   nativeOutput <- .Call("rsfInteraction",
                         as.integer(do.trace),
-                        as.integer(importance),
+                        as.integer(predictedOutcomeBits +
+                                   importanceBits),
                         as.integer(seed),
                         as.integer(ntree),
                         as.integer(dim(object$predictors)[1]),

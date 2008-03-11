@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,6 +58,10 @@ extern int      *_seed_;
 extern double   *_performance_;
 extern uint     *_leafCount_;
 extern uint     *_varUsed_;
+extern uint     *_treeID_;
+extern uint     *_nodeID_;
+extern uint     *_parmID_;
+extern double   *_spltPT_;
 extern uint      _opt;
 extern uint      _splitRule;
 extern uint      _imputeSize;

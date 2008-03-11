@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -60,10 +60,10 @@
 extern uint getTraceFlag();
 char logRankRandom (Node    *parent,
                     uint    *splitParameterMax,
-                    uint    *splitValueMax,
-                    double **masterSplit) {
+                    double  *splitValueMax) {
   double delta, deltaNum, deltaDen;
   double deltaMax;
+  uint splitValueIndexMax;
   uint i,j,k,m, index;
   uint actualCovariateCount;
   uint parentDeathCount;
@@ -82,6 +82,7 @@ char logRankRandom (Node    *parent,
   uint *localDeathTimeCount = uivector(1, _masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, _masterTimeSize);
   *splitParameterMax = *splitValueMax = 0;
+  splitValueIndexMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = deltaMax = -EPSILON;
@@ -142,20 +143,29 @@ char logRankRandom (Node    *parent,
           Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
         }
       }
-      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      double **permissibleSplit = dmatrix(1, _randomCovariateCount, 1, localMembershipSize);
+      uint *permissibleSplitSize = uivector(1, _randomCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, 
+                                                    localMembershipSize,
+                                                    localMembershipIndex,
+                                                    randomCovariateIndex, 
+                                                    permissibleSplit, 
+                                                    permissibleSplitSize);
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nPermissible Split Sizes: \n");
+        Rprintf(" covariate       size \n");
+        for (j=1; j <= actualCovariateCount; j++) {
+          Rprintf("%10d %10d \n", randomCovariateIndex[j], permissibleSplitSize[j]);
+        }
+      }
       for (i=1; i <= actualCovariateCount; i++) {
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
-          Rprintf("\n           with limits:  %10d %10d \n",
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
-                  );
+          Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
         }
-        k = (parent -> permissibleSplit)[randomCovariateIndex[i]][2] - (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-        j = floor(ran2(_seed2Ptr)*(k*1.0));
-        j = j + (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
+        k = permissibleSplitSize[i] - 1;
+        j = ceil(ran2(_seed2Ptr)*(k*1.0));
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+          Rprintf("\nSplitting on value:  %12.4f \n", permissibleSplit[i][j]);
         }
         deltaNum = deltaDen =  0.0;
         leftDeathTimeSize = rightDeathTimeSize = 0;
@@ -163,7 +173,7 @@ char logRankRandom (Node    *parent,
           nodeLeftDeath[k] = nodeLeftAtRisk[k] = 0;
         }
         for (k=1; k <= localMembershipSize; k++) {
-          if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+          if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= permissibleSplit[i][j]) {
             if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
             }
@@ -243,15 +253,18 @@ char logRankRandom (Node    *parent,
           if (delta > deltaMax) {
             deltaMax = delta;
             *splitParameterMax = randomCovariateIndex[i];
-            *splitValueMax = j;
+            *splitValueMax = permissibleSplit[i][j];
+            splitValueIndexMax = j;
           }
           if (getTraceFlag() & DL3_TRACE) {
             Rprintf("\n\nRunning Split Statistics: \n");
-            Rprintf("  SplitParm SplitIndex        Numer        Denom        Delta \n");
-            Rprintf(" %10d %10d %12.4f %12.4f %12.4f \n", i, j, deltaNum, deltaDen, delta);
+            Rprintf("  SplitParm   SplitValue        Delta \n");
+            Rprintf(" %10d %12.4f %12.4f \n", randomCovariateIndex[i], permissibleSplit[i][j], delta);
           }
         }  
       }  
+      free_dmatrix(permissibleSplit, 1, localMembershipSize, 1, _randomCovariateCount);
+      free_uivector(permissibleSplitSize, 1, _randomCovariateCount);
     }  
     else {
       if (getTraceFlag() & DL2_TRACE) {
@@ -261,9 +274,7 @@ char logRankRandom (Node    *parent,
   }  
   else {
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nRSF:  *** WARNING *** ");
-      Rprintf("\nRSF:  Less than twice the minimum number of deaths");
-      Rprintf("\nRSF:  encountered in logRank().  Node not split.  \n");
+      Rprintf("\nLess than twice the minimum number of deaths encountered.  Node not split.  \n");
     }
   }
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
@@ -276,11 +287,11 @@ char logRankRandom (Node    *parent,
   free_uivector(localMembershipIndex, 1, _observationSize);
   free_uivector(localDeathTimeCount, 1, _masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, _masterTimeSize);
-  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+  if (((*splitParameterMax) > 0) && (splitValueIndexMax > 0)) {
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
-      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+      Rprintf("  SplitParm   SplitValue        Delta \n");
+      Rprintf(" %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
     }
     if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nlogRankRandom() EXIT (TRUE) ...\n");
@@ -297,9 +308,9 @@ char logRankRandom (Node    *parent,
 char randomSplit(
   Node    *parent,
   uint    *splitParameterMax,
-  uint    *splitValueMax,
-  double **masterSplit) {
+  double  *splitValueMax) {
   double delta, deltaMax;
+  uint splitValueIndexMax;
   uint i,j,k;
   uint actualCovariateCount;
   uint parentDeathCount, leftDeathCount;
@@ -314,6 +325,7 @@ char randomSplit(
   uint *rightDeathTimeCount = uivector(1, _masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, _masterTimeSize);
   *splitParameterMax = *splitValueMax = 0;
+  splitValueIndexMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = deltaMax = -EPSILON;
@@ -325,7 +337,7 @@ char randomSplit(
       localMembershipIndex[++localMembershipSize] = _bootMembershipIndex[i];
       if (_status[_bootMembershipIndex[i]] == 1) {
         localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
-        parentDeathCount++;
+        parentDeathCount ++;
       }
     }
   }
@@ -349,25 +361,34 @@ char randomSplit(
       }
     }
     if (localDeathTimeSize >= _minimumDeathCount) {
-      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      double **permissibleSplit = dmatrix(1, _randomCovariateCount, 1, localMembershipSize);
+      uint *permissibleSplitSize = uivector(1, _randomCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, 
+                                                    localMembershipSize,
+                                                    localMembershipIndex,
+                                                    randomCovariateIndex, 
+                                                    permissibleSplit, 
+                                                    permissibleSplitSize);
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nPermissible Split Sizes: \n");
+        Rprintf(" covariate       size \n");
+        for (j=1; j <= actualCovariateCount; j++) {
+          Rprintf("%10d %10d \n", randomCovariateIndex[j], permissibleSplitSize[j]);
+        }
+      }
       char *covariateStatus = cvector(1, actualCovariateCount);
       for (i = 1; i <= actualCovariateCount; i++) {
         covariateStatus[i] = TRUE;
       }
-      i = selectPermissibleElements(actualCovariateCount, covariateStatus);
-      while ((i != 0) && ((*splitParameterMax) == 0) && ((*splitValueMax) == 0)) {
+      i = getSelectableElement(actualCovariateCount, covariateStatus, NULL);
+      if (getTraceFlag() & DL3_TRACE) {
+        Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
+      }
+      while ((i != 0) && ((*splitParameterMax) == 0) && (splitValueIndexMax == 0)) {
+        k = permissibleSplitSize[i] - 1;
+        j = ceil(ran2(_seed2Ptr)*(k*1.0));
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
-          Rprintf("\n           with limits:  %10d %10d \n",
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
-                  );
-        }
-        k = (parent -> permissibleSplit)[randomCovariateIndex[i]][2] - (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-        j = floor(ran2(_seed2Ptr)*(k*1.0));
-        j = j + (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-        if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+          Rprintf("\nSplitting on value:  %12.4f \n", permissibleSplit[i][j]);
         }
         leftDeathCount = 0;
         leftDeathTimeSize = rightDeathTimeSize = 0;
@@ -375,7 +396,7 @@ char randomSplit(
           leftDeathTimeCount[k] = 0;
         }
         for (k=1; k <= localMembershipSize; k++) {
-          if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+          if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= permissibleSplit[i][j]) {
             if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
             }
@@ -401,26 +422,32 @@ char randomSplit(
         }
         if ((leftDeathTimeSize >= (_minimumDeathCount)) && (rightDeathTimeSize >= (_minimumDeathCount))) {
           *splitParameterMax = randomCovariateIndex[i];
-          *splitValueMax = j;
+          *splitValueMax = permissibleSplit[i][j];
+          splitValueIndexMax = j;
           if (getTraceFlag() & DL3_TRACE) {
             Rprintf("\n\nRunning Split Statistics: \n");
-            Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
-            Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
+            Rprintf("  SplitParm   SplitValue        Delta \n");
+            Rprintf(" %10d %12.4f %12.4f \n", randomCovariateIndex[i], permissibleSplit[i][j], delta);
           }
         }  
         else {
           covariateStatus[i] = FALSE;
-          i = selectPermissibleElements(actualCovariateCount, covariateStatus);
+          i = getSelectableElement(actualCovariateCount, covariateStatus, NULL);
         }
       }  
+      free_dmatrix(permissibleSplit, 1, localMembershipSize, 1, _randomCovariateCount);
+      free_uivector(permissibleSplitSize, 1, _randomCovariateCount);
       free_cvector(covariateStatus, 1, actualCovariateCount);
     }  
+    else {
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nMinimum unique deaths not acheived:  %10d versus %10d \n", localDeathTimeSize, _minimumDeathCount);
+      }
+    }
   }  
   else {
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nRSF:  *** WARNING *** ");
-      Rprintf("\nRSF:  Less than twice the minimum number of deaths");
-      Rprintf("\nRSF:  encountered in logRankApprox().  Node not split.  \n");
+      Rprintf("\nLess than twice the minimum number of deaths encountered.  Node not split.  \n");
     }
   }
   free_uivector(randomCovariateIndex, 1, _xSize);
@@ -429,11 +456,11 @@ char randomSplit(
   free_uivector(leftDeathTimeCount, 1, _masterTimeSize);
   free_uivector(rightDeathTimeCount, 1, _masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, _masterTimeSize);
-  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+  if (((*splitParameterMax) > 0) && (splitValueIndexMax > 0)) {
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
-      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+      Rprintf("  SplitParm   SplitValue        Delta \n");
+      Rprintf(" %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
     }
     if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nrandomSplit() EXIT (TRUE) ...\n");
@@ -450,11 +477,11 @@ char randomSplit(
 char logRankApprox(
   Node    *parent,
   uint    *splitParameterMax,
-  uint    *splitValueMax,
-  double **masterSplit) {
+  double  *splitValueMax) {
   double delta, deltaNum, deltaDen;
   double eOneMono;
   double deltaMax;
+  uint splitValueIndexMax;
   uint i,j,k, leadingIndex;
   uint actualCovariateCount;
   uint parentDeathCount, leftDeathCount;
@@ -471,6 +498,7 @@ char logRankApprox(
   uint *rightDeathTimeCount = uivector(1, _masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, _masterTimeSize);
   *splitParameterMax = *splitValueMax = 0;
+  splitValueIndexMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = deltaMax = -EPSILON;
@@ -492,6 +520,10 @@ char logRankApprox(
     Rprintf("\nLocal Membership Index for Parent Node: \n");
     for (i=1; i <= localMembershipSize; i++) {
       Rprintf("%10d %10d \n", i, localMembershipIndex[i]);
+    }
+    Rprintf("\nLocal Death Time Counts:  \n");
+    for (i=1; i <= _masterTimeSize; i++) {
+      Rprintf("%10d %10d \n", i, localDeathTimeCount[i]);
     }
   }
   if (parentDeathCount >= (2 * (_minimumDeathCount))) {
@@ -528,7 +560,21 @@ char logRankApprox(
           Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
         }
       }
-      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      double **permissibleSplit = dmatrix(1, _randomCovariateCount, 1, localMembershipSize);
+      uint *permissibleSplitSize = uivector(1, _randomCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, 
+                                                    localMembershipSize,
+                                                    localMembershipIndex,
+                                                    randomCovariateIndex, 
+                                                    permissibleSplit, 
+                                                    permissibleSplitSize);
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nPermissible Split Sizes: \n");
+        Rprintf(" covariate       size \n");
+        for (j=1; j <= actualCovariateCount; j++) {
+          Rprintf("%10d %10d \n", randomCovariateIndex[j], permissibleSplitSize[j]);
+        }
+      }
       double *nelsonAalen = dvector(1, localDeathTimeSize);
       uint *survivalTimeIndex = uivector(1, localMembershipSize);
       for (k=1; k <= localDeathTimeSize; k++) {
@@ -561,18 +607,12 @@ char logRankApprox(
       }
       for (i=1; i <= actualCovariateCount; i++) {
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
-          Rprintf("\n           with limits:  %10d %10d \n",
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
-                  );
+          Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
         }
         eOneMono = 0.0;
-        for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-             j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
-             j++) {
+        for (j = 1; j < permissibleSplitSize[i]; j++) {
           if (getTraceFlag() & DL3_TRACE) {
-            Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+            Rprintf("\nSplitting on value:  %12.4f \n", permissibleSplit[i][j]);
           }
           leftDeathCount = 0;
           leftDeathTimeSize = rightDeathTimeSize = 0;
@@ -580,11 +620,11 @@ char logRankApprox(
             leftDeathTimeCount[k] = 0;
           }
           for (k=1; k <= localMembershipSize; k++) {
-            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= permissibleSplit[i][j]) {
               if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
               }
-              if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] == masterSplit[randomCovariateIndex[i]][j]) {
+              if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] == permissibleSplit[i][j]) {
                 eOneMono = eOneMono + nelsonAalen[survivalTimeIndex[k]];
               }
               if (_status[localMembershipIndex[k]] == 1) {
@@ -626,25 +666,31 @@ char logRankApprox(
             if (delta > deltaMax) {
               deltaMax = delta;
               *splitParameterMax = randomCovariateIndex[i];
-              *splitValueMax = j;
+              *splitValueMax = permissibleSplit[i][j];
+              splitValueIndexMax = j;
             }
             if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n\nRunning Split Statistics: \n");
-              Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
-              Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
+              Rprintf("  SplitParm   SplitValue        Delta \n");
+              Rprintf(" %10d %12.4f %12.4f \n", randomCovariateIndex[i], permissibleSplit[i][j], delta);
             }
           }  
         }  
       }  
+      free_dmatrix(permissibleSplit, 1, localMembershipSize, 1, _randomCovariateCount);
+      free_uivector(permissibleSplitSize, 1, _randomCovariateCount);
       free_dvector(nelsonAalen , 1, localDeathTimeSize);
       free_uivector (survivalTimeIndex, 1, localMembershipSize);
     }  
+    else {
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nMinimum unique deaths not acheived:  %10d versus %10d \n", localDeathTimeSize, _minimumDeathCount);
+      }
+    }
   }  
   else {
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nRSF:  *** WARNING *** ");
-      Rprintf("\nRSF:  Less than twice the minimum number of deaths");
-      Rprintf("\nRSF:  encountered in logRankApprox().  Node not split.  \n");
+      Rprintf("\nLess than twice the minimum number of deaths encountered.  Node not split.  \n");
     }
   }
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
@@ -655,11 +701,11 @@ char logRankApprox(
   free_uivector(leftDeathTimeCount, 1, _masterTimeSize);
   free_uivector(rightDeathTimeCount, 1, _masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, _masterTimeSize);
-  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+  if (((*splitParameterMax) > 0) && (splitValueIndexMax > 0)) {
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
-      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+      Rprintf("  SplitParm   SplitValue        Delta \n");
+      Rprintf(" %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
     }
     if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nlogRankApprox() EXIT (TRUE) ...\n");
@@ -676,11 +722,11 @@ char logRankApprox(
 char logRankScore(
   Node    *parent,
   uint    *splitParameterMax,
-  uint    *splitValueMax,
-  double **masterSplit) {
+  double  *splitValueMax) {
   double delta, deltaNum, deltaDen;
   double meanSurvRank, varSurvRank;
   double deltaMax;
+  uint splitValueIndexMax;
   uint i,j,k;
   uint actualCovariateCount;
   uint parentDeathCount;
@@ -694,6 +740,7 @@ char logRankScore(
   uint *leftDeathTimeCount = uivector(1, _masterTimeSize);
   uint *rightDeathTimeCount = uivector(1, _masterTimeSize);
   *splitParameterMax = *splitValueMax = 0;
+  splitValueIndexMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = deltaMax = -EPSILON;
@@ -710,10 +757,15 @@ char logRankScore(
     }
   }
   if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nLocal Membership Size:  %10d \n", localMembershipSize);
-  }
-  if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
+    Rprintf("\nLocal Membership Index for Parent Node: \n");
+    for (i=1; i <= localMembershipSize; i++) {
+      Rprintf("%10d %10d \n", i, localMembershipIndex[i]);
+    }
+    Rprintf("\nLocal Death Time Counts:  \n");
+    for (i=1; i <= _masterTimeSize; i++) {
+      Rprintf("%10d %10d \n", i, localDeathTimeCount[i]);
+    }
   }
   if (parentDeathCount >= (2 * (_minimumDeathCount))) {
     for (i=1; i <= _masterTimeSize; i++) {
@@ -721,11 +773,22 @@ char logRankScore(
         ++localDeathTimeSize;
       }
     }
-    if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nLocal Death Time Size:  %10d \n", localDeathTimeSize);
-    }
     if (localDeathTimeSize >= _minimumDeathCount) {
-      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      double **permissibleSplit = dmatrix(1, _randomCovariateCount, 1, localMembershipSize);
+      uint *permissibleSplitSize = uivector(1, _randomCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, 
+                                                    localMembershipSize,
+                                                    localMembershipIndex,
+                                                    randomCovariateIndex, 
+                                                    permissibleSplit, 
+                                                    permissibleSplitSize);
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nPermissible Split Sizes: \n");
+        Rprintf(" covariate       size \n");
+        for (j=1; j <= actualCovariateCount; j++) {
+          Rprintf("%10d %10d \n", randomCovariateIndex[j], permissibleSplitSize[j]);
+        }
+      }
       double *predictorValue = dvector(1, localMembershipSize);
       uint   *localSplitRank  = uivector(1, localMembershipSize);
       uint *survivalTimeIndexRank = uivector(1, localMembershipSize);
@@ -765,17 +828,11 @@ char logRankScore(
         varSurvRank = ( varSurvRank - (pow(meanSurvRank, 2.0) / localMembershipSize) ) / (localMembershipSize - 1);
         meanSurvRank = meanSurvRank / localMembershipSize;
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\n\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
-          Rprintf("\n           with limits:  %10d %10d \n",
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
-                  (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
-                  );
+          Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
         }
-        for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-             j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
-             j++) {
+        for (j = 1; j < permissibleSplitSize[i]; j++) {
           if (getTraceFlag() & DL3_TRACE) {
-            Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+            Rprintf("\nSplitting on value:  %12.4f \n", permissibleSplit[i][j]);
           }
           deltaNum = 0.0;
           leftMembershipSize = leftDeathTimeSize = rightDeathTimeSize = 0;
@@ -783,7 +840,7 @@ char logRankScore(
             leftDeathTimeCount[k] = 0;
           }
           for (k=1; k <= localMembershipSize; k++) {
-            if (_observation[randomCovariateIndex[i]][localMembershipIndex[localSplitRank[k]]] <= masterSplit[randomCovariateIndex[i]][j]) {
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[localSplitRank[k]]] <= permissibleSplit[i][j]) {
               if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[localSplitRank[k]]);
               }
@@ -824,27 +881,33 @@ char logRankScore(
             if (delta > deltaMax) {
               deltaMax = delta;
               *splitParameterMax = randomCovariateIndex[i];
-              *splitValueMax = j;
+              *splitValueMax = permissibleSplit[i][j];
+              splitValueIndexMax = j;
             }
             if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n\nRunning Split Statistics: \n");
-              Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
-              Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
+              Rprintf("  SplitParm   SplitValue        Delta \n");
+              Rprintf(" %10d %12.4f %12.4f \n", randomCovariateIndex[i], permissibleSplit[i][j], delta);
             }
           }  
         }  
       }  
+      free_dmatrix(permissibleSplit, 1, localMembershipSize, 1, _randomCovariateCount);
+      free_uivector(permissibleSplitSize, 1, _randomCovariateCount);
       free_dvector(predictorValue, 1, localMembershipSize);
       free_uivector(localSplitRank, 1, localMembershipSize);
       free_uivector(survivalTimeIndexRank, 1, localMembershipSize);
       free_dvector(survivalRank, 1, localMembershipSize);
     }  
+    else {
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nMinimum unique deaths not acheived:  %10d versus %10d \n", localDeathTimeSize, _minimumDeathCount);
+      }
+    }
   }  
   else {
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nRSF:  *** WARNING *** ");
-      Rprintf("\nRSF:  Less than twice the minimum number of deaths");
-      Rprintf("\nRSF:  encountered in logRankScore().  Node not split.  \n");
+      Rprintf("\nLess than twice the minimum number of deaths encountered.  Node not split.  \n");
     }
   }
   free_uivector(randomCovariateIndex, 1, _xSize);
@@ -852,11 +915,11 @@ char logRankScore(
   free_uivector(localDeathTimeCount, 1, _masterTimeSize);
   free_uivector(leftDeathTimeCount, 1, _masterTimeSize);
   free_uivector(rightDeathTimeCount, 1, _masterTimeSize);
-  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+  if (((*splitParameterMax) > 0) && (splitValueIndexMax > 0)) {
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
-      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+      Rprintf("  SplitParm   SplitValue        Delta \n");
+      Rprintf(" %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
     }
     if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nlogRankScore() EXIT (TRUE) ...\n");
@@ -873,10 +936,10 @@ char logRankScore(
 char conserveEvents(
   Node    *parent,
   uint    *splitParameterMax,
-  uint    *splitValueMax,
-  double **masterSplit) {
+  double  *splitValueMax) {
   double delta, nelsonAalenSumLeft, nelsonAalenSumRight;
   double deltaMax;
+  uint splitValueIndexMax;
   uint i,j,k,m, index;
   uint actualCovariateCount;
   uint parentDeathCount;
@@ -895,6 +958,7 @@ char conserveEvents(
   uint *localDeathTimeCount = uivector(1, _masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, _masterTimeSize);
   *splitParameterMax = *splitValueMax = 0;
+  splitValueIndexMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = deltaMax = -EPSILON;
@@ -955,22 +1019,30 @@ char conserveEvents(
           Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
         }
       }
-      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      double **permissibleSplit = dmatrix(1, _randomCovariateCount, 1, localMembershipSize);
+      uint *permissibleSplitSize = uivector(1, _randomCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, 
+                                                    localMembershipSize,
+                                                    localMembershipIndex,
+                                                    randomCovariateIndex, 
+                                                    permissibleSplit, 
+                                                    permissibleSplitSize);
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nPermissible Split Sizes: \n");
+        Rprintf(" covariate       size \n");
+        for (j=1; j <= actualCovariateCount; j++) {
+          Rprintf("%10d %10d \n", randomCovariateIndex[j], permissibleSplitSize[j]);
+        }
+      }
       double *nelsonAalenLeft  = dvector(1, localDeathTimeSize);
       double *nelsonAalenRight = dvector(1, localDeathTimeSize);
       for (i=1; i <= actualCovariateCount; i++) {
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\n\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
-          Rprintf("\n           with limits:  %10d %10d \n",
-            (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
-            (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
-          );
+          Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
         }
-        for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-             j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
-             j++) {
+        for (j = 1; j < permissibleSplitSize[i]; j++) {
           if (getTraceFlag() & DL3_TRACE) {
-            Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+            Rprintf("\nSplitting on value:  %12.4f \n", permissibleSplit[i][j]);
           }
           nelsonAalenSumLeft = nelsonAalenSumRight = 0.0;
           leftDeathTimeSize = rightDeathTimeSize = 0;
@@ -978,7 +1050,7 @@ char conserveEvents(
             nodeLeftDeath[k] = nodeLeftAtRisk[k] = 0;
           }
           for (k=1; k <= localMembershipSize; k++) {
-            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= permissibleSplit[i][j]) {
               if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
               }
@@ -1060,16 +1132,19 @@ char conserveEvents(
             if (delta > deltaMax) {
               deltaMax = delta;
               *splitParameterMax = randomCovariateIndex[i];
-              *splitValueMax = j;
+              *splitValueMax = permissibleSplit[i][j];
+              splitValueIndexMax = j;
             }
             if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n\nRunning Split Statistics: \n");
-              Rprintf(" SplitParm SplitIndex   SplitValue        Delta \n");
-              Rprintf("%10d %10d %12.4f %12.4f \n", i, j, masterSplit[randomCovariateIndex[i]][j], delta);
+              Rprintf("  SplitParm   SplitValue        Delta \n");
+              Rprintf(" %10d %12.4f %12.4f \n", randomCovariateIndex[i], permissibleSplit[i][j], delta);
             }
           }  
         }  
       }  
+      free_dmatrix(permissibleSplit, 1, localMembershipSize, 1, _randomCovariateCount);
+      free_uivector(permissibleSplitSize, 1, _randomCovariateCount);
       free_dvector(nelsonAalenLeft, 1, localDeathTimeSize);
       free_dvector(nelsonAalenRight, 1, localDeathTimeSize);
     }  
@@ -1081,9 +1156,7 @@ char conserveEvents(
   }  
   else {
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nRSF:  *** WARNING *** ");
-      Rprintf("\nRSF:  Less than twice the minimum number of deaths");
-      Rprintf("\nRSF:  encountered in conserveEvents().  Node not split.  \n");
+      Rprintf("\nLess than twice the minimum number of deaths encountered.  Node not split.  \n");
     }
   }
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
@@ -1096,11 +1169,11 @@ char conserveEvents(
   free_uivector(localMembershipIndex, 1, _observationSize);
   free_uivector(localDeathTimeCount, 1, _masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, _masterTimeSize);
-  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+  if (((*splitParameterMax) > 0) && (splitValueIndexMax > 0)) {
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
-      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+      Rprintf("  SplitParm   SplitValue        Delta \n");
+      Rprintf(" %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
     }
     if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nconserveEvents() EXIT (TRUE) ...\n");
@@ -1117,10 +1190,10 @@ char conserveEvents(
 char logRank (
   Node    *parent,
   uint    *splitParameterMax,
-  uint    *splitValueMax,
-  double **masterSplit) {
+  double  *splitValueMax) {
   double delta, deltaNum, deltaDen;
   double deltaMax;
+  uint splitValueIndexMax;
   uint i,j,k,m, index;
   uint actualCovariateCount;
   uint parentDeathCount;
@@ -1139,6 +1212,7 @@ char logRank (
   uint *localDeathTimeCount = uivector(1, _masterTimeSize);
   uint *localDeathTimeIndex = uivector(1, _masterTimeSize);
   *splitParameterMax = *splitValueMax = 0;
+  splitValueIndexMax = 0;
   localMembershipSize = localDeathTimeSize = 0;
   parentDeathCount = 0;
   delta = deltaMax = -EPSILON;
@@ -1199,20 +1273,28 @@ char logRank (
           Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
         }
       }
-      actualCovariateCount = selectRandomCovariates(parent, randomCovariateIndex);
+      double **permissibleSplit = dmatrix(1, _randomCovariateCount, 1, localMembershipSize);
+      uint *permissibleSplitSize = uivector(1, _randomCovariateCount);
+      actualCovariateCount = selectRandomCovariates(parent, 
+                                                    localMembershipSize,
+                                                    localMembershipIndex,
+                                                    randomCovariateIndex, 
+                                                    permissibleSplit, 
+                                                    permissibleSplitSize);
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nPermissible Split Sizes: \n");
+        Rprintf(" covariate       size \n");
+        for (j=1; j <= actualCovariateCount; j++) {
+          Rprintf("%10d %10d \n", randomCovariateIndex[j], permissibleSplitSize[j]);
+        }
+      }
       for (i=1; i <= actualCovariateCount; i++) {
         if (getTraceFlag() & DL3_TRACE) {
-          Rprintf("\nSplitting on parameter:  %10d %10d", i, randomCovariateIndex[i]);
-          Rprintf("\n           with limits:  %10d %10d \n",
-            (parent -> permissibleSplit)[randomCovariateIndex[i]][1], 
-            (parent -> permissibleSplit)[randomCovariateIndex[i]][2]
-          );
+          Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
         }
-        for (j = (parent -> permissibleSplit)[randomCovariateIndex[i]][1];
-             j < (parent -> permissibleSplit)[randomCovariateIndex[i]][2];
-             j++) {
+        for (j = 1; j < permissibleSplitSize[i]; j++) {
           if (getTraceFlag() & DL3_TRACE) {
-            Rprintf("\nSplitting on parameter, value:  %10d %10d \n", i, j);
+            Rprintf("\nSplitting on value:  %12.4f \n", permissibleSplit[i][j]);
           }
           deltaNum = deltaDen =  0.0;
           leftDeathTimeSize = rightDeathTimeSize = 0;
@@ -1220,7 +1302,7 @@ char logRank (
             nodeLeftDeath[k] = nodeLeftAtRisk[k] = 0;
           }
           for (k=1; k <= localMembershipSize; k++) {
-            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= masterSplit[randomCovariateIndex[i]][j]) {
+            if (_observation[randomCovariateIndex[i]][localMembershipIndex[k]] <= permissibleSplit[i][j]) {
               if (getTraceFlag() & DL3_TRACE) {
                 Rprintf("\nMember of Left Daughter (index):   %10d %10d \n", k, localMembershipIndex[k]);
               }
@@ -1300,16 +1382,19 @@ char logRank (
             if (delta > deltaMax) {
               deltaMax = delta;
               *splitParameterMax = randomCovariateIndex[i];
-              *splitValueMax = j;
+              *splitValueMax = permissibleSplit[i][j];
+              splitValueIndexMax = j;
             }
             if (getTraceFlag() & DL3_TRACE) {
               Rprintf("\n\nRunning Split Statistics: \n");
-              Rprintf("  SplitParm SplitIndex        Numer        Denom        Delta \n");
-              Rprintf(" %10d %10d %12.4f %12.4f %12.4f \n", i, j, deltaNum, deltaDen, delta);
+              Rprintf("  SplitParm   SplitValue        Delta \n");
+              Rprintf(" %10d %12.4f %12.4f \n", randomCovariateIndex[i], permissibleSplit[i][j], delta);
             }
           }  
         }  
       }  
+      free_dmatrix(permissibleSplit, 1, localMembershipSize, 1, _randomCovariateCount);
+      free_uivector(permissibleSplitSize, 1, _randomCovariateCount);
     }  
     else {
       if (getTraceFlag() & DL2_TRACE) {
@@ -1319,9 +1404,7 @@ char logRank (
   }  
   else {
     if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nRSF:  *** WARNING *** ");
-      Rprintf("\nRSF:  Less than twice the minimum number of deaths");
-      Rprintf("\nRSF:  encountered in logRank().  Node not split.  \n");
+      Rprintf("\nLess than twice the minimum number of deaths encountered.  Node not split.  \n");
     }
   }
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
@@ -1334,11 +1417,11 @@ char logRank (
   free_uivector(localMembershipIndex, 1, _observationSize);
   free_uivector(localDeathTimeCount, 1, _masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, _masterTimeSize);
-  if (((*splitParameterMax) > 0) && ((*splitValueMax) > 0)) {
+  if (((*splitParameterMax) > 0) && (splitValueIndexMax > 0)) {
     if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm SplitIndex   SplitValue        Delta \n");
-      Rprintf(" %10d %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, masterSplit[*splitParameterMax][*splitValueMax], deltaMax);
+      Rprintf("  SplitParm   SplitValue        Delta \n");
+      Rprintf(" %10d %12.4f %12.4f \n", *splitParameterMax, *splitValueMax, deltaMax);
     }
     if (getTraceFlag() & DL1_TRACE) {
       Rprintf("\nlogRank() EXIT (TRUE) ...\n");
@@ -1352,73 +1435,70 @@ char logRank (
     return FALSE;
   }
 }
-uint selectRandomCovariates (
-  Node *parent,
-  uint *covariateIndex) {
-  uint i,j,k;
-  double randomValue;
-  uint maxCovariateCount;
+uint selectRandomCovariates(Node    *parent,
+                            uint     nodeSize,
+                            uint    *nodeIndex,
+                            uint    *covariateIndex,
+                            double **permissibleSplit,
+                            uint    *permissibleSplitSize) {
+  uint i;
   uint actualCovariateCount;
-  uint unselectedCovariateCount;
+  uint candidateCovariate;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nselectRandomCovariate() ENTRY ...\n");
   }
   char *randomSplitVector = cvector(1, _xSize);
-  double *cdf = dvector(1, _xSize);
-  maxCovariateCount = 0;
-  for (i=1; i <= _xSize; i++) {
-    if (_randomCovariateWeight[i] == 0) {
-      randomSplitVector[i] = FALSE;
-    }
-    else if ((parent -> permissibleSplit)[i][1] == (parent -> permissibleSplit)[i][2]) {
-      randomSplitVector[i] = FALSE;
-    }
-    else {
-      randomSplitVector[i] = TRUE;
-      maxCovariateCount++;
-    }
+  if (nodeSize < 1) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Invalid nodeSize encountered in selectRandomCovariate():  %10d", nodeSize);
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
   }
-  if (_randomCovariateCount > maxCovariateCount) {
-    actualCovariateCount = maxCovariateCount;
+  nrCopyVector(randomSplitVector, parent -> permissibleSplit, _xSize);
+  for(i=1; i <= _randomCovariateCount; i++) {
+    covariateIndex[i] = 0;
   }
-  else {
-    actualCovariateCount = _randomCovariateCount;
-  }
-  if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nCovariate Counts:  actual vs allowed \n");  
-    Rprintf("%10d %10d \n", actualCovariateCount, maxCovariateCount);
-  }
-  for (i=1; i <= actualCovariateCount; i++) {
-    unselectedCovariateCount = 0;
-    for (k=1; k <= _xSize; k++) {
-      if (randomSplitVector[k] == TRUE) {
-        cdf[++unselectedCovariateCount] = _randomCovariateWeight[k];
+  actualCovariateCount =  1;
+  candidateCovariate   = -1;
+  while ((actualCovariateCount  <= _randomCovariateCount) && (candidateCovariate != 0)) {
+    candidateCovariate = getSelectableElement(_xSize, randomSplitVector, _randomCovariateWeight);
+    if (candidateCovariate != 0) {
+      if (getTraceFlag() & DL3_TRACE) {
+        Rprintf("\nCandidate covariate (index, candidate):  %10d %10d \n", actualCovariateCount, candidateCovariate);
+      }
+      for (i=1; i <= nodeSize; i++) {
+        permissibleSplit[actualCovariateCount][i] = _observation[candidateCovariate][nodeIndex[i]];
+      }
+      permissibleSplitSize[actualCovariateCount] = 1;
+      hpsort(permissibleSplit[actualCovariateCount], nodeSize);
+      for (i = 2; i <= nodeSize; i++) {
+        if (permissibleSplit[actualCovariateCount][i] > permissibleSplit[actualCovariateCount][permissibleSplitSize[actualCovariateCount]]) {
+          permissibleSplitSize[actualCovariateCount] ++;
+          permissibleSplit[actualCovariateCount][permissibleSplitSize[actualCovariateCount]] = permissibleSplit[actualCovariateCount][i];
+        }
+      }
+      if (getTraceFlag() & DL3_TRACE) {
+        Rprintf("\nCandidate covariate size:  %10d \n", permissibleSplitSize[actualCovariateCount]);
+      }
+      if(permissibleSplitSize[actualCovariateCount] >= 2) {
+        randomSplitVector[candidateCovariate] = ACTIVE;
+        covariateIndex[actualCovariateCount] = candidateCovariate;
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\nCovariate selected:  %10d \n", candidateCovariate);
+        }
+        actualCovariateCount ++;
+      }
+      else {
+        (parent -> permissibleSplit)[candidateCovariate] = FALSE;
+        randomSplitVector[candidateCovariate] = FALSE;
+        if (getTraceFlag() & DL3_TRACE) {
+          Rprintf("\nCovariate rejected:  %10d \n", candidateCovariate);
+        }
       }
     }
-    for (k=2; k <= unselectedCovariateCount; k++) {
-      cdf[k] += cdf[k-1];
-    }
-    if (getTraceFlag() & DL2_TRACE) {
-      Rprintf("\nUpdated CDF of Covariate Weights:  ");
-      Rprintf("\n     index          cdf");
-      for (k=1; k <= unselectedCovariateCount; k++) {
-        Rprintf("\n%10d  %12.4f", k, cdf[k]);
-      }
-      Rprintf("\n");
-    }
-    randomValue = ran2(_seed2Ptr)*cdf[unselectedCovariateCount];
-    j=1;
-    while (randomValue > cdf[j]) {
-      j++;
-    }
-    for (k = 1; j > 0; k++) {
-      if (randomSplitVector[k] == TRUE) {
-        j--;
-      }
-    }
-    randomSplitVector[k-1] = ACTIVE;
-    covariateIndex[i] = k-1;
   }
+  actualCovariateCount --;
   if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nCovariate Random Selection:  \n");
     for (i=1; i <= actualCovariateCount; i++) {
@@ -1426,48 +1506,101 @@ uint selectRandomCovariates (
     }
   }
   free_cvector(randomSplitVector, 1, _xSize);
-  free_dvector(cdf, 1, _xSize);
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nselectRandomCovariate() EXIT ...\n");
   }
   return actualCovariateCount;
 }
-uint selectPermissibleElements (uint length,
-                                char *permissible) {
-  uint permissibleCount;
-  uint i, p, index;
+uint getSelectableElement (uint    length,
+                           char   *permissible,
+                           double *weight) {
+  uint selectableCount;
+  uint covariateIndex;
+  double randomValue;
+  uint i, j, k, p, index;
   if (getTraceFlag() & DL1_TRACE) {
-    Rprintf("\nselectPermissibleElements() ENTRY ...\n");
+    Rprintf("\ngetSelectableElement() ENTRY ...\n");
   }
-  permissibleCount = 0;
+  char *localPermissible = cvector(1, length);
+  double *cdf = dvector(1, length);
+  selectableCount = 0;
   for (i=1; i <= length; i++) {
     if (permissible[i] == TRUE) {
-      permissibleCount ++;
+      if (weight != NULL) {
+        if (weight[i] > 0) {
+          localPermissible[i] = TRUE;
+          selectableCount ++;
+        }
+        else {
+          localPermissible[i] = FALSE;
+        }
+      }
+      else {
+        localPermissible[i] = TRUE;
+        selectableCount ++;
+      }
+    }
+    else {
+      localPermissible[i] = FALSE;
     }
   }
   if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nPermissible Count:  actual vs maximum \n");  
-    Rprintf("%10d %10d \n", permissibleCount, length);
+    Rprintf("\nSelectable vs Total Count: \n");  
+    Rprintf("%10d %10d \n", selectableCount, length);
   }
-  if (permissibleCount > 0) {
-    p = ceil(ran2(_seed2Ptr)*(permissibleCount*1.0));
-    index = 1;
-    while (p > 0) {
-      if (permissible[index] == TRUE) {
-        p --;
+  if (selectableCount > 0) {
+    if (weight != NULL) { 
+      covariateIndex = 0;
+      for (k=1; k <= _xSize; k++) {
+        if (localPermissible[k] == TRUE) {
+          cdf[++covariateIndex] = weight[k];
+        }
       }
-      index ++;
+      for (k=2; k <= covariateIndex; k++) {
+        cdf[k] += cdf[k-1];
+      }
+      if (getTraceFlag() & DL2_TRACE) {
+        Rprintf("\nUpdated CDF based on weights:  ");
+        Rprintf("\n     index          cdf");
+        for (k=1; k <= covariateIndex; k++) {
+          Rprintf("\n%10d  %12.4f", k, cdf[k]);
+        }
+        Rprintf("\n");
+      }
+      randomValue = ran2(_seed2Ptr)*cdf[covariateIndex];
+      j=1;
+      while (randomValue > cdf[j]) {
+        j++;
+      }
+      for (index = 1; j > 0; index++) {
+        if (localPermissible[index] == TRUE) {
+          j--;
+        }
+      }
+      index --;
     }
-    index --;
-  }
+    else {
+      p = ceil(ran2(_seed2Ptr)*(selectableCount*1.0));
+      index = 1;
+      while (p > 0) {
+        if (permissible[index] == TRUE) {
+          p --;
+        }
+        index ++;
+      }
+      index --;
+    }
+  }  
   else {
     index = 0;
   }
+  free_cvector(localPermissible, 1, length);
+  free_dvector(cdf, 1, length);
   if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nSelected Index:  %10d", index);
   }
   if (getTraceFlag() & DL1_TRACE) {
-    Rprintf("\nselectPermissibleElements() EXIT ...\n");
+    Rprintf("\ngetSelectableElement() EXIT ...\n");
   }
   return index;
 }

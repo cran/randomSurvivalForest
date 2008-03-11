@@ -1,9 +1,31 @@
 Package: randomSurvivalForest
-Version: 3.2.0
-BUILD: bld20080211
+Version: 3.2.1
+BUILD: bld20080311
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.2.0
+CHANGES TO RELEASE 3.2.1
+
+RELEASE 3.2.1 represents a minor upgrade of the
+product, and will not affect most users of the prior version of the
+product.  Key changes are as follows:
+
+o An additional option in INTERACTION mode can now be specified.  The
+option 'rough' can significantly decrease the processing time
+necessary to determine variable importance for some large data sets.
+This is accomplished by replacing the cumulative hazard function that
+is based on the Nelson-Aalen estimate with the mean death time in a
+node as the measure of mortality.  See the documentation for more
+details.
+
+o A minor but longstanding (since Release 1.0.0) issue in booking
+potential split points has been discovered.  The problem manifests
+itself by slightly favoring splits on continuous covariates under
+certain conditions such as low values of 'mtry'.  However, it is not
+expected that users will notice significant changes.  The issue has
+been resolved.
+
+
+---------------------------------------------------------------------------------
 
 Release 3.2.0 represents a significant upgrade in the functionality of
 the product.  Key changes are as follows:
@@ -16,9 +38,9 @@ or right daughter node when a split occurs on the specified variable.
 
 o The joint VIMP among multiple variables of a (potentially proper)
 subset of the GROW data can now be calculated using the new function
-interaction.rsf().  This represents a third mode of operation for the
-application, and follows rsf.default (GROW) and predict.rsf (PREDICT).
-See the documentation for details.
+interaction.rsf().  This represents a third mode of operation
+(INTERACTION) for the application, and follows rsf.default (GROW) and
+predict.rsf (PREDICT).  See the documentation for details.
 
 o An additional option in GROW mode can now be specified.  The option
 'varUsed' allows users to quantify which variables have been split
@@ -57,13 +79,13 @@ o Illegal syntax fixes to C-code that manifest themselves on some compilers.
 Release 3.0.0 represents a major upgrade in the functionality of the product.
 Key changes are as follows:
 
-o Missing data can be imputed in both grow and predict mode.  This
+o Missing data can be imputed in both GROW and PREDICT mode.  This
   applies to variables as well as time and censoring outcome values.
   Values are imputed dynamically as the tree is grown using a new tree
   imputation methodology.  This produces an imputed forest which can be
   used for prediction purposes on test data sets with missing data.
 
-o Importance values for variables are returned in predict mode when test
+o Importance values for variables are returned in PREDICT mode when test
   data contains outcomes as well as variables.
 
 o Fixed some bugs in plot.variable().  Thanks to Andy J. Minn for pointing this out.

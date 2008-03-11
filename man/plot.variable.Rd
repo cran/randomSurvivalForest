@@ -10,7 +10,7 @@
                   plots.per.page = 4,
                   granule = 5,
                   sorted = TRUE,
-                  type = c("mort", "rel.freq", "surv")[1],
+                  type = c("mort", "rel.freq", "surv", "time")[1],
                   partial = FALSE,
                   predictorNames = NULL,
                   npred = NULL,
@@ -42,14 +42,16 @@
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-    Mortality, relative frequency of mortality, or median survival are
-    plotted on the vertical axis (y-value) against a variable (x-value)
-    on the horizontal axis.  The choice of y-value is controlled by
-    \code{type}, where \code{mort} is ensemble mortality,
-    \code{rel.freq} is standardized mortality, \code{surv} is ensemble
-    median survival.  For continuous variables, points are colored so
-    that blue corresponds to events, whereas black points represent
-    censored observations.
+    Mortality, relative frequency of mortality, median survival, or
+    estimated survival times are plotted on the vertical axis (y-value)
+    against a variable (x-value) on the horizontal axis.  The choice of
+    y-value is controlled by \code{type}.  There are 4 different
+    choices: \code{mort} is ensemble mortality, \code{rel.freq} is
+    standardized mortality, \code{surv} is ensemble median survival,
+    \code{type} is estimated survival time (this last option only
+    applies to partial plots, however).  For continuous variables,
+    points are colored so that blue corresponds to events, whereas black
+    points represent censored observations.
   
     Ensemble mortality values should be interpreted in terms of total
     number of deaths.  For example, if individual \code{i} has a
@@ -81,6 +83,10 @@
     indicated using boxplots with whiskers extending out approximately
     two standard errors from the mean.  Standard errors are meant only
     to be a guide and should be interpreted with caution.
+
+    Partial plots can be slow.  Setting type to \code{time} can greatly
+    speed things up.  Setting \code{npts} to a smaller number should
+    also be tried.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
@@ -101,10 +107,19 @@
   \code{predict.rsf}.
 }
 \examples{
-  data(veteran, package = "randomSurvivalForest") 
-  v.out <- rsf(Survrsf(time,status)~., veteran, forest = TRUE, ntree = 1000)
-  plot.variable(v.out, plots.per.page = 3)
-  plot.variable(v.out, plots.per.page = 2, predictorNames = c("trt", "karno", "age"))
-  plot.variable(v.out, type = "rel.freq", partial = TRUE, plots.per.page = 2, npred=3)
+data(veteran, package = "randomSurvivalForest") 
+v.out <- rsf(Survrsf(time,status)~., veteran, forest = TRUE, ntree = 1000)
+plot.variable(v.out, plots.per.page = 3)
+plot.variable(v.out, plots.per.page = 2, predictorNames = c("trt", "karno", "age"))
+plot.variable(v.out, type = "rel.freq", partial = TRUE, plots.per.page = 2, npred=3)
+
+\dontrun{
+# Fast partial plots using 'time' type.
+# Top 8 predictors from PBC data.
+data(pbc, package = "randomSurvivalForest") 
+pbc.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, forest = TRUE)
+plot.variable(pbc.out, type = "time", partial = TRUE, npred=8)
+}
+
 }
 \keyword{file}

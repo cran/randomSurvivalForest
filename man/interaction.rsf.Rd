@@ -10,6 +10,7 @@
                   predictorNames = NULL,
                   subset = NULL,
                   joint = TRUE,
+                  rough = FALSE,
                   importance = c("randomsplit", "permute", "none")[1],
                   seed = NULL,
                   do.trace = FALSE,
@@ -25,6 +26,8 @@
       Default is to use all the data.}
     \item{joint}{Should joint-VIMP or individual VIMP be calculated?
       See details below.}
+    \item{rough}{Logical value indicating whether fast approximation
+      should be used.  Default is FALSE.}
     \item{importance}{Method used to compute variable importance (VIMP).}
     \item{seed}{Seed for random number generator.  Must be a negative
       integer (the R wrapper handles incorrectly set seed values).}
@@ -86,16 +89,24 @@ VIMP.events <-
  interaction.rsf(rsf.out, names(VIMP), events, joint = FALSE)$importance
 VIMP.all <- as.data.frame(cbind(VIMP.events = VIMP.events, VIMP = VIMP))
 print(round(VIMP.all, 3))
-# PBC data again.  Monte Carlo standard deviation of VIMP.
-VIMP.MC <- NULL
+# PBC data again.
+# Monte Carlo estimates for VIMP.
+# Bootstrap estimates for VIMP.
+VIMP.MC <- VIMP.BOOT <- NULL
 for (k in 1:100) {
 VIMP.MC <-
  cbind(VIMP.MC, interaction.rsf(rsf.out, names(VIMP), joint = FALSE)$importance)
+VIMP.BOOT <-
+ cbind(VIMP.BOOT, interaction.rsf(rsf.out, names(VIMP),
+      subset = sample(1:dim(pbc)[1], replace = TRUE), joint = FALSE)$importance)
 }
 VIMP.MC <- as.data.frame(cbind(VIMP.mean = apply(VIMP.MC, 1, mean),
                                VIMP.sd = apply(VIMP.MC, 1, sd)))
-rownames(VIMP.MC) <- names(VIMP)
+VIMP.BOOT <- as.data.frame(cbind(VIMP.mean = apply(VIMP.BOOT, 1, mean),
+                               VIMP.sd = apply(VIMP.BOOT, 1, sd)))
+rownames(VIMP.MC) <- rownames(VIMP.BOOT) <- names(VIMP)
 print(round(VIMP.MC, 3))
+print(round(VIMP.BOOT, 3))
 }
 }
 \keyword{file}

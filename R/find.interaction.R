@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.0
+##  RANDOM SURVIVAL FOREST 3.2.1
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -61,6 +61,7 @@ find.interaction <- function (
     npred = NULL, 
     subset = NULL,                              
     nrep  = 1,
+    rough = FALSE,
     importance = c("randomsplit", "permute")[1],
     ...) {
  
@@ -123,9 +124,9 @@ find.interaction <- function (
         cat("Pairing",cov.names[k],"with",cov.names[l],"\n")
         for (m in 1:nrep) {
           rsfOutput  <-  interaction.rsf(object, cov.names[c(k,l)], importance=importance,
-                                         subset=subset, joint=FALSE)
+                                         subset=subset, joint=FALSE, rough=rough)
           rsfOutput.joint  <-  interaction.rsf(object, cov.names[c(k,l)], importance=importance,
-                                           subset=subset)
+                                           subset=subset, rough=rough)
           imp[1] <- imp[1]+rsfOutput$importance[1]
           imp[l-k+1] <- imp[l-k+1]+rsfOutput$importance[2]
           imp.joint[l-k] <- imp.joint[l-k]+rsfOutput.joint$importance
@@ -151,6 +152,7 @@ find.interaction <- function (
     cat("    Total no. of paired interactions: ", dim(interact.imp)[1],"\n", sep="")
     cat("            Monte Carlo replications: ", nrep,                "\n", sep="")
     cat("                                VIMP: ", importance,          "\n", sep="")
+    cat("                  Fast approximation: ", rough,               "\n", sep="")
     cat("\n")
     print(round(interact.imp,4))
 

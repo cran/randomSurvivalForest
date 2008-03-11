@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -59,30 +59,29 @@
 #include "extern.h"
 char logRankRandom(Node    *parent,
                    uint    *splitParameterMax,
-                   uint    *splitValueMax,
-                   double **masterSplit);
+                   double  *splitValueMax);
 char randomSplit(Node    *parent,
                  uint    *splitParameterMax,
-                 uint    *splitValueMax,
-                 double **masterSplit);
+                 double  *splitValueMax);
 char logRankApprox(Node    *parent,
                    uint    *splitParameterMax,
-                   uint    *splitValueMax,
-                   double **masterSplit);
+                   double  *splitValueMax);
 char logRankScore(Node    *parent,
                   uint    *splitParameterMax,
-                  uint    *splitValueMax,
-                  double **masterSplit);
+                  double  *splitValueMax);
 char conserveEvents(Node    *parent,
                     uint    *splitParameterMax,
-                    uint    *splitValueMax,
-                    double **masterSplit);
+                    double  *splitValueMax);
 char logRank(Node    *parent,
              uint    *splitParameterMax,
-             uint    *splitValueMax,
-             double **masterSplit);
-uint selectRandomCovariates(Node *parent,
-                            uint *covariateIndex);
-uint selectPermissibleElements (uint length,
-                                char *permissible);
+             double  *splitValueMax);
+uint selectRandomCovariates(Node    *parent,
+                            uint     nodeSize,
+                            uint    *nodeIndex,
+                            uint    *covariateIndex,
+                            double **permissibleSplit,
+                            uint    *permissibleSplitSize);
+uint getSelectableElement(uint    length,
+                          char   *permissible,
+                          double *weight);
 #endif

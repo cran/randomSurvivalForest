@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -327,9 +327,13 @@ char imputeNode (char     type,
   return TRUE;
 }
 void imputeTree(char mode, uint b, Node *parent) {
+  char result;
   uint i;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nimputeTree() ENTRY ...\n");
+  }
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nImpute tree leaf:  %10d \n", parent -> leafCount);
   }
   switch (mode) {
   case RSF_GROW:
@@ -341,10 +345,16 @@ void imputeTree(char mode, uint b, Node *parent) {
     break;
   case RSF_PRED:
     if (_mRecordSize > 0) {
-      imputeNode(RSF_GROW, 
-                 TRUE, 
-                 b, 
-                 parent);
+      result = testNodeSize(parent);
+      if (result) {
+        imputeNode(RSF_GROW, 
+                   TRUE, 
+                   b, 
+                   parent);
+      }
+        if (_mTimeIndexFlag == TRUE) {
+          updateTimeIndexArray(parent);
+        }
     }
     if (_fmRecordSize > 0) {
       imputeNode(RSF_PRED, 
@@ -355,10 +365,13 @@ void imputeTree(char mode, uint b, Node *parent) {
     break;
   case RSF_INTR:
     if (_mRecordSize > 0) {
-      imputeNode(RSF_GROW, 
-                 TRUE, 
-                 b, 
-                 parent);
+      result = testNodeSize(parent);
+      if (result) {
+        imputeNode(RSF_GROW, 
+                   TRUE, 
+                   b, 
+                   parent);
+      }
     }
     if (_fmRecordSize > 0) {
       imputeInteraction(b, parent);
@@ -1456,13 +1469,13 @@ double getSampleValue(double *value, uint size, char chainFlag) {
     }
   }
   if (chainFlag) {
-    if (getTraceFlag() & DL3_TRACE) {
+    if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nSample value random seed for ran1():  %20d", *_seed1Ptr);
     }
     randomIndex = ceil(ran1(_seed1Ptr)*((size)*1.0));
   }
   else {
-    if (getTraceFlag() & DL3_TRACE) {
+    if (getTraceFlag() & DL2_TRACE) {
       Rprintf("\nSample value random seed for ran2():  %20d", *_seed2Ptr);
     }
     randomIndex = ceil(ran2(_seed2Ptr)*((size)*1.0));

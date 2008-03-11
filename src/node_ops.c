@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -60,7 +60,7 @@
 extern uint getTraceFlag();
 Node *makeNode() {
   Node *parent = (Node*) malloc((size_t)sizeof(Node));
-  parent -> permissibleSplit = uimatrix(1, _xSize, 1, 2);
+  parent -> permissibleSplit = cvector(1, _xSize);
   return parent;
 }
 #define NR_END 1
@@ -99,7 +99,7 @@ void free_nodePtrVector(Node **v,
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_Node(Node *parent) {
-  free_uimatrix(parent -> permissibleSplit, 1, _xSize, 1, 2);
+  free_cvector(parent -> permissibleSplit, 1, _xSize);
   free((FREE_ARG) parent);
 }
 #undef NR_END
@@ -107,13 +107,11 @@ void free_Node(Node *parent) {
 void getNodeInfo(Node *leaf) {
   uint i;
   Rprintf("\nNodeInfo:  ");
-  Rprintf("\n   LeafCnt   SpltParm SpltValIdx");
-  Rprintf("\n%10d %10d %10d", leaf -> leafCount, leaf -> splitParameter, leaf -> splitValueIndex);
-  Rprintf("\n     Lower      Upper \n");
+  Rprintf("\n   LeafCnt   SpltParm      SpltVal");
+  Rprintf("\n%10d %10d %12.4f", leaf -> leafCount, leaf -> splitParameter, leaf -> splitValue);
+  Rprintf("\nPermissible Splits \n");
   for (i=1; i <= _xSize; i++) {
-    Rprintf("%10d %10d \n",
-            (leaf -> permissibleSplit)[i][1],
-            (leaf -> permissibleSplit)[i][2]);
+    Rprintf("%10d \n", (leaf -> permissibleSplit)[i]);
   }
 }
 void setParent(Node *daughter, Node *parent) {
@@ -125,7 +123,9 @@ void setLeftDaughter(Node *daughter, Node *parent) {
 void setRightDaughter(Node *daughter, Node *parent) {
   parent -> right = daughter;
 }
-char forkNode (Node *parent, uint splitParameter, uint splitValueIndex, double splitValue) {
+char forkNode (Node  *parent, 
+               uint   splitParameter, 
+               double splitValue) {
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nforkNode() ENTRY ...\n");
   }
@@ -153,52 +153,32 @@ char forkNode (Node *parent, uint splitParameter, uint splitValueIndex, double s
     Rprintf("\nRSF:  The split parameter index is out of range [1, _xSize].");
     return FALSE;
   }
-  if ((parent -> permissibleSplit)[splitParameter][1] == (parent -> permissibleSplit)[splitParameter][2]) {
+  if ((parent -> permissibleSplit)[splitParameter] == FALSE) {
     Rprintf("\nRSF:  *** WARNING *** ");
     Rprintf("\nRSF:  Inconsistent call to forkNode().  ");
-    Rprintf("\nRSF:  The split parameter index has the same lower and upper bound.");
-    Rprintf("\nRSF:  [][lowerBound] == [][upperBound].");
-    return FALSE;
-  }
-  if ( ((parent -> permissibleSplit)[splitParameter][1] > splitValueIndex) ||
-       ((parent -> permissibleSplit)[splitParameter][2] <= splitValueIndex) ) {
-    Rprintf("\nRSF:  *** WARNING *** ");
-    Rprintf("\nRSF:  Inconsistent call to forkNode().  ");
-    Rprintf("\nRSF:  The split parameter value is out of range [lowerBound, upperBound].");
+    Rprintf("\nRSF:  The split parameter is marked unsplittable.");
     return FALSE;
   }
   Node *left  = makeNode();
   Node *right = makeNode();
   parent -> splitParameter = splitParameter;
-  parent -> splitValueIndex = splitValueIndex;
   parent -> splitValue = splitValue;
   setParent(left, parent);
   setParent(right, parent);
   setLeftDaughter(left, parent);
   setRightDaughter(right, parent);
-  nrCopyMatrix(left  -> permissibleSplit, parent -> permissibleSplit, _xSize, 2);
-  nrCopyMatrix(right -> permissibleSplit, parent -> permissibleSplit, _xSize, 2);
+  nrCopyVector(left  -> permissibleSplit, parent -> permissibleSplit, _xSize);
+  nrCopyVector(right -> permissibleSplit, parent -> permissibleSplit, _xSize);
   left  -> left  = left  -> right = NULL;
   right -> left  = right -> right = NULL;
   left -> splitParameter  = 0;
-  left -> splitValueIndex = 0;
-  left -> splitValue      = 0.0;
+  left -> splitValue      = NA_REAL;
   left -> splitFlag       = TRUE;
   left -> leafCount       = 0;
-  right -> splitValueIndex = 0;
   right -> splitParameter  = 0;
-  right -> splitValue      = 0.0;
+  right -> splitValue      = NA_REAL;
   right -> splitFlag       = TRUE;
   right -> leafCount       = 0;
-  (left  -> permissibleSplit)[splitParameter][1] = (parent -> permissibleSplit)[splitParameter][1];
-  (left  -> permissibleSplit)[splitParameter][2] = splitValueIndex;
-  if ( (splitValueIndex + 1) <= ((parent -> permissibleSplit)[splitParameter][2]) ) {
-    (right -> permissibleSplit)[splitParameter][1] = splitValueIndex + 1;
-  }
-  else {
-    (right -> permissibleSplit)[splitParameter][1] = (parent -> permissibleSplit)[splitParameter][2];
-  }
-  (right -> permissibleSplit)[splitParameter][2] = (parent -> permissibleSplit)[splitParameter][2];
   parent -> splitFlag = FALSE;
   if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nParent Info:  "); getNodeInfo(parent);

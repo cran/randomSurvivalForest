@@ -6,17 +6,17 @@
 \description{
   Random Survival Forests (RSF) (Ishwaran, Kogalur, Blackstone and
   Lauer, 2007) is an extension of Breiman's Random Forests (Breiman,
-  2001) to right-censored survival analysis settings.  The algorithm
-  uses a binary recursive tree growing procedure under different tree
-  splitting rules to estimate a forest (ensemble) cumulative hazard
-  function.  An \dQuote{out-of-bag} estimate of Harrell's concordance
-  index (Harrell, 1982) is provided for assessing prediction.  Variable
-  importance (VIMP) can be computed for single, as well as grouped
-  variables, as a means to filter variables and to assess variable
-  predictiveness.  RSF can be used to predict on test data. Missing data
-  (x-variables, survival times, censoring indicators) can be imputed on
-  both training and test data. Note this is the default generic method
-  for the package.
+  2001) to right-censored survival analysis settings.  A forest of
+  survival trees is grown in order to estimate an ensemble cumulative
+  hazard function (CHF).  Trees can be grown using several different
+  survival tree splitting rules.  An \dQuote{out-of-bag} estimate of
+  Harrell's concordance index (Harrell, 1982) is provided for assessing
+  prediction accuracy of the CHF.  Variable importance (VIMP) can be
+  computed for single, as well as grouped variables, as a means to
+  filter variables and to assess variable predictiveness.  RSF can be
+  used to predict on test data. Missing data (x-variables, survival
+  times, censoring indicators) can be imputed on both training and test
+  data. Note this is the default generic method for the package.
 }
 \usage{
 \method{rsf}{default}(formula,
@@ -34,8 +34,6 @@
     proximity = FALSE,
     varUsed = NULL,  
     seed = NULL,
-    ntime = NULL,
-    add.noise = FALSE,
     do.trace = FALSE,
     ...)
 }
@@ -82,10 +80,6 @@
 	\code{by.tree}. See details below.}
     \item{seed}{Seed for random number generator.  Must be a negative
         integer (the R wrapper handles incorrectly set seed values).}
-    \item{ntime}{Maximum number of desired distinct time points
-        considered for evaluating ensemble.  Default equals number of
-        distinct events.}
-    \item{add.noise}{Logical. Should noise variable be added?}
     \item{do.trace}{Logical. Should trace output be enabled? Default is
         FALSE. Integer values can also be passed.  A positive value
 	causes output to be printed each \code{do.trace} iteration.}
@@ -142,9 +136,9 @@
   cumulative hazard function (CHF) is computed from the forest of such
   trees and its OOB error rate calculated.  The VIMP for \code{x} is the
   difference between this and the OOB error rate for the original forest
-  (without random splitting on \code{x}).  If \code{permute} is used,
-  then \code{x} is randomly permuted in OOB data and dropped down the
-  in-bag tree.
+  (without random node assignment using \code{x}).  If \code{permute} is
+  used, then \code{x} is randomly permuted in OOB data and dropped down
+  the in-bag tree (random assignment is not used).
   
   Prediction error is measured by 1-C, where C is Harrell's concordance
   index.  Prediction error is between 0 and 1, and measures how well the
@@ -159,13 +153,13 @@
   variables, users should consider setting the logical flag
   \code{big.data} to TRUE.  This bypasses the large overhead needed by R
   in creating design matrices and parsing formula.  Be aware, however,
-  that variables are not processed and are interpreted \emph{as is}
-  when this option is turned on.  Think of the data frame as containing
-  time and censoring information and the rest of the data as the
+  that variables are not processed and are interpreted \emph{as is} when
+  this option is turned on.  Think of the data frame as containing time
+  and censoring information and the rest of the data as the
   pre-processed design matrix when this option is on.  Side effects are
-  that factors are not transformed to dummy values (in fact they are
-  coerced to NAs), and transformations used in the formula (such as logs
-  etc.) are ignored.
+  that all variables (including factors) are converted to numeric mode
+  and transformations used in the formula (such as logs etc.) are
+  ignored.
 
   Setting \code{na.action} to \code{na.impute} implements a tree
   imputation method whereby missing data (x-variables or outcomes) are
@@ -180,9 +174,10 @@
   by setting \code{nimpute} to a positive integer greater than 1.  A few
   iterations should be used in heavy missing data settings to improve
   accuracy of imputed values (see Ishwaran et al., 2007).  Note if the
-  algorithm is iterated, a side effect is that the original data are
-  replaced by imputed values (the imputed values are overlayed on the
-  missing data).
+  algorithm is iterated, a side effect is that missing values in
+  returned objects \code{predictors}, \code{time} and \code{cens} are
+  replaced by imputed values.  Further, imputed objects such as
+  \code{imputedData} are set to NULL.
 
   If \code{varUsed}=\code{all.trees}, a vector of size \code{p} is
   returned.  Each element contains a count of the number of times a
@@ -340,11 +335,10 @@ varUsed <- "by.tree"
 forest <- TRUE
 proximity <- TRUE
 seed <- -1
-ntime <- NULL
 do.trace <- 25
 veteran2.out <- rsf(veteran.f, veteran, ntree, mtry, nodesize, splitrule,
                     varUsed = varUsed, forest = forest, proximity = proximity,
-                    seed = seed, ntime = ntime, do.trace = do.trace)
+                    seed = seed, do.trace = do.trace)
 print(veteran2.out)
 plot.proximity(veteran2.out)
 
@@ -395,16 +389,18 @@ pbc.imputed.data <- cbind(status=pbc2.out$cens, days=pbc2.out$time, pbc2.out$pre
 pbc.imputed.data[pbc2.out$imputedIndv,] <- pbc2.out$imputedData
 tail(pbc)
 tail(pbc.imputed.data)
-# Iterate the missing data algorithm (and use trace).
+# Iterate the missing data algorithm.
+# Use random splitting to increase speed.
+# Use trace to track algorithm in detail.
 # Note that a side effect of iterating is that the original data
 # are replaced by imputed values.
 pbc3.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000,
-                na.action="na.impute", nimpute=3, do.trace = 100)
+         splitrule = "logrankrandom",  na.action="na.impute", nimpute=3, do.trace = 100)
 pbc.iterate.imputed.data <- cbind(status=pbc3.out$cens,
-                days=pbc3.out$time, pbc3.out$predictors)
+         days=pbc3.out$time, pbc3.out$predictors)
 
-# Example 6:  Compare Cox regression to Random Survival Forests
-# for PBC data.  Compute OOB estimate of Harrell's concordance 
+# Example 6:  Compare Cox regression to RSF (PBC data).
+# Compute OOB estimate of Harrell's concordance 
 # index for Cox regression using B = 100 bootstrap draws.
 # Assumes "Hmisc" and "survival" libraries are loaded. 
 

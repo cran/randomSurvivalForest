@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -62,6 +62,7 @@
 #include   "rsfUtil.h"
 #include   "rsfBootstrap.h"
 #include  "rsfStack.h"
+#include  "rsfEntry.h"
 #include       "rsf.h"
 uint stackCount;
 char *sexpString[RSF_SEXP_CNT] = {
@@ -83,10 +84,6 @@ char *sexpString[RSF_SEXP_CNT] = {
   "varUsed"        
 };
 SEXP sexpVector[RSF_SEXP_CNT];
-uint     *_treeID_;
-uint     *_nodeID_;
-uint     *_parmID_;
-double   *_spltPT_;
 int      *_seed_;
 double   *_fullEnsemble_;
 double   *_oobEnsemble_;
@@ -97,6 +94,10 @@ double   *_importance_;
 double   *_imputation_;
 double   *_oobImputation_;
 uint     *_varUsed_;
+uint     *_treeID_;
+uint     *_nodeID_;
+uint     *_parmID_;
+double   *_spltPT_;
 uint      _opt;
 uint      _splitRule;
 uint      _imputeSize;
@@ -196,8 +197,7 @@ void updateTraceFlag(char reset) {
 char getBestSplit(
   Node    *parent,
   uint    *splitParameterMax,
-  uint    *splitValueMax,
-  double **masterSplit) {
+  double  *splitValueMax) { 
   char result;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\ngetBestSplit() ENTRY ...\n");
@@ -209,38 +209,32 @@ char getBestSplit(
   case LOG_RANK:
     result = logRank(parent,
                      splitParameterMax,
-                     splitValueMax,
-                     masterSplit);
+                     splitValueMax);
     break;
   case CONSERVE_EVENTS:
     result = conserveEvents(parent,
                             splitParameterMax,
-                            splitValueMax,
-                            masterSplit);
+                            splitValueMax);
     break;
   case LOG_RANK_SCORE:
     result = logRankScore(parent,
                           splitParameterMax,
-                          splitValueMax,
-                          masterSplit);
+                          splitValueMax);
     break;
   case LOG_RANK_APPROX:
     result = logRankApprox(parent,
                            splitParameterMax,
-                           splitValueMax,
-                           masterSplit);
+                           splitValueMax);
     break;
   case RANDOM_SPLIT:
     result = randomSplit(parent,
                          splitParameterMax,
-                         splitValueMax,
-                         masterSplit);
+                         splitValueMax);
     break;
   case LOG_RANK_RANDOM:
     result = logRankRandom(parent,
                            splitParameterMax,
-                           splitValueMax,
-                           masterSplit);
+                           splitValueMax);
     break;
 default:
     Rprintf("\nRSF:  *** ERROR *** ");
@@ -255,21 +249,17 @@ default:
   }
   return result;
 }
-char forkAndUpdate(
-  uint  *leafCount,
-  Node  *parent,
-  uint   splitParameter,
-  uint   splitValueIndex,
-  double splitValue) {
+char forkAndUpdate(uint  *leafCount,
+                   Node  *parent,
+                   uint   splitParameter,
+                   double splitValue) {
   uint i;
-  uint leftDeathCount, rightDeathCount;
   char result;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nforkAndUpdate() ENTRY ...\n");
   }
-  result = forkNode(parent, splitParameter, splitValueIndex, splitValue);
+  result = forkNode(parent, splitParameter, splitValue);
   if (result == TRUE) {
-    leftDeathCount = rightDeathCount = 0;
     (*leafCount)++;
     for (i = 1; i <= _observationSize; i++) {
       if (_nodeMembership[i] == parent) {
@@ -282,20 +272,6 @@ char forkAndUpdate(
           ((parent -> right) -> leafCount) = *leafCount;
         }
       }
-    }
-    for (i = 1; i <= _observationSize; i++) {
-      if (_nodeMembership[_bootMembershipIndex[i]] == parent -> left) {
-        if (_status[_bootMembershipIndex[i]] == 1) leftDeathCount ++;
-      }
-      else if (_nodeMembership[_bootMembershipIndex[i]] == parent -> right) {
-        if (_status[_bootMembershipIndex[i]] == 1) rightDeathCount ++;
-      }
-    }
-    if (leftDeathCount  < (2 * (_minimumDeathCount))) {
-      (parent -> left) -> splitFlag = FALSE;
-    }
-    if (rightDeathCount <= (2 * (_minimumDeathCount))) {
-      (parent -> right)-> splitFlag = FALSE;
     }
   }
   else {
@@ -312,398 +288,86 @@ char forkAndUpdate(
 }
 char makeTree (char     multipleImputeFlag,
                uint     b,
-               Node    *parent,
-               double **masterSplit) {
-  char splitResult, forkResult;
-  uint splitParameterMax, splitValueMax;
+               Node    *parent) {
+  char result;
+  uint   splitParameterMax;
+  double splitValueMax;
   uint i;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nmakeTree() ENTRY ...\n");
   }
+  result = TRUE;
+  if (getTraceFlag() & DL2_TRACE) {
+    Rprintf("\nMake tree leaf:  %10d \n", parent -> leafCount);
+  }
   if (multipleImputeFlag == FALSE) {
     if (_mRecordSize > 0) {
-      imputeNode(RSF_GROW,
-                 TRUE,
-                 b, 
-                 parent);
-      if (_mTimeIndexFlag == TRUE) {
-        updateTimeIndexArray(parent);
+      result = testNodeSize(parent);
+      if (result) {
+        imputeNode(RSF_GROW,
+                   TRUE,
+                   b, 
+                   parent);
+        if (_mTimeIndexFlag == TRUE) {
+          updateTimeIndexArray(parent);
+        }
       }
     }
   }
-  splitResult = getBestSplit(parent,
-                             & splitParameterMax,
-                             & splitValueMax,
-                             masterSplit);
-  if (splitResult == TRUE) {
-    forkResult = forkAndUpdate(_leafCount_ + b,
-                               parent,
-                               splitParameterMax,
-                               splitValueMax,
-                               masterSplit[splitParameterMax][splitValueMax]);
-    if (forkResult == TRUE) {
-      if (getTraceFlag() & DL2_TRACE) {
-        Rprintf("\nNode Membership:  \n");
-        for (i=1; i <=  _observationSize; i++) {
-          Rprintf("%10d %10d \n", i, _nodeMembership[i] -> leafCount);
+  if (result == TRUE) {
+    result = getBestSplit(parent,
+                          & splitParameterMax,
+                          & splitValueMax);
+    if (result == TRUE) {
+      result = forkAndUpdate(_leafCount_ + b,
+                             parent,
+                             splitParameterMax,
+                             splitValueMax);
+      if (result == TRUE) {
+        if (getTraceFlag() & DL2_TRACE) {
+          Rprintf("\nNode Membership:  \n");
+          for (i=1; i <=  _observationSize; i++) {
+            Rprintf("%10d %10d \n", i, _nodeMembership[i] -> leafCount);
+          }
         }
-      }
-      if ((parent -> left) -> splitFlag == TRUE) {
         if (getTraceFlag() & DL1_TRACE) {
           Rprintf("\nmakeTree() LEFT:  \n");
         }
         makeTree (multipleImputeFlag,
                   b,
-                  parent -> left,
-                  masterSplit);
-      }
-      else {
-        if (multipleImputeFlag == FALSE) {
-          if (_mRecordSize > 0) {
-            imputeNode(RSF_GROW,
-                       TRUE,
-                       b, 
-                       parent -> left);
-            if (_mTimeIndexFlag == TRUE) {
-              updateTimeIndexArray(parent -> left);
-            }
-          }
-        }
-      }
-      if ((parent -> right) -> splitFlag == TRUE) {
+                  parent -> left);
         if (getTraceFlag() & DL1_TRACE) {
           Rprintf("\nmakeTree() RIGHT:  \n");
         }
         makeTree (multipleImputeFlag,
                   b,
-                  parent -> right,
-                  masterSplit);
+                  parent -> right);
       }
       else {
-        if (multipleImputeFlag == FALSE) {
-          if (_mRecordSize > 0) {
-            imputeNode(RSF_GROW,
-                       TRUE,
-                       b, 
-                       parent -> right);
-            if (_mTimeIndexFlag == TRUE) {
-              updateTimeIndexArray(parent -> right);
-            }
-          }
-        }
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  forkAndUpdate() failed.");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+      }
+    }  
+    else {
+      parent -> splitFlag = FALSE;
+      if (getTraceFlag() & DL1_TRACE) {
+        Rprintf("\ngetBestSplit() FAILED ...\n");
       }
     }
-    else {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  forkAndUpdate() failed.");
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-    }
-  }
+  }  
   else {
     parent -> splitFlag = FALSE;
     if (getTraceFlag() & DL1_TRACE) {
-      Rprintf("\ngetBestSplit() FAILED ...\n");
+      Rprintf("\ntestMinimumDeath() FAILED ...\n");
     }
   }
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nmakeTree() EXIT ...\n");
   }
-  return splitResult;
-}
-SEXP rsfGrow(SEXP traceFlag,
-             SEXP opt,  
-             SEXP seedPtr,  
-             SEXP splitRule,  
-             SEXP randomCovariateCount,  
-             SEXP forestSize,  
-             SEXP minimumDeathCount,
-             SEXP observationSize,
-             SEXP time,
-             SEXP status,
-             SEXP xSize,
-             SEXP xData,
-             SEXP timeInterestSize,
-             SEXP timeInterest,
-             SEXP randomCovariateWeight,
-             SEXP xType,
-             SEXP imputeSize) {
-  uint i;
-  int seed1Value         = INTEGER(seedPtr)[0];
-  int seed2Value         = INTEGER(seedPtr)[0];
-  _seed1Ptr              = &seed1Value;
-  _seed2Ptr              = &seed2Value;
-  _splitRule            = INTEGER(splitRule)[0];
-  _randomCovariateCount = INTEGER(randomCovariateCount)[0];
-  _forestSize           = INTEGER(forestSize)[0];
-  _minimumDeathCount    = INTEGER(minimumDeathCount)[0];
-  _observationSize      = INTEGER(observationSize)[0];
-  _time                 =    REAL(time);  _time--;
-  _status               =    REAL(status);  _status--;
-  _xSize                = INTEGER(xSize)[0];
-  _xData                =    REAL(xData);
-  _timeInterestSize     = INTEGER(timeInterestSize)[0];
-  _timeInterest         =    REAL(timeInterest);  _timeInterest--;
-  _randomCovariateWeight =   REAL(randomCovariateWeight);  _randomCovariateWeight--;
-  _imputeSize           = INTEGER(imputeSize)[0];
-  _sexp_xType = xType;
-  _opt                  = INTEGER(opt)[0];
-  _opt                  = _opt | OPT_FENS;  
-  _opt                  = _opt | OPT_OENS;  
-  _opt                  = _opt | OPT_PERF;  
-  _opt                  = _opt | OPT_LEAF;  
-  _opt                  = _opt | OPT_MISS;  
-  _opt                  = _opt | OPT_OMIS;  
-  if (_opt & OPT_TREE) {
-    _opt = _opt | OPT_SEED;
-  }
-  else {
-    _opt = _opt & (~OPT_SEED);
-  }
-  if (*_seed1Ptr >= 0) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Random seed must be less than zero.  \n");
-    return R_NilValue;
-  }
-  if ( (_splitRule != LOG_RANK) && 
-       (_splitRule != CONSERVE_EVENTS) && 
-       (_splitRule != LOG_RANK_SCORE) && 
-       (_splitRule != LOG_RANK_APPROX) && 
-       (_splitRule != RANDOM_SPLIT) &&
-       (_splitRule != LOG_RANK_RANDOM) ) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Invalid split rule:  %10d \n", _splitRule);
-    return R_NilValue;
-  }
-  if ( ((_randomCovariateCount < 1) || (_randomCovariateCount > _xSize)) ) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of random covariate parameters must be greater");
-    Rprintf("\nRSF:  than zero and less than the total number of covariates:  %10d \n", _randomCovariateCount);
-    return R_NilValue;
-  }
-  if (_minimumDeathCount < 1) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Minimum number of deaths must be greater than zero:  %10d \n", _minimumDeathCount);
-    return R_NilValue;
-  }
-  for (i = 1; i <= _xSize; i++) {
-    if(_randomCovariateWeight[i] < 0) {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Parameter verification failed.");
-      Rprintf("\nRSF:  Random covariate weight elements must be greater than or equal to zero:  %12.4f \n", _randomCovariateWeight[i]);
-      return R_NilValue;
-    }
-  }
-  _treeID_ = NULL;
-  _nodeID_ = NULL;
-  _parmID_ = NULL;
-  _spltPT_ = NULL;
-  return rsf(RSF_GROW, INTEGER(traceFlag)[0]);
-}
-SEXP rsfPredict(SEXP traceFlag,
-                SEXP opt,
-                SEXP seedPtr,  
-                SEXP forestSize, 
-                SEXP observationSize,
-                SEXP time,
-                SEXP status,
-                SEXP xSize,
-                SEXP xData,
-                SEXP fobservationSize,
-                SEXP ftime,
-                SEXP fstatus,
-                SEXP fxData,
-                SEXP timeInterestSize,
-                SEXP timeInterest,
-                SEXP treeID,
-                SEXP nodeID,
-                SEXP parmID,
-                SEXP spltPT,
-                SEXP seed,
-                SEXP xType) {
-  int seed1Value         = INTEGER(seedPtr)[0];
-  int seed2Value         = INTEGER(seedPtr)[0];
-  _seed1Ptr              = &seed1Value;
-  _seed2Ptr              = &seed2Value;
-  _forestSize           = INTEGER(forestSize)[0];
-  _observationSize      = INTEGER(observationSize)[0];
-  _time                 =    REAL(time);  _time --;
-  _status               =    REAL(status);  _status --;
-  _xSize                = INTEGER(xSize)[0];
-  _xData                =    REAL(xData);
-  _fobservationSize     = INTEGER(fobservationSize)[0];
-  _ftime                =    REAL(ftime);  _ftime --;
-  _fstatus              =    REAL(fstatus);  _fstatus --;
-  _fxData               =    REAL(fxData);
-  _timeInterestSize     = INTEGER(timeInterestSize)[0];
-  _timeInterest         =    REAL(timeInterest);  _timeInterest --;
-  _treeID_              = (uint*) INTEGER(treeID);  _treeID_ --;
-  _nodeID_              = (uint*) INTEGER(nodeID);  _nodeID_ --;
-  _parmID_              = (uint*) INTEGER(parmID);  _parmID_ --;
-  _spltPT_              =    REAL(spltPT);  _spltPT_ --;
-  _seed_                = INTEGER(seed);
-  _sexp_xType = xType;
-  _opt                  = INTEGER(opt)[0];
-  _opt                  = _opt | OPT_FENS;  
-  _opt                  = _opt & (~OPT_OENS);  
-  _opt                  = _opt | OPT_LEAF;  
-  _opt = _opt & (~OPT_TREE);  
-  _opt = _opt & (~OPT_SEED);  
-  _opt                  = _opt | OPT_MISS;  
-  _opt                  = _opt & (~OPT_OMIS);  
-  _imputeSize = 1;
-  if (*_seed1Ptr >= 0) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  User random seed must be less than zero.  \n");
-    return R_NilValue;
-  }
-  if(*_seed_ >= 0) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Forest random seed element must be less than zero:  %10d \n", *_seed_);
-    return R_NilValue;
-  }
-  if (_fobservationSize < 1) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of individuals in prediction must be at least one:  %10d \n", _fobservationSize);
-    return R_NilValue;
-  }
-  return rsf(RSF_PRED, INTEGER(traceFlag)[0]);
-}
-SEXP rsfInteraction(SEXP traceFlag,
-                    SEXP opt,
-                    SEXP seedPtr,  
-                    SEXP forestSize, 
-                    SEXP observationSize,
-                    SEXP time,
-                    SEXP status,
-                    SEXP xSize,
-                    SEXP xData,
-                    SEXP timeInterestSize,
-                    SEXP timeInterest,
-                    SEXP treeID,
-                    SEXP nodeID,
-                    SEXP parmID,
-                    SEXP spltPT,
-                    SEXP seed,
-                    SEXP xType,
-                    SEXP intrPredictorSize,
-                    SEXP intrPredictor,
-                    SEXP fobservationSize,
-                    SEXP intrObservation) {
-  uint i;
-  uint leadingIndex;
-  int seed1Value         = INTEGER(seedPtr)[0];
-  int seed2Value         = INTEGER(seedPtr)[0];
-  _seed1Ptr              = &seed1Value;
-  _seed2Ptr              = &seed2Value;
-  _forestSize           = INTEGER(forestSize)[0];
-  _observationSize      = INTEGER(observationSize)[0];
-  _time                 =    REAL(time);  _time --;
-  _status               =    REAL(status);  _status --;
-  _xSize                = INTEGER(xSize)[0];
-  _xData                =    REAL(xData);
-  _timeInterestSize     = INTEGER(timeInterestSize)[0];
-  _timeInterest         =    REAL(timeInterest);  _timeInterest --;
-  _treeID_              = (uint*) INTEGER(treeID);  _treeID_ --;
-  _nodeID_              = (uint*) INTEGER(nodeID);  _nodeID_ --;
-  _parmID_              = (uint*) INTEGER(parmID);  _parmID_ --;
-  _spltPT_              =    REAL(spltPT);  _spltPT_ --;
-  _seed_                = INTEGER(seed);
-  _sexp_xType = xType;
-  _intrPredictorSize         = INTEGER(intrPredictorSize)[0];
-  _intrPredictor             = (uint*) INTEGER(intrPredictor);  _intrPredictor --;
-  _fobservationSize     = INTEGER(fobservationSize)[0];
-  _intrObservation      = (uint*) INTEGER(intrObservation); _intrObservation --;
-  _opt                  = INTEGER(opt)[0];
-  _opt                  = _opt & (~OPT_FENS);  
-  _opt                  = _opt | OPT_OENS;  
-  _opt                  = _opt | OPT_PERF;  
-  _opt                  = _opt | OPT_LEAF;  
-  _opt                  = _opt & (~OPT_MISS);  
-  _opt                  = _opt | OPT_OMIS;  
-  _opt = _opt & (~OPT_TREE);  
-  _opt = _opt & (~OPT_SEED);  
-  _imputeSize = 1;
-  if (*_seed1Ptr >= 0) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  User random seed must be less than zero.  \n");
-    return R_NilValue;
-  }
-  if(*_seed_ >= 0) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Forest random seed element must be less than zero:  %10d \n", *_seed_);
-    return R_NilValue;
-  }
-  if((_intrPredictorSize <= 0) || (_intrPredictorSize > _xSize)) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of predictors to be perturbed must be greater than zero and less than %10d:  %10d \n", _xSize, _intrPredictorSize);
-    return R_NilValue;
-  }
-  uint *intrPredictorCopy = uivector(1, _intrPredictorSize);
-  for (i=1; i <= _intrPredictorSize; i++) {
-    intrPredictorCopy[i] = _intrPredictor[i];
-  }
-  hpsortui(intrPredictorCopy, _intrPredictorSize);
-  leadingIndex = 1;
-  for (i=2; i <= _intrPredictorSize; i++) {
-    if (intrPredictorCopy[i] > intrPredictorCopy[leadingIndex]) {
-      leadingIndex++;
-    }
-  }
-  if (_intrPredictorSize != leadingIndex) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Interaction terms are not unique.");
-    Rprintf("\nRSF:  Only %10d of %10d are unique.", leadingIndex, _intrPredictorSize);
-  }
-  free_uivector(intrPredictorCopy, 1, _intrPredictorSize);
-  for (i=1; i <= _intrPredictorSize; i++) {
-    if (_intrPredictor[i] > _xSize) {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Parameter verification failed.");
-      Rprintf("\nRSF:  Interaction terms are not coherent.");
-      Rprintf("\nRSF:  Predictor encountered is %10d, maximum allowable is %10d.", _intrPredictor[i], _xSize);
-    }
-  }
-  if((_fobservationSize <= 0) || (_fobservationSize > _observationSize)) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of individuals in INTR data set must be greater than zero and less than %10d:  %10d \n", _observationSize, _fobservationSize);
-    return R_NilValue;
-  }
-  hpsortui(_intrObservation, _fobservationSize);
-  leadingIndex = 1;
-  for (i=2; i <= _fobservationSize; i++) {
-    if (_intrObservation[i] > _intrObservation[leadingIndex]) {
-      leadingIndex++;
-    }
-  }
-  if (_fobservationSize != leadingIndex) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Individuals in INTR data subset are not unique.");
-    Rprintf("\nRSF:  Only %10d of %10d are unique.", leadingIndex, _fobservationSize);
-  }
-  for (i=1; i <= _fobservationSize; i++) {
-    if (_intrObservation[i] > _observationSize) {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Parameter verification failed.");
-      Rprintf("\nRSF:  Individuals in INTR data subset are not coherent.");
-      Rprintf("\nRSF:  Individual encountered is %10d, maximum allowable is %10d.", _intrObservation[i], _observationSize);
-    }
-  }
-  return rsf(RSF_INTR, INTEGER(traceFlag)[0]);
+  return result;
 }
 SEXP rsf(char mode, uint traceFlag) {
   uint sexpIndex;
@@ -713,8 +377,6 @@ SEXP rsf(char mode, uint traceFlag) {
   char      updateFlag;       
   char    **dmRecordBootFlag;  
   double ***dmvImputation;     
-  double **masterSplit;        
-  uint    *masterSplitSize;    
   Node   **root;
   uint     forestNodeCounter;
   uint     rejectedTreeCount;  
@@ -726,10 +388,11 @@ SEXP rsf(char mode, uint traceFlag) {
   double **predictorPtr;
   uint    *ensembleDenPtr;
   double concordanceIndex;
+  int concordancePolarity;
   char result;
   clock_t    start;
   clock_t    now;
-  uint i, j, k, b, r, s;
+  uint i, j, k, b, r;
   statusPtr = NULL;     
   timePtr   = NULL;     
   predictorPtr = NULL;  
@@ -738,7 +401,6 @@ SEXP rsf(char mode, uint traceFlag) {
   updateTraceFlag(TRUE);
   if (getTraceFlag() & DL0_TRACE) {
     Rprintf("\nRSF:  Native code rsf() entry. \n");
-    Rprintf("\nRSF:  OPT %10x \n", _opt); 
   }
   start = clock();
   if (_imputeSize < 1) {
@@ -801,8 +463,7 @@ SEXP rsf(char mode, uint traceFlag) {
   stackPreDefinedCommonArrays();
   switch (mode) {
   case RSF_GROW:
-    stackPreDefinedGrowthArrays(& masterSplit,
-                                & masterSplitSize);
+    stackPreDefinedGrowthArrays();
     break;
   case RSF_PRED:
     stackPreDefinedPredictArrays();
@@ -862,8 +523,8 @@ SEXP rsf(char mode, uint traceFlag) {
   ran2(_seed2Ptr);
   *_seed2Ptr = -abs(*_seed2Ptr);
   if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nStart of random seed chain for ran1():  %20d", *_seed1Ptr);
-    Rprintf("\nStart of random seed chain for ran2():  %20d", *_seed2Ptr);
+    Rprintf("\nStart of random seed chain ran1():  %20d", *_seed1Ptr);
+    Rprintf("\nStart of random seed chain ran2():  %20d", *_seed2Ptr);
   }
   if (mode == RSF_GROW) {
     forestNodeCounter = 0;
@@ -897,10 +558,10 @@ SEXP rsf(char mode, uint traceFlag) {
         Rprintf("\nStart of iteration:  (%10d, %10d)", r, b);
       }
       if (getTraceFlag() & DL2_TRACE) {
-        Rprintf("\nTree random seed for ran1():  %20d", *_seed1Ptr);
-        Rprintf("\nTree random seed for ran2():  %20d", *_seed2Ptr);
+        Rprintf("\nTree random seed ran1():  %20d", *_seed1Ptr);
+        Rprintf("\nTree random seed ran2():  %20d", *_seed2Ptr);
       }
-      if (TRUE) {
+      if (FALSE) {
         unImpute (mode);
       }
         if (mode == RSF_GROW) {
@@ -931,10 +592,12 @@ SEXP rsf(char mode, uint traceFlag) {
       rootPtr -> parent = rootPtr;
       rootPtr -> left  = NULL;
       rootPtr -> right = NULL;
-      rootPtr -> splitValueIndex = 0;
-      rootPtr -> splitValue      = 0.0;
+      rootPtr -> splitValue      = NA_REAL;
       rootPtr -> splitParameter  = 0;
       rootPtr -> splitFlag       = TRUE;
+      for (i = 1; i <= _xSize; i++) {
+        (rootPtr -> permissibleSplit)[i] = TRUE;
+      }
       rootPtr -> leafCount = 1;
       if ((_opt & OPT_TREE) && (r == _imputeSize)) {
         root[b] = rootPtr;
@@ -944,8 +607,6 @@ SEXP rsf(char mode, uint traceFlag) {
                             mode,
                             b,
                             rootPtr,
-                            masterSplit,
-                            masterSplitSize,
                             dmRecordBootFlag); 
         if (result) {
           _leafCount_[b] = 1;
@@ -954,8 +615,7 @@ SEXP rsf(char mode, uint traceFlag) {
           }
           makeTree (multipleImputeFlag,
                     b, 
-                    rootPtr,
-                    masterSplit);
+                    rootPtr);
           if (getTraceFlag() & DL1_TRACE) {
             Rprintf("\nEnd of makeTree():  (%10d, %10d)", r, b);
           }
@@ -965,33 +625,7 @@ SEXP rsf(char mode, uint traceFlag) {
           }
           if ((_mRecordSize > 0) && (r > 1)) {
             for (j = 1; j <= _leafCount_[b]; j++) {
-              k = 0;
-              for (i = 1; i <= _observationSize; i++) {
-                if ((_nodeMembership[i] -> leafCount) == j) {
-                  k = i;
-                  i = _observationSize;
-                }
-              }
-              if (k == 0) {
-                Rprintf("\nRSF:  *** ERROR *** ");
-                Rprintf("\nRSF:  Multiply imputed node membership not found.");
-                Rprintf("\nRSF:  Please Contact Technical Support.");
-                Rprintf("\nRSF:  The application will now exit.\n");
-                Rprintf("\n   imputation         tree         leaf \n");
-                Rprintf(" %12d %12d %12d \n", r, b, j);
-                Rprintf("\nDiagnostic Trace of (individual, boot, node, leaf) vectors in data set:  ");
-                Rprintf("\n        index         boot         node         leaf \n");
-                for (s = 1; s <= _observationSize; s++) {
-                  Rprintf(" %12d %12d %12x %12d \n", s, _bootMembershipFlag[s], _nodeMembership[s], _nodeMembership[s] -> leafCount);
-                }
-                exit(TRUE);
-              }
-              else {
-                imputeNode(mode, 
-                           FALSE, 
-                           b, 
-                           _nodeMembership[k]);
-              }  
+              imputeNode(mode, FALSE, b, getTerminalNode(j));
             }  
           }  
         }  
@@ -1006,8 +640,6 @@ SEXP rsf(char mode, uint traceFlag) {
                             mode,
                             b,
                             rootPtr,
-                            masterSplit,      
-                            masterSplitSize,  
                             dmRecordBootFlag); 
         if (result) {
           _leafCount_[b] = 1;
@@ -1153,7 +785,7 @@ SEXP rsf(char mode, uint traceFlag) {
         freeTree(rootPtr);
       }
       if (getTraceFlag() & DL1_TRACE) {
-        Rprintf("\nEnd of iteration:  (%10d, %10d)", r, b);
+        Rprintf("\nEnd of iteration:    (%10d, %10d)", r, b);
       }
       updateTraceFlag(FALSE);
     }  
@@ -1184,7 +816,7 @@ SEXP rsf(char mode, uint traceFlag) {
       }
     }
   }  
-  if (TRUE) {
+  if (FALSE) {
     unImpute (mode);
   }
   rejectedTreeCount = k = 0;
@@ -1271,6 +903,12 @@ SEXP rsf(char mode, uint traceFlag) {
   }
   if (rejectedTreeCount < _forestSize) {
     if (_opt & OPT_VIMP) {
+      if (_opt & (OPT_POUT_TYPE)) {
+        concordancePolarity = -1;
+      }
+      else {
+        concordancePolarity = 1;
+      }
       concordanceImputeFlag = FALSE;
       switch (mode) {
       case RSF_GROW:
@@ -1333,7 +971,8 @@ SEXP rsf(char mode, uint traceFlag) {
                             statusPtr,
                             timePtr);
         }
-        concordanceIndex = getConcordanceIndex(obsSize, 
+        concordanceIndex = getConcordanceIndex(concordancePolarity,
+                                               obsSize, 
                                                statusPtr,
                                                timePtr,
                                                _vimpEnsembleRun[k], 
@@ -1357,21 +996,34 @@ SEXP rsf(char mode, uint traceFlag) {
         }
         Rprintf("\n");
       }
-    }
+    }  
     if (mode == RSF_GROW) {
       for (i = 1; i <= _observationSize; i++) {
-        for (j=1; j <= sortedTimeInterestSize; j++) {
+        if (_opt & (OPT_POUT_TYPE)) {
           if (_oobEnsembleDen[i] != 0) {
-            _oobEnsemblePtr[j][i] = _oobEnsemblePtr[j][i] / _oobEnsembleDen[i];
+            _oobEnsemblePtr[1][i] = _oobEnsemblePtr[1][i] / _oobEnsembleDen[i];
           }
-          _fullEnsemblePtr[j][i] = _fullEnsemblePtr[j][i] / _fullEnsembleDen[i];
+          _fullEnsemblePtr[1][i] = _fullEnsemblePtr[1][i] / _fullEnsembleDen[i];
+        }
+        else {
+          for (j=1; j <= sortedTimeInterestSize; j++) {
+            if (_oobEnsembleDen[i] != 0) {
+              _oobEnsemblePtr[j][i] = _oobEnsemblePtr[j][i] / _oobEnsembleDen[i];
+            }
+            _fullEnsemblePtr[j][i] = _fullEnsemblePtr[j][i] / _fullEnsembleDen[i];
+          }
         }
       }
     }
     if (mode == RSF_PRED) {
       for (i = 1; i <= _fobservationSize; i++) {
-        for (j=1; j <= sortedTimeInterestSize; j++) {
-          _fullEnsemblePtr[j][i] = _fullEnsemblePtr[j][i] / _fullEnsembleDen[i];
+        if (_opt & (OPT_POUT_TYPE)) {
+          _fullEnsemblePtr[1][i] = _fullEnsemblePtr[1][i] / _fullEnsembleDen[i];
+        }
+        else {
+          for (j=1; j <= sortedTimeInterestSize; j++) {
+            _fullEnsemblePtr[j][i] = _fullEnsemblePtr[j][i] / _fullEnsembleDen[i];
+          }
         }
       }
     }
@@ -1437,8 +1089,7 @@ SEXP rsf(char mode, uint traceFlag) {
   }  
   unstackPreDefinedCommonArrays();
   if (mode == RSF_GROW) {
-    unstackPreDefinedGrowthArrays(masterSplit,
-                                  masterSplitSize);
+    unstackPreDefinedGrowthArrays();
   }
   else {
     unstackPreDefinedPredictArrays();

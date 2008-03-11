@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -74,25 +74,38 @@ void saveTree(uint    b,
               uint   *nodeID,
               uint   *parmID,
               double *spltPT);
+char testNodeSize(Node *parent);
 Node* getMembership(Node    *parent,
                     double **predictor,
                     uint     index);
+Node *getTerminalNode(uint leaf);
 Node* randomizeMembership(Node    *parent, 
                           double **predictor, 
                           uint     individual, 
                           uint     splitParameter);
-double getConcordanceIndex(uint size, 
+double getConcordanceIndex(int     polarity,
+                           uint    size, 
                            double *statusPtr, 
                            double *timePtr, 
-                           double *mortality,
-                           uint *oobCount);
-void getCumulativeHazardEstimate(double **cumulativeHazard,
-                                 Node   *parent,
-                                 uint    sortedTimeInterestSize);
+                           double *predictedOutcome,
+                           uint   *oobCount);
+void getNelsonAalenEstimate(double **cumulativeHazard,
+                            uint     treeID,
+                            uint     sortedTimeInterestSize);
+void updateEnsembleCHF(uint     mode, 
+                       uint     sortedTimeInterestSize,
+                       uint     treeID,
+                       double **cumulativeHazard);
+void getMeanSurvivalTime(double *meanSurvivalTime,
+                         uint    treeID);
+void updateEnsembleSurvivalTime(uint    mode, 
+                                uint    treeID, 
+                                double *meanSurvivalTime);
 void getVariableImportance(char     mode,
                            uint     sortedTimeInterestSize,
                            uint     leafCount,
                            double **cumulativeHazard,
+                           double  *meanSurvivalTime,
                            Node    *rootPtr,
                            uint     b);
 void getVariablesUsed(Node *rootPtr, uint *varUsedPtr);

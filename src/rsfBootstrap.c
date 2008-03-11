@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -63,15 +63,11 @@ char bootstrap (char     multipleImputeFlag,
                 uint     mode,
                 uint     b,
                 Node    *rootPtr,
-                double **masterSplit,
-                uint    *masterSplitSize,
                 char   **dmRecordBootFlag) {
   char mOutcomeFlag;
-  uint **masterSplitBounds;
-  uint *leadIndex;
   uint ibgSampleSize;
   char result;
-  uint i,j,k;
+  uint i,k;
   if (getTraceFlag() & DL1_TRACE) {
     Rprintf("\nbootstrap() ENTRY ...\n");
   }
@@ -81,7 +77,7 @@ char bootstrap (char     multipleImputeFlag,
   result = TRUE;
   mOutcomeFlag = FALSE;
   if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nStart of forest seed chain for bootstrap:  ");
+    Rprintf("\nBootstrap random seed chain ran1():  ");
     Rprintf("\n%10d %20d ", b, *_seed1Ptr);
   }
   for (i=1; i <= _observationSize; i++) {
@@ -135,98 +131,6 @@ char bootstrap (char     multipleImputeFlag,
           }
         }
       }  
-      leadIndex = uivector(1, _xSize);
-      masterSplitBounds = uimatrix(1, _xSize, 1, 2);
-      for (j=1; j <= _xSize; j++) {
-        masterSplitBounds[j][1] = 0;
-        masterSplitBounds[j][2] = 0;
-        masterSplitSize[j] = 0;
-        for (i = 1; i <= _observationSize; i++) {
-          masterSplit[j][i] = 0;
-        }
-      }
-      for (j=1; j <= _xSize; j++) {
-        leadIndex[j] = 0;
-        for (i=1; i <= _observationSize; i++) {
-          if (_bootMembershipFlag[i] == TRUE) {
-            if (multipleImputeFlag == TRUE) {
-              leadIndex[j]++;
-              masterSplit[j][leadIndex[j]] = _observation[j][i];
-            }
-            else {
-              if (_mRecordMap[i] == 0) {
-                leadIndex[j]++;
-                masterSplit[j][leadIndex[j]] = _observation[j][i];
-              }
-              else {
-                if(_mvSign[j+2][_mRecordMap[i]] == 0) {
-                  leadIndex[j]++;
-                  masterSplit[j][leadIndex[j]] = _observation[j][i];
-                }
-              }  
-            }  
-          }  
-        }  
-      }  
-      if (getTraceFlag() & DL3_TRACE) {
-        Rprintf("\n\nIn-Bag Raw MasterSplit Predcitor Data:  ");
-        Rprintf("\n          ");
-        for (j=1; j <= _xSize; j++) {
-          Rprintf(" %12d", j);
-        }
-        for (i=1; i <= ibgSampleSize; i++) {
-          Rprintf("\n%10d", i);
-          for (j=1; j <= _xSize; j++) {
-            Rprintf(" %12.4f", masterSplit[j][i]);
-          }
-        }
-      }
-      for (j=1; j <= _xSize; j++) {
-        if (leadIndex[j] > 0) {
-          masterSplitBounds[j][1] = 1;
-          masterSplitSize[j] = 1;
-          hpsort(masterSplit[j], leadIndex[j]);
-          for (i = 2; i <= leadIndex[j]; i++) {
-            if (masterSplit[j][i] > masterSplit[j][masterSplitSize[j]]) {
-              masterSplitSize[j]++;
-              masterSplit[j][masterSplitSize[j]] = masterSplit[j][i];
-            }
-          }
-          masterSplitBounds[j][2] = masterSplitSize[j];
-          for (i = masterSplitSize[j]+1; i <= leadIndex[j]; i++) {
-            masterSplit[j][i] = 0;
-          }
-        }
-      }  
-      if (getTraceFlag() & DL2_TRACE) {
-        Rprintf("\n\nIn-Bag Sorted MasterSplit Data:  ");
-        Rprintf("\n          ");
-        for (j=1; j <= _xSize; j++) {
-          Rprintf(" %12d", j);
-        }
-        for (i=1; i <= ibgSampleSize; i++) {
-          Rprintf("\n%10d", i);
-          for (j=1; j <= _xSize; j++) {
-            Rprintf(" %12.4f", masterSplit[j][i]);
-          }
-        }
-        Rprintf("\n\nSize of Permissible Splits:  ");
-        Rprintf("\n          ");
-        for (j=1; j <= _xSize; j++) {
-          Rprintf(" %12d", masterSplitSize[j]);
-        }
-        Rprintf("\n");
-        Rprintf("\nMaster Permissible Split Boundaries:  \n");
-        for (i=1; i <= _xSize; i++) {
-          Rprintf("%10d %10d %10d \n", i, masterSplitBounds[i][1], masterSplitBounds[i][2]);
-        }
-      }
-      nrCopyMatrix(rootPtr -> permissibleSplit, masterSplitBounds, _xSize, 2);
-      free_uivector(leadIndex, 1, _xSize);
-      free_uimatrix(masterSplitBounds, 1, _xSize, 1, 2);
-      if (getTraceFlag() & DL0_TRACE) {
-        Rprintf("\nRSF:  Initialization of master split data complete.");  
-      }
     }  
     if (mode == RSF_PRED) {
       for (i=1; i <= _fobservationSize; i++) {

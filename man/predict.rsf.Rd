@@ -115,10 +115,11 @@
 }
 \examples{
 data(veteran, package = "randomSurvivalForest")
-veteran.out <- rsf(Survrsf(time, status)~., forest = TRUE, data = veteran)
+train.pt <- sample(1:dim(veteran)[1], round(dim(veteran)[1]*0.80))
+veteran.out <- rsf(Survrsf(time, status) ~ ., forest = TRUE,
+                   data = veteran[train.pt, ])
 baseForest <- veteran.out$forest
-veteran.pred1 <- predict.rsf(baseForest, veteran, proximity = FALSE)
-veteran.pred2 <- predict.rsf(veteran.out, veteran, proximity = TRUE)
+veteran.pred <- predict.rsf(veteran.out, veteran[-train.pt, ], proximity = TRUE)
 }
 
 \keyword{survival}

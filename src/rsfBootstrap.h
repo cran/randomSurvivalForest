@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -61,7 +61,5 @@ char bootstrap (char     multipleImputeFlag,
                 uint     mode,
                 uint     b,
                 Node    *rootPtr,
-                double **masterSplit,
-                uint    *masterSplitSize,
                 char   **dmRecordBootFlag);
 #endif

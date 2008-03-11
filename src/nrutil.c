@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -612,5 +612,11 @@ void nrCopyMatrix(uint **new, uint **old, uint nrow, uint ncol) {
     for (j = 1; j <= ncol; j++) {  
       new[i][j] = old[i][j];
     }
+  }
+}
+void nrCopyVector(char *new, char *old, uint ncol) {
+  uint j;
+  for (j = 1; j <= ncol; j++) {  
+    new[j] = old[j];
   }
 }

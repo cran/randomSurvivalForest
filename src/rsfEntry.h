@@ -54,17 +54,66 @@
 //**********************************************************************
 //**********************************************************************
 
-#ifndef NODE_H
-#define NODE_H
-typedef struct node Node;
-struct node {
-  struct node *parent;
-  char splitFlag;
-  unsigned int splitParameter;
-  double splitValue;
-  unsigned int leafCount;
-  struct node *left;
-  struct node *right;
-  char *permissibleSplit;
-};
+#ifndef RSFENTRY_H
+#define RSFENTRY_H
+#include "extern.h"
+SEXP rsfGrow(SEXP traceFlag,
+             SEXP opt,
+             SEXP seedPtr,
+             SEXP splitRule,
+             SEXP randomCovariateCount,
+             SEXP forestSize,
+             SEXP minimumDeathCount,
+             SEXP observationSize,
+             SEXP time,
+             SEXP status,
+             SEXP xSize,
+             SEXP xData,
+             SEXP timeInterestSize,
+             SEXP timeInterest,
+             SEXP randomCovariateWeight,
+             SEXP xType,
+             SEXP reimputeSize);
+SEXP rsfPredict(SEXP traceFlag,
+                SEXP opt,
+                SEXP seedPtr,  
+                SEXP forestsize,
+                SEXP observationSize,
+                SEXP time,
+                SEXP status,
+                SEXP xSize,
+                SEXP xData,
+                SEXP fobservationSize,
+                SEXP ftime,
+                SEXP fstatus,
+                SEXP fxData,
+                SEXP timeInterestSize,
+                SEXP timeInterest,
+                SEXP treeID,
+                SEXP nodeID,
+                SEXP parmID,
+                SEXP spltPT,
+                SEXP seedVector,
+                SEXP xType);
+SEXP rsfInteraction(SEXP traceFlag,
+                    SEXP opt,
+                    SEXP seedPtr,  
+                    SEXP forestSize, 
+                    SEXP observationSize,
+                    SEXP time,
+                    SEXP status,
+                    SEXP xSize,
+                    SEXP xData,
+                    SEXP timeInterestSize,
+                    SEXP timeInterest,
+                    SEXP treeID,
+                    SEXP nodeID,
+                    SEXP parmID,
+                    SEXP spltPT,
+                    SEXP seed,
+                    SEXP xType,
+                    SEXP intrPredictorSize,
+                    SEXP intrPredictor,
+                    SEXP fobservationSize,
+                    SEXP intrObservation);
 #endif

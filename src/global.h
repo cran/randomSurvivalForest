@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.0
+//  RANDOM SURVIVAL FOREST 3.2.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -92,6 +92,7 @@
 #define OPT_VIMP      0x0800
 #define OPT_VUSE_TYPE 0x1000
 #define OPT_VUSE      0x2000
+#define OPT_POUT_TYPE 0x4000
 #define CENS_IDX -1
 #define TIME_IDX -2
 #define RSF_OUTP_ID   0  

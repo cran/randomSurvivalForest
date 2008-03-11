@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.0
+##  RANDOM SURVIVAL FOREST 3.2.1
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -59,7 +59,7 @@ plot.variable <- function(
     plots.per.page = 4,
     granule = 5,
     sorted = TRUE,
-    type = c("mort", "rel.freq", "surv")[1],
+    type = c("mort", "rel.freq", "surv", "time")[1],
     partial = FALSE,
     predictorNames = NULL,
     npred = NULL,                           
@@ -74,8 +74,9 @@ plot.variable <- function(
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
         sum(inherits(object, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
       stop("Function only works for objects of class `(rsf, grow)', '(rsf, predict)'.")
-    if (type != "mort" & type != "rel.freq" & type != "surv")
+    if (type != "mort" & type != "rel.freq" & type != "surv" & type != "time")
       stop("Invalid choice for 'type:  " + type)
+    if (!partial & type == "time") stop("Type 'time' can only be used for partial plots.")
     
     ### subset the data?
     if (!is.null(subset) & length(unique(subset)) != 0) {
@@ -199,7 +200,12 @@ plot.variable <- function(
       granule <- max(round(granule),1)
       par(mfrow = c(min(plots.per.page, ceiling(n.cov/plots.per.page)), plots.per.page))
       baseForest <- object$forest
-      class(baseForest) <- c("rsf", "partial")
+      if (type == "time") {
+        class(baseForest) <- c("rsf", "partial.rough")
+      }
+      else { 
+        class(baseForest) <- c("rsf", "partial")
+      }
       if (npts < 1) npts <- 1 else npts <- round(npts)
       for (k in 1:n.cov) {
         x <- predictors[, object$predictorNames == cov.names[k]]
@@ -217,7 +223,7 @@ plot.variable <- function(
         colnames(newdata.x) <- object$predictorNames
         for (l in 1:n.x) {
           newdata.x[, object$predictorNames == cov.names[k]] <- rep(x.uniq[l], n)
-          if (type == "mort" | type == "rel.freq") {
+          if (type == "mort" | type == "rel.freq" | type == "time") {
             pred.temp <- predict.rsf(baseForest, newdata.x)$mortality
           }
           else if (type == "surv") {
