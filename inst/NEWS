@@ -1,13 +1,24 @@
 Package: randomSurvivalForest
-Version: 3.2.1
-BUILD: bld20080311
+Version: 3.2.2
+BUILD: release_3_2_1_branch_bld20080325
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.2.1
+CHANGES TO RELEASE 3.2.2
 
-RELEASE 3.2.1 represents a minor upgrade of the
-product, and will not affect most users of the prior version of the
-product.  Key changes are as follows:
+RELEASE 3.2.2 represents a critical update of the product
+resolving unexpected program termination under certain conditions.
+Key changes are as follows:
+
+o In the case of missing data, it is possible for naive imputation to
+fail catastrophically in PREDICT or INTERACTION mode.  This can occur
+when the dimension of the mode specific data set is less than the GROW
+data set.  Thanks to Andy J. Minn for finding this feature.
+
+---------------------------------------------------------------------------------
+ 
+Release 3.2.1 represents a minor upgrade of the product, and will not
+affect most users of the prior version of the product.  Key changes
+are as follows:
 
 o An additional option in INTERACTION mode can now be specified.  The
 option 'rough' can significantly decrease the processing time
@@ -23,7 +34,6 @@ itself by slightly favoring splits on continuous covariates under
 certain conditions such as low values of 'mtry'.  However, it is not
 expected that users will notice significant changes.  The issue has
 been resolved.
-
 
 ---------------------------------------------------------------------------------
 

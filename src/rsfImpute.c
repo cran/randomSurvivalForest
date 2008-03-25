@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.1
+//  RANDOM SURVIVAL FOREST 3.2.2
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -887,7 +887,7 @@ void imputeCommon(char      mode,
       mvSign = _fmvSign;
       mvIndex = _fmvIndex;
       mvForestSign = _fmvForestSign;
-      maxDistributionSize = ((_fobservationSize) > (_forestSize))? (_fobservationSize):(_forestSize);
+      maxDistributionSize = ((_observationSize) > (_forestSize))? (_observationSize):(_forestSize);
       outStatus    = _sImputeStatusPtr;
       outTime      = _sImputeTimePtr;
       outPredictor = _sImputePredictorPtr;
@@ -902,7 +902,7 @@ void imputeCommon(char      mode,
       mvSign = _fmvSign;
       mvIndex = _fmvIndex;
       mvForestSign = _fmvForestSign;
-      maxDistributionSize = ((_fobservationSize) > (_forestSize))? (_fobservationSize):(_forestSize);
+      maxDistributionSize = ((_observationSize) > (_forestSize))? (_observationSize):(_forestSize);
       outStatus    = _sOOBImputeStatusPtr;
       outTime      = _sOOBImputeTimePtr;
       outPredictor = _sOOBImputePredictorPtr;
