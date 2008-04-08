@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.2
+//  RANDOM SURVIVAL FOREST 3.2.3
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -646,6 +646,13 @@ void imputeUpdateShadow (char      mode,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
     break;
+  }
+  if (mRecordSize == 0) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Attempt to update shadow data with no missingness in mode:  %10d", mode);
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
   }
   if (getTraceFlag() & DL2_TRACE) {
     Rprintf("\nImputed Shadow Data:  (before transfer)");
@@ -1628,54 +1635,56 @@ char getForestSign (uint mode, uint b) {
       for (p = 1; p <= _fmvSize; p++) {
         _fmvForestSign[b][p] = 1;
       }
-      p = q = 1;
-      while ((q <= _fmvSize) && (p <= _mvSize)) {
-        if (_mvIndex[p] == _fmvIndex[q]) {
-          if (_mvForestSign[b][p] == -1) {
-            _fmvForestSign[b][q] = -1;
-          }
-          p++;
-          q++;
-        }
-        else {
-          switch (_fmvIndex[q]) {
-          case CENS_IDX:
-            if (_mvIndex[p] > 0) {
-              q++;
+      if (_mRecordSize > 0) {
+        p = q = 1;
+        while ((q <= _fmvSize) && (p <= _mvSize)) {
+          if (_mvIndex[p] == _fmvIndex[q]) {
+            if (_mvForestSign[b][p] == -1) {
+              _fmvForestSign[b][q] = -1;
             }
-            else {
-              if (abs(_mvIndex[q]) < abs(_mvIndex[p])) {
+            p++;
+            q++;
+          }
+          else {
+            switch (_fmvIndex[q]) {
+            case CENS_IDX:
+              if (_mvIndex[p] > 0) {
+                q++;
+              }
+              else {
+                if (abs(_mvIndex[q]) < abs(_mvIndex[p])) {
+                  q++;
+                }
+                else {
+                  p++;
+                }
+              }
+              break;
+            case TIME_IDX:
+              if (_mvIndex[p] > 0) {
+                q++;
+              }
+              else {
+                if (abs(_mvIndex[q]) < abs(_mvIndex[p])) {
+                  q++;
+                }
+                else {
+                  p++;
+                }
+              }
+              break;
+            default:
+              if (_fmvIndex[q] < _mvIndex[p]) {
                 q++;
               }
               else {
                 p++;
               }
+              break;
             }
-            break;
-          case TIME_IDX:
-            if (_mvIndex[p] > 0) {
-              q++;
-            }
-            else {
-              if (abs(_mvIndex[q]) < abs(_mvIndex[p])) {
-                q++;
-              }
-              else {
-                p++;
-              }
-            }
-            break;
-          default:
-            if (_fmvIndex[q] < _mvIndex[p]) {
-              q++;
-            }
-            else {
-              p++;
-            }
-            break;
           }
         }
-      }
+      }  
       if (getTraceFlag() & DL2_TRACE) {
         Rprintf("\nPRED Missing Signature For Tree:  %10d \n", b);
         Rprintf(  " Outcome or Predictor: ");

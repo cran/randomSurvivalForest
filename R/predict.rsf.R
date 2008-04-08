@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.2
+##  RANDOM SURVIVAL FOREST 3.2.3
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -198,11 +198,15 @@ predict.rsf <- function(
     else {
       predictorsTest  <- as.matrix(newdata[,is.element(names(newdata), object$predictorNames)])
     }
-    sort.col <- NULL
-    for (k in 1:length(object$predictorNames)) {
-      sort.col[k] <- which(colnames(predictorsTest)==object$predictorNames[k])
+
+    if (length(object$predictorNames) > 1) {
+      sort.col <- NULL
+      for (k in 1:length(object$predictorNames)) {
+        sort.col[k] <- which(colnames(predictorsTest)==object$predictorNames[k])
+      }
+      predictorsTest <- predictorsTest[, sort.col]
     }
-    predictorsTest <- predictorsTest[, sort.col]
+
     rownames(predictorsTest) <- colnames(predictorsTest) <- NULL
     if (sum(is.element(fNames[1:2], names(newdata))) == 2) {
       Time <- newdata[,is.element(names(newdata), fNames[1])]

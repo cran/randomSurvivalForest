@@ -1,11 +1,26 @@
 Package: randomSurvivalForest
-Version: 3.2.2
-BUILD: release_3_2_1_branch_bld20080325
+Version: 3.2.3
+BUILD: release_3_2_1_branch_bld20080408
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.2.2
+CHANGES TO RELEASE 3.2.3
 
-RELEASE 3.2.2 represents a critical update of the product
+RELEASE 3.2.3 represents a critical update of the product
+resolving unexpected program termination under certain conditions.
+Key changes are as follows:
+
+o In the case of missing data, it is possible for imputation to fail
+catastrophically in PREDICT or INTERACTION mode.  This can occur when
+the GROW data set has no missing data, but the non-GROW data set does
+have missingness.  Thanks to Andy J. Minn for finding this feature.
+
+o In the case of a single predictor, PREDICT mode can fail to
+dimension the data properly causing unpredictable results.  Thanks to
+Eric A. Macklin for finding this feature.
+
+---------------------------------------------------------------------------------
+
+Release 3.2.2 represents a critical update of the product
 resolving unexpected program termination under certain conditions.
 Key changes are as follows:
 
