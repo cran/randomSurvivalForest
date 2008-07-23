@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,39 +58,39 @@
 #define RSFIMPUTE_H
 #include "extern.h"
 void imputeInteraction (uint treeID, Node *parent);
-char imputeNode (char     type,
+char imputeNode (uint     type,
                  char     seedChainFlag,
                  uint     treeID, 
                  Node    *parent);
-void imputeTree(char mode, uint b, Node *parent);
-void imputeUpdateShadow (char      mode, 
+void imputeTree(uint mode, uint b, Node *parent, char rootFlag);
+void imputeUpdateShadow (uint      mode, 
                          char      selectionFlag,
                          double ***dmvImputation,
                          double   *shadowStatus, 
                          double   *shadowTime, 
                          double  **shadowPredictor);
-void imputeUpdateSummary (char mode, 
-                          double *statusPtr, 
-                          double *timePtr, 
+void imputeUpdateSummary (uint     mode, 
+                          double  *statusPtr, 
+                          double  *timePtr, 
                           double **predictorPtr, 
                           double **dmvImputationPtr);
-void imputeSummary(char      mode,
+void imputeSummary(uint      mode,
                    char      selectionFlag,
                    char    **dmRecordBootFlag,
                    double ***dmvImputation);
-void imputeConcordance(char      mode,
+void imputeConcordance(uint      mode,
                        uint      b,
                        char    **dmRecordBootFlag,
                        double ***dmvImputation,
                        double   *tempStatus,
                        double   *tempTime);
-void imputeCommon(char      mode,
+void imputeCommon(uint      mode,
                   uint      b,
                   char      selectionFlag,
                   char    **dmRecordBootFlag,
                   double ***dmvImputation,
                   char      predictorFlag);
-void unImpute (char);
+void unImpute (uint mode);
 double getMaximalValue(double *value, uint size);
 double getMedianValue(double *value, uint size);
 double getMeanValue(double *value, uint size);

@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.3
+##  RANDOM SURVIVAL FOREST 3.5.0
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -63,6 +63,8 @@ find.interaction <- function (
     nrep  = 1,
     rough = FALSE,
     importance = c("randomsplit", "permute")[1],
+    seed = NULL,
+    do.trace = FALSE,
     ...) {
  
     ## Check that 'object' is of the appropriate type.
@@ -74,9 +76,6 @@ find.interaction <- function (
       if (is.null(object$forest)) 
         stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
     }
-
-    ### get ntree
-    ntree <- length(unique(object$nativeArray[,1]))
 
     ### check importance option
     if (importance != "randomsplit" &  importance != "permute")
@@ -113,7 +112,6 @@ find.interaction <- function (
     }
     if (n.interact == 1) stop("Pairwise comparisons require more than one candidate variable.")
 
-    
     ### interaction loop: call interaction.rsf
     interact.imp <- rownames.interact.imp <- NULL
     for (k in 1:(n.interact-1)) {
@@ -124,9 +122,9 @@ find.interaction <- function (
         cat("Pairing",cov.names[k],"with",cov.names[l],"\n")
         for (m in 1:nrep) {
           rsfOutput  <-  interaction.rsf(object, cov.names[c(k,l)], importance=importance,
-                                         subset=subset, joint=FALSE, rough=rough)
+                     subset=subset, joint=FALSE, rough=rough, seed=seed, do.trace=do.trace)
           rsfOutput.joint  <-  interaction.rsf(object, cov.names[c(k,l)], importance=importance,
-                                           subset=subset, rough=rough)
+                     subset=subset, rough=rough, seed=seed, do.trace=do.trace)
           imp[1] <- imp[1]+rsfOutput$importance[1]
           imp[l-k+1] <- imp[l-k+1]+rsfOutput$importance[2]
           imp.joint[l-k] <- imp.joint[l-k]+rsfOutput.joint$importance
@@ -151,7 +149,7 @@ find.interaction <- function (
     cat("   No. of variables used for pairing: ", n.interact,          "\n", sep="")
     cat("    Total no. of paired interactions: ", dim(interact.imp)[1],"\n", sep="")
     cat("            Monte Carlo replications: ", nrep,                "\n", sep="")
-    cat("                                VIMP: ", importance,          "\n", sep="")
+    cat("    Type of noising up used for VIMP: ", importance,          "\n", sep="")
     cat("                  Fast approximation: ", rough,               "\n", sep="")
     cat("\n")
     print(round(interact.imp,4))

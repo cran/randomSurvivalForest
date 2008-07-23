@@ -15,6 +15,8 @@
                   nrep = 1,
                   rough = FALSE,
                   importance = c("randomsplit", "permute")[1],
+                  seed = NULL,
+                  do.trace = FALSE,
                   ...)
 }
 \arguments{
@@ -25,14 +27,20 @@
       considered.  Default is to use all variables.}
     \item{sorted}{Should variables be sorted by importance values?  Only
       applies when \code{predictorNames}=NULL.}
-    \item{npred}{Use the first npred variables as ordered by VIMP (only applies when
-      \code{predictorNames}=NULL).  Default uses all variables.}
-    \item{subset}{An index vector indicating which rows should be used.
-      Default is to use all the data.}
+    \item{npred}{Use the first npred variables as ordered by VIMP (only 
+      applies when \code{predictorNames}=NULL).  Default uses all variables.}
+    \item{subset}{Indices indicating which rows of the predictor matrix
+      to be used (note: this applies to the \emph{object} predictor
+      matrix, \code{predictors}).  Default is to use all rows.}
     \item{nrep}{Number of Monte Carlo replicates.}
     \item{rough}{Logical value indicating whether fast approximation
       should be used.  Default is FALSE.}
     \item{importance}{Method used to compute variable importance (VIMP).}
+    \item{seed}{Seed for random number generator.  Must be a negative
+      integer (the R wrapper handles incorrectly set seed values).}
+    \item{do.trace}{Logical. Should trace output be enabled? Default is
+      FALSE. Integer values can also be passed.  A positive value
+      causes output to be printed each \code{do.trace} iteration.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -46,17 +54,16 @@
      pursuing if the VIMP's for each variable are reasonably large
      (Ishwaran, 2007).
 
-     Depending on the size of the data, computations might be slow.
-     Users should consider setting \code{npred} to a smaller number, or
-     restricting the analysis to a subset of the data, if that is the
-     case.
+     Depending on the size of the data, computations might be slow.  In
+     such cases, users should consider setting \code{npred} to a smaller
+     number, or restricting the analysis to a subset of the data.
      
      If \code{nrep} is greater than 1, the analysis is repeated
      \code{nrep} times and results averaged over the replications.
 
-     \code{find.interaction} calls the lower level function
-     \code{interaction.rsf}.  For programming only, users may consider
-     doing likewise.
+     Note that \code{find.interaction} calls the lower level function
+     \code{interaction.rsf}.  For programming purposes, users may
+     consider doing likewise.
 }
 \value{
    Invisibly, the interaction table.
@@ -74,13 +81,18 @@
   \code{interaction.rsf}.
 }
 \examples{
+#------------------------------------------------------------------------
+# Explore relationship between the top two predictors from veteran data.
+
 data(veteran, package = "randomSurvivalForest") 
 v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000, forest = TRUE)
 find.interaction(v.out, npred = 2, nrep=1)
 
 \dontrun{
+#------------------------------------------------------------------------
 # All pairwise interactions: PBC data.
 # Use fast approximation to speed up computations.
+
 data(pbc, package = "randomSurvivalForest") 
 rsf.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, forest = TRUE)
 find.interaction(rsf.out, nrep=3, rough=T)

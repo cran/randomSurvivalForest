@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,6 +58,9 @@
 #define NRUTIL_H
 float ran1(int *idum);
 float ran2(int *idum);
+uint upower (uint x, uint n);
+uint upower2 (uint n);
+uint ulog2 (uint n);
 void hpsort(
   double *ra,
   uint n
@@ -101,6 +104,12 @@ uint **uimatrix(
   ulong ncl,
   ulong nch
 );
+ulong **ulmatrix(
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
 char **cmatrix(
   ulong nrl,
   ulong nrh,
@@ -129,6 +138,18 @@ uint *uivector(
 );
 uint **puivector(
   ulong nl, 
+  ulong nh
+);
+uint ***ppuivector(
+  ulong nl,
+  ulong nh
+);
+ulong *ulvector(
+  ulong nl,
+  ulong nh
+);
+ulong **pulvector(
+  ulong nl,
   ulong nh
 );
 char *cvector(
@@ -170,6 +191,13 @@ void free_uimatrix(
   ulong ncl,
   ulong nch
 );
+void free_ulmatrix(
+  ulong **m,
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
 void free_cmatrix(
   char **m,
   ulong nrl,
@@ -205,6 +233,21 @@ void free_pivector(
 void free_puivector(
   uint **v,
   ulong nl,
+  ulong nh
+);
+void free_ppuivector(
+  uint ***v,
+  ulong nl,
+  ulong nh
+);
+void free_ulvector(
+  ulong *v,
+  ulong nl,
+  ulong nh
+);
+void free_pulvector(
+  ulong **v, 
+  ulong nl, 
   ulong nh
 );
 void free_cvector(

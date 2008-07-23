@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.3
+##  RANDOM SURVIVAL FOREST 3.5.0
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -62,6 +62,9 @@ print.rsf <- function(x, ...) {
     return()
   }
 
+  ### ensure backward compatibility for nsplit
+  if (is.null(x$nsplit)) x$nsplit <- 0
+
   ### check that object is interpretable
   if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
@@ -81,8 +84,14 @@ print.rsf <- function(x, ...) {
     cat("          Minimum terminal node size: ", x$nodesize,          "\n", sep="")
     cat("       Average no. of terminal nodes: ", mean(x$leaf.count),  "\n", sep="")
     cat("No. of variables tried at each split: ", x$mtry,              "\n", sep="")
-    cat("              Total no. of variables: ", length(x$predictorNames), "\n", sep="")  
-    cat("                      Splitting rule: ", x$splitrule,         "\n", sep="")
+    cat("              Total no. of variables: ", length(x$predictorNames), "\n", sep="")
+    if (x$nsplit > 0 & x$splitrule != "random") {
+      cat("                      Splitting rule: ", paste(x$splitrule,"*random*"),         "\n", sep="")
+      cat("       Number of random split points: ", x$nsplit                   ,         "\n", sep="")
+    }
+    else {
+      cat("                      Splitting rule: ", x$splitrule,         "\n", sep="")
+    } 
     cat("              Estimate of error rate: ",
                              round(x$err.rate[x$ntree]*100, dig=2), "%\n\n", sep="")
   }

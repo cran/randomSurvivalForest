@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.3
+##  RANDOM SURVIVAL FOREST 3.5.0
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -56,7 +56,7 @@
 
 predict.rsf <- function(
     object = NULL,
-    newdata = NULL,
+    test = NULL,
     importance = c("randomsplit", "permute", "none")[1],
     na.action = c("na.omit", "na.impute")[1],
     proximity = FALSE,
@@ -71,7 +71,7 @@ predict.rsf <- function(
       sum(inherits(object, c("rsf", "forest"), TRUE) == c(1, 2)) != 2  &
       sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(object, c("rsf", "partial.rough"), TRUE) == c(1, 2)) != 2)
-    stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
+    stop("This function only works for objects of class `(rsf, grow)' or '(rsf, forest)'.")
 
   ## Acquire the forest and flag class (rsf, grow, bigdata)
   big.data <- F
@@ -82,9 +82,9 @@ predict.rsf <- function(
     object <- object$forest
   }
 
-  ## Check that the predict data set is coherent.
-  if (is.null(newdata)) stop("'newdata' is null.")
-  if (!is.data.frame(newdata)) stop("'newdata' must be a data frame.")
+  ## Check test data is a non-null data frame
+  if (is.null(test)) stop("test data is null.")
+  if (!is.data.frame(test)) stop("test data must be a data frame.")
 
   ## Ensure backward compatability with 3.0 user scripts.
   if (importance == TRUE)  importance <- "permute"
@@ -92,35 +92,94 @@ predict.rsf <- function(
 
   ## Native code parameter for handling rough option
   predictedOutcomeBits <- 0
-  
-  ## Automatic pass given if object is of class (rsf, partial).
-  ## Send void outcomes to the native code.
+
+  ##
+  ## Automatic pass given if object is of internal class (rsf, partial)
+  ## Send void outcomes to the native code
+  ##
   if (sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) == 2 |
       sum(inherits(object, c("rsf", "partial.rough"), TRUE) == c(1, 2)) == 2) {
     if (sum(inherits(object, c("rsf", "partial.rough"), TRUE) == c(1, 2)) == 2) {
       class(object) <- c("rsf", "partial")
       predictedOutcomeBits <- 2^14
     }
-    predictorsTest  <- as.matrix(newdata)
+    test <- as.data.frame(data.matrix(test))
+    predictorsTest <- as.matrix(test)
     rownames(predictorsTest) <- colnames(predictorsTest) <- NULL
-    Time <- rep(-1, dim(predictorsTest)[1])
-    Cens <- rep(-1, dim(predictorsTest)[1])
+    Time <- rep(-1, nrow(predictorsTest))
+    Cens <- rep(-1, nrow(predictorsTest))
     performance <- F
     importance <- "none"
-    remove(newdata)
+    remove(test)
   }
-
-  ## Details for other rsf class objects:
-  ## . Check that newdata matches original training data.
-  ## . Extract predictor and outcome names.
-  ## . Note the special treatment for big.data.    
+  
+  ## Deterimine which grow variables are unordered/ordered factors
+  ## Save factor levels of grow data for later reconversion
+  ## Assign predictor type
+  get.factor <- extract.factor(object$predictors)
+  xfactor <- get.factor$xfactor
+  xfactor.levels <- get.factor$xfactor.levels
+  xfactor.order <- get.factor$xfactor.order
+  xfactor.order.levels <- get.factor$xfactor.order.levels
+  
+  ##
+  ## Details for all other rsf class objects:
+  ##
   if (!(sum(inherits(object, c("rsf", "partial"), TRUE) == c(1, 2)) == 2)) {
+
+    ## Check if test data matches training (grow) data
+    ## Check that factors are the same
+    ## Confirm factor labels overlap
+    ## Force test levels to equal grow factor levels
+    ## (this last step is crucial to ensuring an immutable map)
     fNames <- all.vars(object$formula, max.names=1e7)
-    if ((sum(is.element(fNames[-(1:2)], names(newdata))) != length(fNames[-(1:2)])) |
-        (sum(is.element(names(newdata), fNames[-(1:2)])) != length(fNames[-(1:2)]))) {
-      stop("'newdata' does not match original training data.")
+    test <- test[, is.element(names(test), fNames)]
+    if (is.null(dim(test))) {
+      test <- cbind(test)
+      colnames(test) <- fNames[-c(1,2)]
     }
-    if (sum(is.element(names(newdata), fNames[1:2])) == 2) {
+    get.factor <- extract.factor(test, fNames[-c(1,2)])
+    xfactor.test <- get.factor$xfactor
+    xfactor.order.test <- get.factor$xfactor.order
+    
+    if (!setequal(xfactor, xfactor.test))
+      stop("(unordered) factors from test data do not match original training data")
+    if (!setequal(xfactor.order, xfactor.order.test))
+      stop("ordered factors from test data do not match original training data")
+    if ((ncol(test) - sum(is.element(fNames[1:2], names(test)))) != (length(fNames) - 2)) {
+      stop("test data does not match original training data")
+    }
+    if (length(xfactor) > 0) {
+      for (k in 1:length(xfactor)) {
+        xk.train <- object$predictors[ , names(object$predictors) == xfactor[k] ]
+        xk.test.org <- xk.test <- xk.naomit.test <- test[ , names(test) == xfactor[k] ]
+        if (na.action == "na.omit") {
+          xk.naomit.test <- na.omit(test)[ , names(test) == xfactor[k] ]
+        }
+        if (length(na.omit(setdiff(unique(xk.naomit.test) , unique(xk.train)))) > 0)
+          stop("(unordered) factor labels in test data differ from training data")
+        levels(xk.test) <- xfactor.levels[[k]]
+        for (l in 1:length(xk.test)) { xk.test[l] <- xk.test.org[l] }
+        test[ , names(test) == xfactor[k] ] <- xk.test
+      }
+    }
+    if (length(xfactor.order) > 0) {
+      for (k in 1:length(xfactor.order)) {
+        xk.train <- object$predictors[ , names(object$predictors) == xfactor.order[k] ]
+        xk.test.org <- xk.test <- xk.naomit.test <- test[ , names(test) == xfactor.order[k] ]
+        if (na.action == "na.omit") {
+          xk.naomit.test <- na.omit(test)[ , names(test) == xfactor.order[k] ]
+        }
+        if (length(na.omit(setdiff(unique(xk.naomit.test) , unique(xk.train)))) > 0)
+          stop("ordered factor labels in test data differ from training data")
+        levels(xk.test) <- xfactor.order.levels[[k]]
+        for (l in 1:length(xk.test)) { xk.test[l] <- xk.test.org[l] }
+        test[ , names(test) == xfactor.order[k] ] <- xk.test
+      }
+    }
+
+    ## Extract predictor and outcome names
+    if (sum(is.element(names(test), fNames[1:2])) == 2) {
       if (!big.data) {
         ftermLabels <- c(fNames[1:2], attr(terms(object$formula), "term.labels"))
       }
@@ -136,122 +195,95 @@ predict.rsf <- function(
         ftermLabels <- fNames[-c(1:2)]
       }
     }
-    ## NA processing:
-    ## . Add bogus row to overcome model.matrix strangeness with all NA's.
-    ## . Additional finesse needed when all test values missing for a variable
-    ## . or if new columns created for character variables because of design expansion
-    ## . Special treatment for big.data=T 
+
+    ## Data conversion to numeric mode
+    ## Add bogus row to overcome model.matrix strangeness with all NA's
+    ## Special treatment for big.data
     if (na.action != "na.omit" & na.action != "na.impute") na.action <- "na.omit"
-    if (!big.data) { 
+    if (!big.data) {
+      test <- as.data.frame(data.matrix(test))
       old.na.action <- options()$na.action
-      na.keep <- function(x){x}
-      na.takeOut <- function(x){na.omit(x)}
+      na.keep <- function(x){ x }
+      na.takeOut <- function(x){ na.omit(x) }
       if (na.action == "na.omit") options(na.action=na.takeOut) else options(na.action=na.keep)
-      bogus.row <- newdata[1, ]
-      for (k in 1:dim(newdata)[2]) {
-        if (sum(!is.na(newdata[, k])) > 0) {
-          bogus.row[k] <- newdata[!is.na(newdata[, k]), k][1]
-        }
-      }
-      bogus.row[is.na(bogus.row)] <- 1
-      newdata <- rbind(bogus.row, newdata)
-      newdata <- as.data.frame(
-                               model.matrix(as.formula(paste("~ -1 +",
-                                                             paste(ftermLabels, collapse="+"))), newdata))
-      newdata <- newdata[-1, ]
-      if (sum(is.element(names(newdata), fNames[1:2])) == 2) {
-        varnames <- names(newdata)[!is.element(names(newdata), fNames[1:2])]
-      }
-      else {
-        varnames <- names(newdata)
-      }
-      newdata[, varnames[!is.element(varnames, object$predictorNames)]] <- NA
-      na.col <- apply(newdata, 2, function(x){all(is.na(x))})
-      na.col <- na.col[is.element(names(na.col), varnames)]
-      if (sum(na.col) > 0) {
-        newdata <- newdata[, !is.element(names(newdata), names(na.col)[na.col])]
-      }
-      newdata[, object$predictorNames[!is.element(object$predictorNames, names(newdata))]] <- NA
+      all.na <- all(is.na(test))
+      if (all.na) test <- rbind(0, test)
+      test <- as.data.frame(model.matrix(as.formula(paste("~ -1 +",
+                            paste(ftermLabels, collapse="+"))), test))
+      if (all.na) test <- test[-1, ]
       options(na.action=old.na.action)
-      if (dim(newdata)[1] == 0)
+      if (nrow(test) == 0)
         stop("No records in the NA-processed test data.  Consider imputing using na.impute.")
     }
-    else {
+    else {#big.data
+      test <- test[ , is.element(names(test), ftermLabels)]
+      test <- as.data.frame(data.matrix(test))
       if (na.action == "na.omit") {
-        newdata <- na.omit(newdata[,is.element(names(newdata), ftermLabels)])
-        if (dim(newdata)[1] == 0)
+        test <- na.omit(test)
+        if (nrow(test) == 0)
           stop("No records in the NA-processed test data.  Consider imputing using na.impute.")
       }
-      else {
-        newdata <- newdata[,is.element(names(newdata), ftermLabels)]
-      }
     }
-
-    ## extract the test predictor matrix (special allowance for big.data)
-    ## sort the columns 
-    ## time and censoring processing
-    ## if no outcomes present send void outcomes to native library
-    ## allow for all time and or censoring to be missing
-    if (big.data) {
-      predictorsTest  <- data.matrix(newdata[,is.element(names(newdata), object$predictorNames)])
-    }
-    else {
-      predictorsTest  <- as.matrix(newdata[,is.element(names(newdata), object$predictorNames)])
-    }
-
+    
+    ## Extract test predictor matrix and sort columns
+    ## Time and censoring processing
+    ## If no outcomes present send void outcomes to native library
+    ## Allow for all time and or censoring to be missing
+    predictorsTest  <- as.matrix(test[,is.element(names(test), object$predictorNames)])
     if (length(object$predictorNames) > 1) {
       sort.col <- NULL
       for (k in 1:length(object$predictorNames)) {
-        sort.col[k] <- which(colnames(predictorsTest)==object$predictorNames[k])
+        sort.col[k] <- which(colnames(predictorsTest) == object$predictorNames[k])
       }
-      predictorsTest <- predictorsTest[, sort.col]
-    }
-
+      predictorsTest <- predictorsTest[ , sort.col]
+    }    
     rownames(predictorsTest) <- colnames(predictorsTest) <- NULL
-    if (sum(is.element(fNames[1:2], names(newdata))) == 2) {
-      Time <- newdata[,is.element(names(newdata), fNames[1])]
-      Cens <- newdata[,is.element(names(newdata), fNames[2])]
+
+    if (sum(is.element(fNames[1:2], names(test))) == 2) {
+      Time <- test[, is.element(names(test), fNames[1])]
+      Cens <- test[, is.element(names(test), fNames[2])]
       if (!all(is.na(Cens))) {
         if (!all(is.element(unique(na.omit(Cens)), c(0,1)))) {
-          stop("censoring variable in 'newdata' can only be NA, 0 or 1.")
+          stop("Censoring variable in test data must be NA, 0 or 1")
         }
       }
       if (!all(is.na(Time))) {
-        if (!all(na.omit(Time) > 0)) stop("Time must be strictly positive.")
+        if (!all(na.omit(Time) > 0)) stop("time must be strictly positive")
       }
       performance <- T
     }
     else {
-      Time <- rep(-1, dim(predictorsTest)[1])
-      Cens <- rep(-1, dim(predictorsTest)[1])
+      Time <- rep(-1, nrow(predictorsTest))
+      Cens <- rep(-1, nrow(predictorsTest))
       performance <- F
       importance <- "none"
     }
-    remove(newdata)
+    remove(test)
+
   }
   
-  ## set predictor type
-  ## modifications required for factors (to be done soon) 
-  if (!big.data) {
-    whole.number <- function(x) {
-      n.whole.number <- min(5, length(x))
-      if (length(unique(x)) <= n.whole.number & all((na.omit(x) - floor(na.omit(x))) == 0)) "I" else "R"
-    }
-    predictorType <- apply(object$predictors, 2, whole.number)
-  }
-  else {
-    predictorType <- rep("R", dim(object$predictors)[2])
-  }
+  ## Data conversion for training predictors
+  predictors <- as.matrix(data.matrix(object$predictors))
+  rownames(predictors) <- colnames(predictors) <- NULL
 
-  ## work out individuals at risk (used later for mortality calculation)
+  ## Set predictor type
+  predictorType <- rep("R", ncol(predictorsTest))
+  if (length(xfactor) > 0) {
+    predictorType[is.element(object$predictorNames, xfactor)] <- "C"
+  }
+  if (length(xfactor.order) > 0) {
+    predictorType[is.element(object$predictorNames, xfactor.order)] <- "I"
+  }
+  
+  ## Work out individuals at risk (used later for mortality calculation)
   ## do.trace details
   tunique <- object$timeInterest
   ntree <- length(unique(object$nativeArray[,1]))
   Risk <- apply(cbind(1:length(tunique)),
                 1,
                 function(i, tau, tunq){sum(tau >= tunq[i])},
-                tau = object$time, tunq = tunique)
-  Risk <- Risk - c(Risk[-1],0)
+                tau = na.omit(object$time), tunq = tunique)
+  Risk <- Risk - c(Risk[-1] , 0)
 
   ## seed details
   ## generate seed
@@ -260,14 +292,14 @@ predict.rsf <- function(
 
   if (!is.logical(do.trace)) {
     if (do.trace >= 1){
-      do.trace <- 256*round(do.trace) + 1
+      do.trace <- 2^16 *round(do.trace) + 1
     }
     else {
       do.trace <- 0
     }
   }
   else {
-    do.trace <- 1*(do.trace)
+    do.trace <- 1 * do.trace
   }
 
   ## Convert importance option into native code parameter.
@@ -284,7 +316,7 @@ predict.rsf <- function(
     stop("Invalid choice for 'importance' option:  ", importance)
   }
   
-  ## #################################################################
+  ####################################################################
   ## predict.rsf(...)
   ##
   ## Parameters passed:
@@ -342,9 +374,11 @@ predict.rsf <- function(
   ## 16 - vector representing treeID
   ## 17 - vector representing nodeID
   ## 18 - vector representing parmID
-  ## 19 - vector representing spltPT
-  ## 20 - GROW bootstrap random seed
-  ## 21 - vector of predictor types
+  ## 19 - vector representing contPT
+  ## 20 - vector representing mwcpSZ
+  ## 21 - vector representing mwcpPT  
+  ## 22 - GROW bootstrap random seed
+  ## 23 - vector of predictor types
   ##      "R" - real value
   ##      "I" - integer value 
   ##      "C" - categorical 
@@ -362,25 +396,29 @@ predict.rsf <- function(
                                    (4 * (if (performance) 1 else 0))),
                         as.integer(seed),
                         as.integer(ntree),
-                        as.integer(dim(object$predictors)[1]),
+                        as.integer(nrow(predictors)),
                         as.double(object$time),
                         as.double(object$cens),
-                        as.integer(dim(object$predictors)[2]),
-                        as.numeric(object$predictors),
-                        as.integer(dim(predictorsTest)[1]),
+                        as.integer(ncol(predictors)),
+                        as.numeric(predictors),
+                        as.integer(nrow(predictorsTest)),
                         as.double(Time),
                         as.double(Cens),
                         as.numeric(predictorsTest),
                         as.integer(length(object$timeInterest)),
                         as.double(object$timeInterest),
-                        as.integer(object$nativeArray[,1]),
-                        as.integer(object$nativeArray[,2]),
-                        as.integer(object$nativeArray[,3]),
-                        as.double(object$nativeArray[,4]),
+                        as.integer((object$nativeArray)$treeID),
+                        as.integer((object$nativeArray)$nodeID),
+                        as.integer((object$nativeArray)$parmID),
+                        as.double((object$nativeArray)$contPT),
+                        as.integer((object$nativeArray)$mwcpSZ),                        
+                        as.integer(object$nativeFactorArray),                        
                         as.integer(object$seed),
                         as.character(predictorType))
 
-  ## check for error return condition in the native code.
+  ## remove data converted predictors
+  ## check for error return condition in the native code
+  remove(predictors)
   if(is.null(nativeOutput)) {
     stop("Error occurred in algorithm.  Please turn trace on for further analysis.")
   }
@@ -388,10 +426,10 @@ predict.rsf <- function(
   ## predict ensemble mortality (check if rough estimation in place)
   if (predictedOutcomeBits == 0) {
     mortality <- apply(matrix(nativeOutput$fullEnsemble, 
-                              nrow = dim(predictorsTest)[1],
+                              nrow = nrow(predictorsTest),
                               byrow = FALSE),
                        1,
-                       function(x, wt) {sum(x*wt)},
+                       function(x, wt) {sum(x*wt , na.rm = TRUE)},
                        wt = Risk)
   }
   else {
@@ -407,8 +445,10 @@ predict.rsf <- function(
     if (nMiss == 1) imputedData <- t(imputedData)
   }
 
-  ## Add column names to predictor matrix and imputed data.
+  ## Add column names to test predictor matrix 
   ## Add names to importance values
+  ## Add column names to imputed data
+  predictorsTest <- as.data.frame(predictorsTest)
   colnames(predictorsTest) <- object$predictorNames
   if (importance != "none" & performance) {
     VIMP <- nativeOutput$importance-nativeOutput$performance[ntree]
@@ -418,7 +458,48 @@ predict.rsf <- function(
     VIMP <- NULL
   }
   if (nMiss > 0) {
+    imputedData <- as.data.frame(imputedData)
     colnames(imputedData) <- c(fNames[2], fNames[1], object$predictorNames)
+  }
+  
+  ## Map test predictor factors back to original values
+  if (length(xfactor) > 0) {
+    for (k in 1:length(xfactor)) {
+      ptk <- (colnames(predictorsTest) == xfactor[k])
+      xk.org <- xk <- factor(xfactor.levels[[k]][predictorsTest[ , ptk ]])
+      levels(xk) <- xfactor.levels[[k]]
+      for (l in 1:length(xk)) { xk[l]  <- xk.org[l] }
+      predictorsTest[ , ptk] <- xk
+    }
+  }
+  if (length(xfactor.order) > 0) {
+    for (k in 1:length(xfactor.order)) {
+      ptk <- (colnames(predictorsTest) == xfactor.order[k])
+      xk.org <- xk <- factor(xfactor.order.levels[[k]][predictorsTest[ , ptk ]], ordered = TRUE)
+      levels(xk) <- xfactor.order.levels[[k]]
+      for (l in 1:length(xk)) { xk[l]  <- xk.org[l] }
+      predictorsTest[ , ptk] <- xk
+    }
+  }
+
+  ## Map imputed data factors back to original values
+  if (length(xfactor) > 0 & nMiss > 0) {
+    for (k in 1:length(xfactor)) {
+      ptk <- (colnames(imputedData) == xfactor[k])
+      xk.org <- xk <- factor(xfactor.levels[[k]][imputedData[ , ptk ]])
+      levels(xk) <- xfactor.levels[[k]]
+      for (l in 1:length(xk)) { xk[l]  <- xk.org[l] }
+      imputedData[ , ptk] <- xk
+    }
+  }
+  if (length(xfactor.order) > 0 & nMiss > 0) {
+    for (k in 1:length(xfactor.order)) {
+      ptk <- (colnames(imputedData) == xfactor.order[k])
+      xk.org <- xk <- factor(xfactor.order.levels[[k]][imputedData[ , ptk ]], ordered = TRUE)
+      levels(xk) <- xfactor.order.levels[[k]]
+      for (l in 1:length(xk)) { xk[l]  <- xk.org[l] }
+      imputedData[ , ptk] <- xk
+    }
   }
 
   rsfOutput <- list(
@@ -428,7 +509,7 @@ predict.rsf <- function(
                     leaf.count = nativeOutput$leafCount,
                     timeInterest = object$timeInterest,
                     n = length(Cens),
-                    ndead = (if (performance) sum(Cens == 1) else NULL),
+                    ndead = (if (performance) sum(Cens == 1 , na.rm = T) else NULL),
                     time = (if (performance) Time else NULL),
                     cens = (if (performance) Cens else NULL),
                     predictorNames = object$predictorNames,

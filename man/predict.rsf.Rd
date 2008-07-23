@@ -2,11 +2,11 @@
 \alias{predict.rsf}
 \title{Random Survival Forest Prediction}
 \description{
-    Prediction on new data using Random Survival Forests.  
+    Prediction on test data using Random Survival Forests.  
 }
 \usage{
   predict.rsf(object = NULL,
-              newdata = NULL,
+              test = NULL,
               importance = c("randomsplit", "permute", "none")[1],
               na.action = c("na.omit", "na.impute")[1],
               proximity = FALSE,
@@ -18,8 +18,7 @@
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
 	forest)}. Note that \code{forest}=TRUE must be used in the
         original \code{rsf} call for prediction to work.}
-    \item{newdata}{Data frame containing test data. Missing values
-        allowed.}
+    \item{test}{Data frame containing test data. Missing values allowed.}
     \item{importance}{Method used to compute variable importance (VIMP).  Only
         applies when test data contains outcomes.}
     \item{na.action}{Action to be taken if the data contain NA's.  Possible
@@ -38,14 +37,14 @@
 \details{
   \code{predict.rsf} takes a test data set, drops it down the forest
    grown from the training data, and computes an ensemble cumulative
-   hazard function (CHF).  CHF's are calculated for all individuals in
-   the test data set at the unique death time points of the original
-   grow (training) data.  The error rate and VIMP for variables are
-   computed on the test data if outcome information is available.
-   Setting the option \code{na.action} to \code{na.impute} imputes
-   missing test data (x-variables or outcomes) using the forest grown on
-   the training data (Ishwaran et al. 2007).  Only training data is used
-   in imputing test data to avoid biasing error rates.
+   hazard function (CHF).  CHF's are calculated for each individual in
+   the test data for all unique death time points from the original grow
+   (training) data.  Overall error rate and the VIMP for each variable
+   are computed for the test data if outcome information is available.
+   Setting \code{na.action}=\code{na.impute} imputes missing test data
+   (x-variables or outcomes) using the forest grown from the training
+   data (Ishwaran et al. 2008).  Only training data is used in imputing
+   test data to avoid biasing error rates.
 }    
 \value{
      An object of class \code{(rsf, predict)}, which is a list with the
@@ -62,7 +61,7 @@
      \item{time}{Vector of survival times from test data (can be NULL).}
      \item{cens}{Vector of censoring indicators from test data (can be NULL).}
      \item{predictorNames}{Character vector of variable names.}
-     \item{predictors}{Test data matrix of x-variables used for prediction.}
+     \item{predictors}{Data frame comprising x-variables used for prediction.}
      \item{ensemble}{Matrix containing the ensemble CHF for the test data. Each
          row corresponds to a test data individual's CHF evaluated at
 	 each of the time points in \code{timeInterest}.}
@@ -78,10 +77,10 @@
 	 \code{plot.proximity()} to extract this information.}
      \item{imputedIndv}{Vector of indices of records in test data with
        missing values.  Can be NULL.}
-     \item{imputedData}{Matrix of imputed test data.  First two columns
-        are censoring and survival time, respectively. The remaining
-        columns are the x-variables.  Row i contains imputed outcomes
-        and x-variables for row \code{imputedIndv}[i] of
+     \item{imputedData}{Data frame comprising imputed test data.  First
+        two columns are censoring and survival time, respectively. The
+        remaining columns are the x-variables.  Row i contains imputed
+        outcomes and x-variables for row \code{imputedIndv}[i] of
         \code{predictors}.  Can be NULL.}
 }
 \note{
@@ -97,8 +96,8 @@
     L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
 
     H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2007).  Random survival forests, \emph{Cleveland Clinic Technical
-    Report}.
+    (2008).  Random survival forests, \emph{To appear in Ann. App.
+    Statist.}.
 
     H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
     \emph{Rnews}, 7/2:25-31.
@@ -110,16 +109,15 @@
   \code{plot.variable},
   \code{plot.error},
   \code{plot.proximity},
-  \code{pmml_to_rsf},
-  \code{rsf_to_pmml}.
+  \code{pmml2rsf},
+  \code{rsf2pmml}.
 }
 \examples{
 data(veteran, package = "randomSurvivalForest")
-train.pt <- sample(1:dim(veteran)[1], round(dim(veteran)[1]*0.80))
+train.pt <- sample(1:nrow(veteran), round(nrow(veteran)*0.80))
 veteran.out <- rsf(Survrsf(time, status) ~ ., forest = TRUE,
-                   data = veteran[train.pt, ])
-baseForest <- veteran.out$forest
-veteran.pred <- predict.rsf(veteran.out, veteran[-train.pt, ], proximity = TRUE)
+                   data = veteran[train.pt , ])
+veteran.pred <- predict.rsf(veteran.out, veteran[-train.pt , ])
 }
 
 \keyword{survival}

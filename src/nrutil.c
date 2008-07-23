@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -144,6 +144,33 @@ float ran2(int *idum) {
 #undef NDIV
 #undef EPS
 #undef RNMX
+uint upower (uint x, uint n) {
+  uint p;
+  if ((x >= 2) & (n > (sizeof(uint) * 8))) {
+    nrerror("Overflow in upower(), exponent too large.");
+  }
+  for (p = 1; n > 0; --n) {
+    p = p * x;
+  }
+  return p;
+}
+uint upower2 (uint n) {
+  uint p;
+  if (n > (sizeof(uint) * 8)) {
+    nrerror("Overflow in upower2(), exponent too large.");
+  }
+  p = 1 << n;
+  return p;
+}
+uint ulog2 (uint n) {
+  uint p;
+  p = 0;
+  while (n > 1) {
+    n = n >> 1;
+    p++;
+  }
+  return p;
+}
 void hpsort(double *ra, uint n) {
   uint i, ir, j, l;
   double rra;
@@ -289,7 +316,7 @@ void permute(uint n, uint *indx) {
     indx[i] = 0;
   }
   for (i=n; i > 0; i--) {
-    k = ceil(ran2(_seed2Ptr)*(i*1.0));
+    k = (uint) ceil(ran2(_seed2Ptr)*(i*1.0));
     for (j = 1; k > 0; j++) {
       if (indx[j] == 0) {
         k--;
@@ -297,7 +324,7 @@ void permute(uint n, uint *indx) {
     }
     indx[j-1] = i;
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nRequest for Permutation:  \n");
     Rprintf("     index   permute\n");
     for (i=1; i <= n; i++) {
@@ -332,7 +359,7 @@ double ***dmatrix3(ulong n3l, ulong n3h, ulong nrl, ulong nrh, ulong ncl, ulong 
       k++;
     }
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ndmatrix3() alloc:  %20x  \n", m);
   }
   return m;
@@ -349,7 +376,7 @@ double **dmatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ndmatrix() alloc:  %20x  \n", m);
   }
   return m;
@@ -366,7 +393,7 @@ int **imatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nimatrix() alloc:  %20x  \n", m);
   }
   return m;
@@ -383,8 +410,25 @@ uint **uimatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nuimatrix() alloc:  %20x  \n", m);
+  }
+  return m;
+}
+ulong **ulmatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
+  ulong i, nrow=nrh-nrl+1,ncol=nch-ncl+1;
+  ulong **m;
+  m=(ulong **) malloc((size_t)((nrow+NR_END)*sizeof(ulong*)));
+  if (!m) nrerror("Allocation Failure 1 in ulmatrix()");
+  m += NR_END;
+  m -= nrl;
+  m[nrl]=(ulong *) malloc((size_t)((nrow*ncol+NR_END)*sizeof(ulong)));
+  if (!m[nrl]) nrerror("Allocation Failure 2 in ulmatrix()");
+  m[nrl] += NR_END;
+  m[nrl] -= ncl;
+  for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\nulmatrix() alloc:  %20x  \n", m);
   }
   return m;
 }
@@ -400,7 +444,7 @@ char **cmatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ncmatrix() alloc:  %20x  \n", m);
   }
   return m;
@@ -410,7 +454,7 @@ double *dvector(ulong nl, ulong nh) {
   v=(double *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(double)));
   if (!v) nrerror("Allocation Failure in dvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ndvector() alloc:  %20x  \n", v);
   }
   return v;
@@ -420,7 +464,7 @@ double **pdvector(ulong nl, ulong nh) {
   v=(double **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(double*)));
   if (!v) nrerror("Allocation Failure in pdvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npdvector() alloc:  %20x  \n", v);
   }
   return v;
@@ -430,7 +474,7 @@ int *ivector(ulong nl, ulong nh) {
   v=(int *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(int)));
   if (!v) nrerror("Allocation Failure in uivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nivector() alloc:  %20x  \n", v);
   }
   return v;
@@ -440,7 +484,7 @@ int **pivector(ulong nl, ulong nh) {
   v=(int **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(int*)));
   if (!v) nrerror("Allocation Failure in puivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npivector() alloc:  %20x  \n", v);
   }
   return v;
@@ -450,7 +494,7 @@ uint *uivector(ulong nl, ulong nh) {
   v=(uint *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(uint)));
   if (!v) nrerror("Allocation Failure in uivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nuivector() alloc:  %20x  \n", v);
   }
   return v;
@@ -460,8 +504,38 @@ uint **puivector(ulong nl, ulong nh) {
   v=(uint **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(uint*)));
   if (!v) nrerror("Allocation Failure in puivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
-    Rprintf("\npdvector() alloc:  %20x  \n", v);
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\npuivector() alloc:  %20x  \n", v);
+  }
+  return v;
+}
+uint ***ppuivector(ulong nl, ulong nh) {
+  uint ***v;
+  v=(uint ***) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(uint**)));
+  if (!v) nrerror("Allocation Failure in ppuivector()");
+  v = v-nl+NR_END;
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\nppuivector() alloc:  %20x  \n", v);
+  }
+  return v;
+}
+ulong *ulvector(ulong nl, ulong nh) {
+  ulong *v;
+  v=(ulong *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(ulong)));
+  if (!v) nrerror("Allocation Failure in ulvector()");
+  v = v-nl+NR_END;
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\nulvector() alloc:  %20x  \n", v);
+  }
+  return v;
+}
+ulong **pulvector(ulong nl, ulong nh) {
+  ulong **v;
+  v=(ulong **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(ulong*)));
+  if (!v) nrerror("Allocation Failure in pulvector()");
+  v = v-nl+NR_END;
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\npulvector() alloc:  %20x  \n", v);
   }
   return v;
 }
@@ -470,7 +544,7 @@ char *cvector(ulong nl, ulong nh) {
   v=(char *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(char)));
   if (!v) nrerror("Allocation Failure in cvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ncvector() alloc:  %20x  \n", v);
   }
   return v;
@@ -480,7 +554,7 @@ char **pcvector(ulong nl, ulong nh) {
   v=(char **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(char*)));
   if (!v) nrerror("Allocation Failure in pcvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npcvector() alloc:  %20x  \n", v);
   }
   return v;
@@ -501,7 +575,7 @@ void free_dmatrix3(double ***m,
                   ulong ncl,
                   ulong nch
                  ) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ndmatrix3() de-allocating:  %20x  \n", m);
   }
   free((FREE_ARG) (m[n3l][nrl]+ncl-NR_END));
@@ -514,7 +588,7 @@ void free_dmatrix(double **m,
                   ulong ncl,
                   ulong nch
                  ) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ndmatrix() de-allocating:  %20x  \n", m);
   }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
@@ -526,7 +600,7 @@ void free_imatrix(int **m,
                   ulong ncl,
                   ulong nch
                   ) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nimatrix() de-allocating:  %20x  \n", m);
   }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
@@ -538,8 +612,20 @@ void free_uimatrix(uint **m,
                    ulong ncl,
                    ulong nch
                   ) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nuimatrix() de-allocating:  %20x  \n", m);
+  }
+  free((FREE_ARG) (m[nrl]+ncl-NR_END));
+  free((FREE_ARG) (m+nrl-NR_END));
+}
+void free_ulmatrix(ulong **m,
+                   ulong nrl,
+                   ulong nrh,
+                   ulong ncl,
+                   ulong nch
+                  ) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\nulmatrix() de-allocating:  %20x  \n", m);
   }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
@@ -550,56 +636,74 @@ void free_cmatrix(char **m,
                   ulong ncl,
                   ulong nch
                   ) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ncmatrix() de-allocating:  %20x  \n", m);
   }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
 }
 void free_dvector(double *v, ulong nl, ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ndvector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pdvector(double **v, ulong nl, ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npdvector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_ivector(int *v,ulong nl,ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nivector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pivector(int **v, ulong nl, ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npivector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_uivector(uint *v,ulong nl,ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\nuivector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_puivector(uint **v, ulong nl, ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npuivector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
+void free_ppuivector(uint ***v, ulong nl, ulong nh) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\nppuivector() de-allocating:  %20x  \n", v);
+  }
+  free((FREE_ARG) (v+nl-NR_END));
+}
+void free_ulvector(ulong *v,ulong nl,ulong nh) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\nulvector() de-allocating:  %20x  \n", v);
+  }
+  free((FREE_ARG) (v+nl-NR_END));
+}
+void free_pulvector(ulong **v, ulong nl, ulong nh) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
+    Rprintf("\npulvector() de-allocating:  %20x  \n", v);
+  }
+  free((FREE_ARG) (v+nl-NR_END));
+}
 void free_cvector(char *v,ulong nl,ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\ncvector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pcvector(char **v, ulong nl, ulong nh) {
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & NUMR_DEF_TRACE) {
     Rprintf("\npcvector() de-allocating:  %20x  \n", v);
   }
   free((FREE_ARG) (v+nl-NR_END));
@@ -619,4 +723,14 @@ void nrCopyVector(char *new, char *old, uint ncol) {
   for (j = 1; j <= ncol; j++) {  
     new[j] = old[j];
   }
+}
+void testEndianness() {
+  uint test = 0x12345678;
+  uint *testPtr = & test;
+  Rprintf("\n %2x %2x %2x %2x \n", 
+          *((char *) testPtr), 
+          *((char *) testPtr + 1), 
+          *((char *) testPtr + 2), 
+          *((char *) testPtr + 3));
+  exit(0);
 }

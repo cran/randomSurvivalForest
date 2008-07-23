@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -66,14 +66,18 @@ char restoreTree(uint    b,
                  uint   *treeID,
                  uint   *nodeID,
                  uint   *parmID,
-                 double *spltPT);
+                 double *contPT,
+                 uint   *mwcpSZ,
+                 uint   **mwcpPtr);
 void saveTree(uint    b,
               Node   *parent,
               uint   *offset,
               uint   *treeID,
               uint   *nodeID,
               uint   *parmID,
-              double *spltPT);
+              double *contPT,
+              uint   *mwcpSZ,
+              uint  **mwcpPtr);
 char testNodeSize(Node *parent);
 Node* getMembership(Node    *parent,
                     double **predictor,
@@ -101,7 +105,7 @@ void getMeanSurvivalTime(double *meanSurvivalTime,
 void updateEnsembleSurvivalTime(uint    mode, 
                                 uint    treeID, 
                                 double *meanSurvivalTime);
-void getVariableImportance(char     mode,
+void getVariableImportance(uint     mode,
                            uint     sortedTimeInterestSize,
                            uint     leafCount,
                            double **cumulativeHazard,
@@ -109,7 +113,7 @@ void getVariableImportance(char     mode,
                            Node    *rootPtr,
                            uint     b);
 void getVariablesUsed(Node *rootPtr, uint *varUsedPtr);
-void updateEnsembleEvents (char multipleImputeFlag,
+void updateEnsembleEvents (char      multipleImputeFlag,
                            uint      mode,
                            uint      sortedTimeInterestSize,
                            Node     *rootPtr,

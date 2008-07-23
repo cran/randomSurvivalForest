@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -57,6 +57,7 @@
 #include   "global.h"
 #include   "nrutil.h"
 #include   "node_ops.h"
+#include   "rsfFactorOps.h"
 #include   "rsfUtil.h"
 #include   "rsfImpute.h"
 extern uint getTraceFlag();
@@ -64,7 +65,7 @@ void imputeInteraction (uint treeID, Node *parent) {
   double *valuePtr, *imputePtr;
   uint unsignedIndex;
   uint i,p;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nimputeInteraction() ENTRY ...\n");
   }
   if (!(_fmRecordSize > 0)) {
@@ -98,7 +99,7 @@ void imputeInteraction (uint treeID, Node *parent) {
           if (_fmRecordMap[i] > 0) {
             if(_fmvSign[unsignedIndex][_fmRecordMap[i]] == 1) {
               imputePtr[i] = valuePtr[_intrObservation[i]];
-              if (getTraceFlag() & DL2_TRACE) {
+              if (getTraceFlag() & MISS_HGH_TRACE) {
                 Rprintf("\nImputed Interaction Value for:  ");
                 Rprintf("\n[indv, coord] = [%10d, %10d] \n", i, _fmvIndex[p]);
                 Rprintf("%12.4f \n", imputePtr[i]);
@@ -109,11 +110,11 @@ void imputeInteraction (uint treeID, Node *parent) {
       }  
     }  
   }  
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nimputeInteraction() EXIT ...\n");
   }
 }
-char imputeNode (char     type,
+char imputeNode (uint     type,
                  char     seedChainFlag,
                  uint     treeID, 
                  Node    *parent) {
@@ -135,7 +136,7 @@ char imputeNode (char     type,
   char result;
   uint i,p;
   uint localDistributionSize;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nimputeNode() ENTRY ...\n");
   }
   result = FALSE;
@@ -189,7 +190,7 @@ char imputeNode (char     type,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-   if (getTraceFlag() & DL2_TRACE) {
+   if (getTraceFlag() & MISS_LOW_TRACE) {
     if (type == RSF_GROW) {
       Rprintf("\nData for type GROW (before imputation) in leaf:  ");
     }
@@ -266,7 +267,7 @@ char imputeNode (char     type,
             if (mRecordMap[i] > 0) {
               if(mvSign[unsignedIndex][mRecordMap[i]] == 1) {
                 imputePtr[i] = getSampleValue(localDistribution, localDistributionSize, seedChainFlag);
-                if (getTraceFlag() & DL2_TRACE) {
+                if (getTraceFlag() & MISS_MED_TRACE) {
                   Rprintf("\nNode Imputed Value for:  ");
                   Rprintf("\n[indv, coord] = [%10d, %10d] \n", i, mvIndex[p]);
                   Rprintf("%12.4f \n", imputePtr[i]);
@@ -277,7 +278,7 @@ char imputeNode (char     type,
         }  
       }  
       else {
-        if (getTraceFlag() & DL2_TRACE) {
+        if (getTraceFlag() & MISS_MED_TRACE) {
           Rprintf("\nNode Value Not Imputable for:  ");
           Rprintf("\n[coord] = [%10d] \n", mvIndex[p]);
           Rprintf("\nPrevious value retained. \n");
@@ -286,7 +287,7 @@ char imputeNode (char     type,
     }  
   }  
   free_dvector(localDistribution, 1, _observationSize);
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     if (type == RSF_GROW) {
       Rprintf("\nData For GROW (after imputation) in leaf:  ");
     }
@@ -321,19 +322,17 @@ char imputeNode (char     type,
       }
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nimputeNode() EXIT ...\n");
   }
   return TRUE;
 }
-void imputeTree(char mode, uint b, Node *parent) {
+void imputeTree(uint mode, uint b, Node *parent, char rootFlag) {
+  char daughterFlag;
   char result;
   uint i;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nimputeTree() ENTRY ...\n");
-  }
-  if (getTraceFlag() & DL2_TRACE) {
-    Rprintf("\nImpute tree leaf:  %10d \n", parent -> leafCount);
   }
   switch (mode) {
   case RSF_GROW:
@@ -345,16 +344,16 @@ void imputeTree(char mode, uint b, Node *parent) {
     break;
   case RSF_PRED:
     if (_mRecordSize > 0) {
-      result = testNodeSize(parent);
+      result = (testNodeSize(parent) || (rootFlag == TRUE));
       if (result) {
         imputeNode(RSF_GROW, 
                    TRUE, 
                    b, 
                    parent);
-      }
         if (_mTimeIndexFlag == TRUE) {
           updateTimeIndexArray(parent);
         }
+      }
     }
     if (_fmRecordSize > 0) {
       imputeNode(RSF_PRED, 
@@ -365,12 +364,15 @@ void imputeTree(char mode, uint b, Node *parent) {
     break;
   case RSF_INTR:
     if (_mRecordSize > 0) {
-      result = testNodeSize(parent);
+      result = (testNodeSize(parent) || (rootFlag == TRUE));
       if (result) {
         imputeNode(RSF_GROW, 
                    TRUE, 
                    b, 
                    parent);
+        if (_mTimeIndexFlag == TRUE) {
+          updateTimeIndexArray(parent);
+        }
       }
     }
     if (_fmRecordSize > 0) {
@@ -386,20 +388,64 @@ void imputeTree(char mode, uint b, Node *parent) {
     break;
   }
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+    if (getTraceFlag() & MISS_LOW_TRACE) {
+      Rprintf("\nForking On:  ");
+      Rprintf("\n   LeafCnt   SpltParm  ");
+      Rprintf("\n%10d %10d ", parent -> leafCount, parent -> splitParameter);
+      if (parent -> splitValueFactSize > 0) {
+        for (i = parent -> splitValueFactSize; i >= 1; i--) {
+          Rprintf("%8x ", (parent -> splitValueFactPtr)[i]);
+        }
+        Rprintf("\n");
+      }
+      else {
+        Rprintf(" %20.4f \n", parent -> splitValueCont);
+      }
+    }
     for (i=1; i <= _observationSize; i++) {
       if (_nodeMembership[i] == parent) {
-        if ( _observation[parent -> splitParameter][i] <= (parent -> splitValue) ) {
+        daughterFlag = RIGHT;
+        if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
+          if (getTraceFlag() & MISS_LOW_TRACE) {
+            Rprintf("\nNode Membership:  %10d %16d", i, (uint) _observation[parent -> splitParameter][i]);
+          }
+          daughterFlag = splitOnFactor((uint) _observation[parent -> splitParameter][i], parent -> splitValueFactPtr);
+        }
+        else {
+          if (getTraceFlag() & MISS_LOW_TRACE) {
+            Rprintf("\nNode Membership:  %10d %16.4f, %16.4f", i, _observation[parent -> splitParameter][i], parent -> splitValueCont);
+          }
+          if ( _observation[parent -> splitParameter][i] <= (parent -> splitValueCont) ) {
+            daughterFlag = LEFT;
+          }
+        }
+        if (daughterFlag == LEFT) {
           _nodeMembership[i] = parent -> left;
+          if (getTraceFlag() & MISS_LOW_TRACE) {
+            Rprintf(" --> LEFT ");
+          }
         }
         else {
           _nodeMembership[i] = parent -> right;
+          if (getTraceFlag() & MISS_LOW_TRACE) {
+            Rprintf(" --> RGHT ");
+          }
         }
       }
     }
     if (mode != RSF_GROW) {
       for (i=1; i <= _fobservationSize; i++) {
         if (_fnodeMembership[i] == parent) {
-          if ( _fobservation[parent -> splitParameter][i] <= (parent -> splitValue) ) {
+          daughterFlag = RIGHT;
+          if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
+            daughterFlag = splitOnFactor((uint) _fobservation[parent -> splitParameter][i], parent -> splitValueFactPtr);
+          }
+          else {
+            if ( _fobservation[parent -> splitParameter][i] <= (parent -> splitValueCont) ) {
+              daughterFlag = LEFT;
+            }
+          }
+          if (daughterFlag == LEFT) {
             _fnodeMembership[i] = parent -> left;
           }
           else {
@@ -408,18 +454,18 @@ void imputeTree(char mode, uint b, Node *parent) {
         }
       }
     }
-    imputeTree(mode, b, parent -> left);
-    imputeTree(mode, b, parent -> right);
+    imputeTree(mode, b, parent -> left, FALSE);
+    imputeTree(mode, b, parent -> right, FALSE);
   }  
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nimputeTree() EXIT ...\n");
   }
 }
-void imputeUpdateSummary (char mode, 
-                   double *statusPtr, 
-                   double *timePtr, 
-                   double **predictorPtr, 
-                   double **dmvImputationPtr) {
+void imputeUpdateSummary (uint      mode, 
+                          double  *statusPtr, 
+                          double  *timePtr, 
+                          double **predictorPtr, 
+                          double **dmvImputationPtr) {
   uint     mRecordSize;
   uint    *mRecordIndex;
   uint     mvSize;
@@ -430,7 +476,7 @@ void imputeUpdateSummary (char mode,
   uint     obsSize;
   char result;
   uint i, p;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeUpdateSummary(%2d) ENTRY ...\n", mode);
   }
   result = FALSE;
@@ -463,7 +509,7 @@ void imputeUpdateSummary (char mode,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nShadowed data for tree:  ");
     Rprintf("\n       index       status         time observations -> \n");
     Rprintf("\n                                      ");
@@ -479,7 +525,6 @@ void imputeUpdateSummary (char mode,
       Rprintf("\n");
     }
     Rprintf("\nImputed Summary Data Structure For Tree (before update):  ");
-    Rprintf("\n     (nan) means 'missing but not imputable' or 'not missing'. \n");
     Rprintf("\n       index   imputation -> \n");
     Rprintf(  "          ");
     for (p=1; p <= mvSize; p++) {
@@ -550,9 +595,8 @@ void imputeUpdateSummary (char mode,
       }  
     }  
   }  
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nImputed Summary Data Structure For Tree (after update):  ");
-    Rprintf("\n     (nan) means 'missing but not imputable' or 'not missing'. \n");
     Rprintf("\n       index   imputation -> \n");
     Rprintf(  "          ");
     for (p=1; p <= mvSize; p++) {
@@ -567,11 +611,11 @@ void imputeUpdateSummary (char mode,
       Rprintf("\n");
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeUpdateSummary(%2d) EXIT ...\n", mode);
   }
 }
-void imputeUpdateShadow (char      mode, 
+void imputeUpdateShadow (uint      mode, 
                          char      selectionFlag,
                          double ***dmvImputation,
                          double   *shadowStatus, 
@@ -590,7 +634,7 @@ void imputeUpdateShadow (char      mode,
   uint unsignedIndex;
   char outcomeFlag;
   uint i, p;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nimputeUpdateShadow(%2d) ENTRY ...\n", mode);
   }
   mRecordSize  = 0;     
@@ -601,6 +645,9 @@ void imputeUpdateShadow (char      mode,
   outStatus    = NULL;  
   outTime      = NULL;  
   outPredictor = NULL;  
+  valuePtr     = NULL;  
+  outputPtr    = NULL;  
+  unsignedIndex = 0;    
   switch (mode) {
   case RSF_GROW:
     mRecordSize = _mRecordSize;
@@ -654,7 +701,7 @@ void imputeUpdateShadow (char      mode,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nImputed Shadow Data:  (before transfer)");
     Rprintf("\n       index   imputation -> \n");
     Rprintf(  "          ");
@@ -708,7 +755,7 @@ void imputeUpdateShadow (char      mode,
       if (outcomeFlag || (shadowPredictor != NULL)) {
         if (mvSign[unsignedIndex][i] == 1) {
           if (ISNA(outputPtr[i])) {
-            if (getTraceFlag() & DL2_TRACE) {
+            if (getTraceFlag() & MISS_MED_TRACE) {
               Rprintf("\nShadow Data Receiving NA from SEXP Output:  ");
               Rprintf("\n[indv, OUT/PRED] = [%10d, %10d] \n", mRecordIndex[i], mvIndex[p]);
             }
@@ -718,7 +765,7 @@ void imputeUpdateShadow (char      mode,
       }
     }  
   }  
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nImputed Shadow Data:  (after transfer)");
     Rprintf("\n       index   imputation -> \n");
     Rprintf(  "          ");
@@ -746,15 +793,15 @@ void imputeUpdateShadow (char      mode,
       Rprintf("\n");
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeUpdateShadow(%2d) EXIT ...\n", mode);
   }
 }
-void imputeSummary(char      mode,
+void imputeSummary(uint      mode,
                    char      selectionFlag,
                    char    **dmRecordBootFlag,
                    double ***dmvImputation) {
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeSummary(%2d) ENTRY ...\n", selectionFlag);
   }
   imputeCommon(mode,
@@ -763,17 +810,17 @@ void imputeSummary(char      mode,
                dmRecordBootFlag,
                dmvImputation,
                TRUE);
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeSummary(%2d) EXIT ...\n", selectionFlag);
   }
 }
-void imputeConcordance(char      mode,
+void imputeConcordance(uint      mode,
                        uint      b,
                        char    **dmRecordBootFlag,
                        double ***dmvImputation,
                        double   *tempStatus,
                        double   *tempTime) {
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeConcordance() ENTRY ...\n");
   }
   switch(mode) {
@@ -815,11 +862,11 @@ void imputeConcordance(char      mode,
                      tempStatus, 
                      tempTime, 
                      NULL);
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeConcordance() EXIT ...\n");
   }
 }
-void imputeCommon(char      mode,
+void imputeCommon(uint      mode,
                   uint      b,
                   char      selectionFlag,
                   char    **dmRecordBootFlag,
@@ -845,9 +892,12 @@ void imputeCommon(char      mode,
   uint localDistributionSize;
   uint maxDistributionSize;
   char result;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nimputeCommon(%2d) ENTRY ...\n", selectionFlag);
   }
+  valuePtr      = NULL;  
+  naivePtr      = NULL;  
+  unsignedIndex = 0;     
   if ((b < 1) || (b > _forestSize)) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Invalid tree count in imputeCommon():  %10d", b);
@@ -872,7 +922,7 @@ void imputeCommon(char      mode,
       mvSign = _mvSign;
       mvIndex = _mvIndex;
       mvForestSign = _mvForestSign;
-      maxDistributionSize = ((_observationSize) > (_forestSize))? (_observationSize):(_forestSize);
+      maxDistributionSize = ((_observationSize) > (_forestSize)) ? (_observationSize) : (_forestSize);
       if ((selectionFlag == TRUE) || (selectionFlag == ACTIVE)) {
         outStatus    = _sImputeStatusPtr;
         outTime      = _sImputeTimePtr;
@@ -894,7 +944,7 @@ void imputeCommon(char      mode,
       mvSign = _fmvSign;
       mvIndex = _fmvIndex;
       mvForestSign = _fmvForestSign;
-      maxDistributionSize = ((_observationSize) > (_forestSize))? (_observationSize):(_forestSize);
+      maxDistributionSize = ((_observationSize) > (_forestSize)) ? (_observationSize) : (_forestSize);
       outStatus    = _sImputeStatusPtr;
       outTime      = _sImputeTimePtr;
       outPredictor = _sImputePredictorPtr;
@@ -909,7 +959,7 @@ void imputeCommon(char      mode,
       mvSign = _fmvSign;
       mvIndex = _fmvIndex;
       mvForestSign = _fmvForestSign;
-      maxDistributionSize = ((_observationSize) > (_forestSize))? (_observationSize):(_forestSize);
+      maxDistributionSize = ((_observationSize) > (_forestSize)) ? (_observationSize) : (_forestSize);
       outStatus    = _sOOBImputeStatusPtr;
       outTime      = _sOOBImputeTimePtr;
       outPredictor = _sOOBImputePredictorPtr;
@@ -931,7 +981,7 @@ void imputeCommon(char      mode,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nOutputs (SEXP) (before update):  ");
     Rprintf("\n        index   imputation -> \n");
     Rprintf(  "             ");
@@ -1024,7 +1074,7 @@ void imputeCommon(char      mode,
             case CENS_IDX:
               imputedValue = getMaximalValue(localDistribution, localDistributionSize);
               outStatus[i] = imputedValue;
-              if (getTraceFlag() & DL3_TRACE) {
+              if (getTraceFlag() & MISS_MED_TRACE) {
                 Rprintf("\nSummary Imputed Value for:  ");
                 Rprintf("\n[indv, CENS] = [%10d, %10d] \n", mRecordIndex[i], mvIndex[p]);
                 Rprintf("%10d \n", (int) outStatus[i]);
@@ -1033,7 +1083,7 @@ void imputeCommon(char      mode,
             case TIME_IDX:
               imputedValue = getMeanValue(localDistribution, localDistributionSize);
               outTime[i] = imputedValue;
-              if (getTraceFlag() & DL3_TRACE) {
+              if (getTraceFlag() & MISS_MED_TRACE) {
                 Rprintf("\nSummary Imputed Value for:  ");
                 Rprintf("\n[indv, TIME] = [%10d, %10d] \n", mRecordIndex[i], mvIndex[p]);
                 Rprintf("%10d \n", (int) outTime[i]);
@@ -1047,7 +1097,7 @@ void imputeCommon(char      mode,
                 imputedValue = getMaximalValue(localDistribution, localDistributionSize);
               }
               outPredictor[(uint) mvIndex[p]][i] = imputedValue;
-              if (getTraceFlag() & DL3_TRACE) {
+              if (getTraceFlag() & MISS_MED_TRACE) {
                 Rprintf("\nSummary Imputed Value for:  ");
                 Rprintf("\n[indv, pred] = [%10d, %10d] \n", mRecordIndex[i], mvIndex[p]);
                 Rprintf("%12.4f \n", outPredictor[(uint) mvIndex[p]][i]);
@@ -1058,7 +1108,7 @@ void imputeCommon(char      mode,
           else {
             naiveMvFlag[p] = TRUE;
             naiveSign[i][p] = TRUE;
-            if (getTraceFlag() & DL2_TRACE) {
+            if (getTraceFlag() & MISS_MED_TRACE) {
               Rprintf("\n[Indv, Pred] requiring naive imputation:  (%10d, %10d) \n", mRecordIndex[i], p);
             }          
           }
@@ -1069,7 +1119,7 @@ void imputeCommon(char      mode,
       }
     }  
   }  
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nOutputs (SEXP) (before naive imputation):  ");
     Rprintf("\n       index   imputation -> \n");
     Rprintf(  "            ");
@@ -1097,7 +1147,7 @@ void imputeCommon(char      mode,
       Rprintf("\n");
     }
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nNaive Imputation Flag of Outcomes and Predictors:  ");
     Rprintf("\n     index flags -> \n");
     Rprintf(  "          ");
@@ -1170,7 +1220,7 @@ void imputeCommon(char      mode,
           for (i=1; i <= mRecordSize; i++) {
             if (naiveSign[i][p] == TRUE) {
               naivePtr[i] = getSampleValue(localDistribution, localDistributionSize, FALSE);
-              if (getTraceFlag() & DL3_TRACE) {
+              if (getTraceFlag() & MISS_MED_TRACE) {
                 Rprintf("\nSummary Imputed Value for:  ");
                 Rprintf("\n[indv, outcome/pred] = [%10d, %10d] \n", mRecordIndex[i], mvIndex[p]);
                 Rprintf("%12.4f \n", naivePtr[mRecordIndex[i]]);
@@ -1187,7 +1237,7 @@ void imputeCommon(char      mode,
       p = mvSize;
     }
   }  
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nOutputs (SEXP) (after naive imputation):  ");
     Rprintf("\n        index   imputation -> \n");
     Rprintf(  "             ");
@@ -1218,11 +1268,11 @@ void imputeCommon(char      mode,
   free_dvector(localDistribution, 1, maxDistributionSize);
   free_cvector(naiveMvFlag, 1, mvSize);
   free_cmatrix(naiveSign, 1, mRecordSize, 1, mvSize);
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nimputeCommon() EXIT ...\n");
   }
 }
-void unImpute (char mode) {
+void unImpute (uint mode) {
   double  *statusPtr;
   double  *timePtr;
   double **predictorPtr;
@@ -1235,7 +1285,7 @@ void unImpute (char mode) {
   uint unsignedIndex;
   char result;
   uint p, i;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nunImpute() ENTRY ...\n");
   }
   result = FALSE;
@@ -1303,7 +1353,7 @@ void unImpute (char mode) {
       }
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nunImpute() EXIT ...\n");
   }
 }
@@ -1312,14 +1362,14 @@ double getMaximalValue(double *value, uint size) {
   uint classCount, maximalClassSize, maximalClassCount;
   uint randomIndex;
   uint j;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetMaximalValue() ENTRY ...\n");
   }
   uint   *classSize  = uivector(1, size);
   for (j = 1; j <= size; j++) {
     classSize[j] = 0;
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMaximal Class Values (raw):  ");
     Rprintf("\n     index       value \n");
     for (j=1; j <= size; j++) {
@@ -1327,7 +1377,7 @@ double getMaximalValue(double *value, uint size) {
     }
   }
   hpsort(value, size);
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMaximal Class Values (sorted):  ");
     Rprintf("\n     index       value \n");
     for (j=1; j <= size; j++) {
@@ -1343,7 +1393,7 @@ double getMaximalValue(double *value, uint size) {
     }
     classSize[classCount] ++;
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMaximal Class Values (summary):  ");
     Rprintf("\n      size      value \n");
     for (j=1; j <= classCount; j++) {
@@ -1361,23 +1411,23 @@ double getMaximalValue(double *value, uint size) {
       maximalClassCount ++;
     }
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMaximal Class (size, number):  ");
     Rprintf("\n(%10d, %10d) \n", maximalClassSize, maximalClassCount);
   }
   if (maximalClassCount > 1) {
-    if (getTraceFlag() & DL3_TRACE) {
+    if (getTraceFlag() & MISS_HGH_TRACE) {
       Rprintf("\nUsing unchained generator to break class size tie. ");
     }
-    if (getTraceFlag() & DL3_TRACE) {
+    if (getTraceFlag() & MISS_HGH_TRACE) {
       Rprintf("\nMaximal value random seed for ran2():  %20d", *_seed2Ptr);
     }
-    randomIndex = ceil(ran2(_seed2Ptr)*((maximalClassCount)*1.0));
+    randomIndex = (uint) ceil(ran2(_seed2Ptr)*((maximalClassCount)*1.0));
   }
   else {
     randomIndex = 1;
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMaximal Class Random Index:  ");
     Rprintf("\n%10d \n", randomIndex);
   }
@@ -1389,12 +1439,12 @@ double getMaximalValue(double *value, uint size) {
     }
   }
   result = value[j];
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMaximal Class Value:  ");
     Rprintf("\n%10d \n", (int) result);
   }
   free_uivector(classSize, 1, size);
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetMaximalValue() EXIT ...\n");
   }
   return result;
@@ -1403,36 +1453,36 @@ double getMedianValue(double *value, uint size) {
   double result;
   uint medianIndex;
   uint j;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetMedianValue() ENTRY ...\n");
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMedian Values (raw):  \n");
     for (j=1; j <= size; j++) {
       Rprintf("%10d %12.4f \n", j, value[j]);
     }
   }
   hpsort(value, size);
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMedian Values (sorted):  \n");
     for (j=1; j <= size; j++) {
       Rprintf("%10d %12.4f \n", j, value[j]);
     }
   }
   if (size > 1) {
-    medianIndex = ceil(size/2);
+    medianIndex = (uint) ceil(size/2);
   }
   else {
     medianIndex = 1;
   }
   result = value[medianIndex];
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMedian Index Index:  ");
     Rprintf("\n%10d \n", medianIndex);
     Rprintf("\nMedian Value:  ");
     Rprintf("\n%12.4f \n", result);
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetMedianValue() EXIT ...\n");
   }
   return result;
@@ -1440,10 +1490,10 @@ double getMedianValue(double *value, uint size) {
 double getMeanValue(double *value, uint size) {
   double result;
   uint j;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetMeanValue() ENTRY ...\n");
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMean Values (raw):  \n");
     for (j=1; j <= size; j++) {
       Rprintf("%10d %12.4f \n", j, value[j]);
@@ -1454,11 +1504,11 @@ double getMeanValue(double *value, uint size) {
     result = result + value[j];
   }
   result = result / size;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nMean Value:  \n");
     Rprintf("%12.4f \n", result);
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetMeanValue() EXIT ...\n");
   }
   return result;
@@ -1466,28 +1516,28 @@ double getMeanValue(double *value, uint size) {
 double getSampleValue(double *value, uint size, char chainFlag) {
   uint randomIndex;
   uint j;
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetSampleValue() ENTRY ...\n");
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\nSample Values (raw):  \n");
     for (j=1; j <= size; j++) {
       Rprintf("%10d %12.4f \n", j, value[j]);
     }
   }
   if (chainFlag) {
-    if (getTraceFlag() & DL2_TRACE) {
+    if (getTraceFlag() & MISS_HGH_TRACE) {
       Rprintf("\nSample value random seed for ran1():  %20d", *_seed1Ptr);
     }
-    randomIndex = ceil(ran1(_seed1Ptr)*((size)*1.0));
+    randomIndex = (uint) ceil(ran1(_seed1Ptr)*((size)*1.0));
   }
   else {
-    if (getTraceFlag() & DL2_TRACE) {
+    if (getTraceFlag() & MISS_HGH_TRACE) {
       Rprintf("\nSample value random seed for ran2():  %20d", *_seed2Ptr);
     }
-    randomIndex = ceil(ran2(_seed2Ptr)*((size)*1.0));
+    randomIndex = (uint) ceil(ran2(_seed2Ptr)*((size)*1.0));
   }
-  if (getTraceFlag() & DL3_TRACE) {
+  if (getTraceFlag() & MISS_HGH_TRACE) {
     Rprintf("\ngetSampleValue() EXIT ...\n");
   }
   return value[randomIndex];
@@ -1497,9 +1547,12 @@ uint getRecordMap(uint *map,
                   double *status, 
                   double *time, 
                   double *data) {
-  uint i,p;
+  uint i, p;
   uint mSize;
   char mFlag;
+  if (getTraceFlag() & MISS_LOW_TRACE) {
+    Rprintf("\ngetRecordMap() ENTRY ...\n");
+  }
   mSize  = 0;
   for (i = 1; i <= size; i++) {
     mFlag = FALSE;
@@ -1529,12 +1582,24 @@ uint getRecordMap(uint *map,
       }
     }
   }
+  if (getTraceFlag() & MISS_LOW_TRACE) {
+    Rprintf("\nMapping of Individuals to Missing Record Index:  ");
+    Rprintf("\n  orgIndex     mIndex \n");
+    for (i = 1; i <= size; i++) {
+      if (map[i] != 0) {
+        Rprintf("%10d %10d \n", i, map[i]);
+      }
+    }
+  }
+  if (getTraceFlag() & MISS_LOW_TRACE) {
+    Rprintf("\ngetRecordMap() EXIT ...\n");
+  }
   return mSize;
 }
 char getForestSign (uint mode, uint b) {
   char result;
   uint i,p,q,m;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\ngetForestSign() ENTRY ...\n");
   }
   result = TRUE;
@@ -1599,7 +1664,7 @@ char getForestSign (uint mode, uint b) {
     if (m == _mvSize) {
       result = FALSE;
     }
-    if (getTraceFlag() & DL2_TRACE) {
+    if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\n\nGROW Individual Sample Signature For Tree:  %10d", b);
       Rprintf("\n bootIndex   signatures ->\n");
       Rprintf(  "            ");
@@ -1615,7 +1680,7 @@ char getForestSign (uint mode, uint b) {
         Rprintf("\n");
       }
     }
-    if (getTraceFlag() & DL2_TRACE) {
+    if (getTraceFlag() & MISS_LOW_TRACE) {
       Rprintf("\nGROW Missing Sample Signature For Tree:  %10d \n", b);
       Rprintf(  " Outcome or Predictor: ");
       for (p=1; p <= _mvSize; p++) {
@@ -1685,7 +1750,7 @@ char getForestSign (uint mode, uint b) {
           }
         }
       }  
-      if (getTraceFlag() & DL2_TRACE) {
+      if (getTraceFlag() & MISS_LOW_TRACE) {
         Rprintf("\nPRED Missing Signature For Tree:  %10d \n", b);
         Rprintf(  " Outcome or Predictor: ");
         for (p=1; p <= _fmvSize; p++) {
@@ -1700,14 +1765,14 @@ char getForestSign (uint mode, uint b) {
       }
     }  
   }  
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\ngetForestSign() EXIT ...\n");
   }
   return result;
 }
 void updateTimeIndexArray(Node *parent) {
   uint i,k;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nupdateTimeIndexArray() ENTRY ...\n");
   }
   for (i=1; i <= _observationSize; i++) {
@@ -1731,7 +1796,7 @@ void updateTimeIndexArray(Node *parent) {
       }
     }
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nMaster Time Index for node:  \n");
     Rprintf("\n      Indv      Index:  \n");
     for (i=1; i <= _observationSize; i++) {
@@ -1740,7 +1805,7 @@ void updateTimeIndexArray(Node *parent) {
       }
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     Rprintf("\nupdateTimeIndexArray() EXIT ...\n");
   }
 }

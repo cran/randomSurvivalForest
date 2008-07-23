@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,10 +58,12 @@
 #include <Rdefines.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <limits.h>
 #include <float.h>
+#include <math.h>
 #include <time.h>
 #include "node.h"
+#include "factor.h"
 #ifndef NULL
 #define NULL 0
 #endif
@@ -73,10 +75,26 @@
 #endif
 #define ACTIVE   0x02
 #define INACTIVE 0xFF
-#define DL0_TRACE 0x01
-#define DL1_TRACE 0x02
-#define DL2_TRACE 0x04
-#define DL3_TRACE 0x08
+#define LEFT      0x01
+#define RIGHT     0x00
+#define SUMM_USR_TRACE  0x0001
+#define SUMM_LOW_TRACE  0x0002
+#define SUMM_MED_TRACE  0x0004
+#define SUMM_HGH_TRACE  0x0008
+#define SPLT_LOW_TRACE  0x0010
+#define SPLT_MED_TRACE  0x0020
+#define SPLT_HGH_TRACE  0x0040
+#define FORK_DEF_TRACE  0x0080
+#define MISS_LOW_TRACE  0x0100
+#define MISS_MED_TRACE  0x0200
+#define MISS_HGH_TRACE  0x0400
+#define OUTP_DEF_TRACE  0x0800
+#define NUMR_DEF_TRACE  0x1000
+#define FACT_LOW_TRACE  0x2000
+#define FACT_HGH_TRACE  0x4000
+#define TIME_DEF_TRACE  0x8000
+#define TURN_OFF_TRACE  0x0000
+#define TURN_ON_TRACE   0x0001
 #define EPSILON 1.0e-7
 #define OPT_FENS      0x0001
 #define OPT_OENS      0x0002
@@ -105,21 +123,26 @@
 #define RSF_TREE_ID   7  
 #define RSF_NODE_ID   8  
 #define RSF_PARM_ID   9  
-#define RSF_SPLT_PT  10  
-#define RSF_SEED_ID  11  
-#define RSF_VIMP_ID  12  
-#define RSF_MISS_ID  13  
-#define RSF_OMIS_ID  14  
-#define RSF_VUSE_ID  15  
-#define RSF_SEXP_CNT 16  
-#define RSF_GROW 0x10
-#define RSF_PRED 0x20
-#define RSF_INTR 0x40
+#define RSF_CONT_PT  10  
+#define RSF_MWCP_SZ  11  
+#define RSF_MWCP_PT  12  
+#define RSF_SEED_ID  13  
+#define RSF_VIMP_ID  14  
+#define RSF_MISS_ID  15  
+#define RSF_OMIS_ID  16  
+#define RSF_VUSE_ID  17  
+#define RSF_SEXP_CNT 18  
+#define RSF_GROW 0x01
+#define RSF_PRED 0x02
+#define RSF_INTR 0x04
 #define LOG_RANK        1
 #define CONSERVE_EVENTS 2
 #define LOG_RANK_SCORE  3
-#define LOG_RANK_RANDOM 4
-#define RANDOM_SPLIT    5
-#define LOG_RANK_APPROX 6
+#define RANDOM_SPLIT    4
+#define APROX 0
+#define EXACT 1
+#define SIZE_OF_INTEGER sizeof(uint)
+#define MAX_EXACT_LEVEL SIZE_OF_INTEGER * 8
+#define SAFE_FACTOR_SIZE 16
 #define uint  unsigned int
 #define ulong unsigned long

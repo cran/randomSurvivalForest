@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -54,16 +54,17 @@
 //**********************************************************************
 //**********************************************************************
 
-#include    "global.h"
-#include    "nrutil.h"
-#include  "node_ops.h"
-#include "rsfImpute.h"
-#include  "rsfSplit.h"
-#include   "rsfUtil.h"
-#include   "rsfBootstrap.h"
-#include  "rsfStack.h"
-#include  "rsfEntry.h"
-#include       "rsf.h"
+#include       "global.h"
+#include       "nrutil.h"
+#include     "node_ops.h"
+#include "rsfFactorOps.h"
+#include    "rsfImpute.h"
+#include     "rsfSplit.h"
+#include      "rsfUtil.h"
+#include "rsfBootstrap.h"
+#include     "rsfStack.h"
+#include     "rsfEntry.h"
+#include          "rsf.h"
 uint stackCount;
 char *sexpString[RSF_SEXP_CNT] = {
   "",              
@@ -76,7 +77,9 @@ char *sexpString[RSF_SEXP_CNT] = {
   "treeID",        
   "nodeID",        
   "parmID",        
-  "spltPT",        
+  "contPT",        
+  "mwcpSZ",        
+  "mwcpPT",        
   "seed",          
   "importance",    
   "imputation",    
@@ -97,9 +100,12 @@ uint     *_varUsed_;
 uint     *_treeID_;
 uint     *_nodeID_;
 uint     *_parmID_;
-double   *_spltPT_;
+uint     *_mwcpSZ_;
+double   *_contPT_;
+uint     *_mwcpPT_;
 uint      _opt;
 uint      _splitRule;
+uint      _splitRandomRule;
 uint      _imputeSize;
 uint      _forestSize;
 uint      _minimumDeathCount;
@@ -127,6 +133,16 @@ double   *_masterTime;
 uint     *_masterTimeIndex;
 uint      _masterTimeSize;
 char     *_importanceFlag;
+uint      _factorCount;
+uint     *_factorMap;
+uint     *_factorIndex;
+uint     *_factorSize;
+uint      _maxFactorLevel;
+Factor  **_factorList;
+uint      _mFactorSize;
+uint      _fmFactorSize;
+uint     *_mFactorIndex;
+uint     *_fmFactorIndex;
 char      _mTimeIndexFlag; 
 uint     *_mRecordMap;
 uint     *_fmRecordMap;
@@ -159,6 +175,7 @@ double  *_sOOBImputeStatusPtr;
 double  *_sOOBImputeTimePtr;
 double **_sOOBImputePredictorPtr;
 uint   **_varUsedPtr;
+uint      _totalMWCPCount;
 int      *_seed1Ptr;
 int      *_seed2Ptr;
 Node    **_nodeMembership;
@@ -168,6 +185,15 @@ uint     *_oobSampleSize;
 Node    **_fnodeMembership;
 char     *_fbootMembershipFlag;
 uint     *_foobSampleSize;
+double   _splitValueMaxCont;
+uint     _splitValueMaxFactSize;
+uint    *_splitValueMaxFactPtr;
+clock_t _benchTime;
+clock_t _splitTime;
+clock_t _hazrdTime;
+clock_t _ensblTime;
+clock_t _vimprTime;
+clock_t _cindxTime;
 uint      _traceFlagDiagLevel;
 uint      _traceFlagIterValue;
 uint      _traceFlagToggler;
@@ -194,47 +220,27 @@ void updateTraceFlag(char reset) {
     }
   }
 }
-char getBestSplit(
-  Node    *parent,
-  uint    *splitParameterMax,
-  double  *splitValueMax) { 
-  char result;
-  if (getTraceFlag() & DL1_TRACE) {
+char getBestSplit(Node *parent, 
+                  uint *splitParameterMax) {
+  char  result;
+  if (getTraceFlag() & SPLT_LOW_TRACE) {
     Rprintf("\ngetBestSplit() ENTRY ...\n");
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & SPLT_LOW_TRACE) {
     Rprintf("\nAttempting to split node:  %10d", parent -> leafCount);
   }
   switch(_splitRule) {
   case LOG_RANK:
-    result = logRank(parent,
-                     splitParameterMax,
-                     splitValueMax);
+    result = logRank(parent, splitParameterMax);
     break;
   case CONSERVE_EVENTS:
-    result = conserveEvents(parent,
-                            splitParameterMax,
-                            splitValueMax);
+    result = conserveEvents(parent, splitParameterMax);
     break;
   case LOG_RANK_SCORE:
-    result = logRankScore(parent,
-                          splitParameterMax,
-                          splitValueMax);
-    break;
-  case LOG_RANK_APPROX:
-    result = logRankApprox(parent,
-                           splitParameterMax,
-                           splitValueMax);
+    result = logRankScore(parent, splitParameterMax);
     break;
   case RANDOM_SPLIT:
-    result = randomSplit(parent,
-                         splitParameterMax,
-                         splitValueMax);
-    break;
-  case LOG_RANK_RANDOM:
-    result = logRankRandom(parent,
-                           splitParameterMax,
-                           splitValueMax);
+    result = randomSplit(parent, splitParameterMax);
     break;
 default:
     Rprintf("\nRSF:  *** ERROR *** ");
@@ -244,32 +250,91 @@ default:
     exit(TRUE);
     break;
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & SPLT_LOW_TRACE) {
     Rprintf("\ngetBestSplit() EXIT ...\n");
   }
   return result;
 }
 char forkAndUpdate(uint  *leafCount,
                    Node  *parent,
-                   uint   splitParameter,
-                   double splitValue) {
+                   uint   splitParameter) {
+  char factorFlag;
+  char daughterFlag;
   uint i;
   char result;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & FORK_DEF_TRACE) {
     Rprintf("\nforkAndUpdate() ENTRY ...\n");
   }
-  result = forkNode(parent, splitParameter, splitValue);
+  result = forkNode(parent, splitParameter);
   if (result == TRUE) {
+    if (getTraceFlag() & FORK_DEF_TRACE) {
+      Rprintf("\nForking On:  ");
+      Rprintf("\n   LeafCnt   SpltParm  ");
+      Rprintf("\n%10d %10d ", parent -> leafCount, parent -> splitParameter);
+      if (parent -> splitValueFactSize > 0) {
+        for (i = parent -> splitValueFactSize; i >= 1; i--) {
+          Rprintf("%8x ", (parent -> splitValueFactPtr)[i]);
+        }
+        Rprintf("\n");
+      }
+      else {
+        Rprintf(" %20.4f \n", parent -> splitValueCont);
+      }
+    }
     (*leafCount)++;
+    factorFlag = FALSE;
+    if (strcmp(_xType[splitParameter], "C") == 0) {
+      factorFlag = TRUE;
+      _totalMWCPCount += parent -> splitValueFactSize;
+    }
     for (i = 1; i <= _observationSize; i++) {
       if (_nodeMembership[i] == parent) {
-        if (_observation[splitParameter][i] <= splitValue) {
+        daughterFlag = RIGHT;
+        if (factorFlag == TRUE) {
+          if (_observation[splitParameter][i] != 0) {
+            daughterFlag = splitOnFactor((uint) _observation[splitParameter][i], _splitValueMaxFactPtr);
+            if (getTraceFlag() & FORK_DEF_TRACE) {
+              Rprintf("\nNode Membership:  %10d %16d", i, (uint) _observation[splitParameter][i]);
+            }
+          }
+          else {
+            Rprintf("\nRSF:  *** ERROR *** ");
+            Rprintf("\nRSF:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", i, splitParameter);
+            Rprintf("\nRSF:  Please Contact Technical Support.");
+            Rprintf("\nRSF:  The application will now exit.\n");
+            exit(TRUE);
+          }
+        }
+        else {
+          if (_observation[splitParameter][i] != NA_REAL) {
+            if (getTraceFlag() & FORK_DEF_TRACE) {
+              Rprintf("\nNode Membership:  %10d %16.4f, %16.4f", i, _observation[splitParameter][i], _splitValueMaxCont);
+            }
+            if (_observation[splitParameter][i] <= _splitValueMaxCont) {
+              daughterFlag = LEFT;
+            }
+          }
+          else {
+            Rprintf("\nRSF:  *** ERROR *** ");
+            Rprintf("\nRSF:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", i, splitParameter);
+            Rprintf("\nRSF:  Please Contact Technical Support.");
+            Rprintf("\nRSF:  The application will now exit.\n");
+            exit(TRUE);
+          }
+        }
+        if (daughterFlag == LEFT) {
           _nodeMembership[i] = parent -> left;
           ((parent -> left) -> leafCount) = (parent -> leafCount);
+          if (getTraceFlag() & FORK_DEF_TRACE) {
+            Rprintf(" --> LEFT ");
+          }
         }
         else {
           _nodeMembership[i] = parent -> right;
           ((parent -> right) -> leafCount) = *leafCount;
+          if (getTraceFlag() & FORK_DEF_TRACE) {
+            Rprintf(" --> RGHT ");
+          }
         }
       }
     }
@@ -281,7 +346,7 @@ char forkAndUpdate(uint  *leafCount,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & FORK_DEF_TRACE) {
     Rprintf("\nforkAndUpdate() EXIT ...\n");
   }
   return result;
@@ -291,22 +356,21 @@ char makeTree (char     multipleImputeFlag,
                Node    *parent) {
   char result;
   uint   splitParameterMax;
-  double splitValueMax;
   uint i;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nmakeTree() ENTRY ...\n");
   }
   result = TRUE;
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nMake tree leaf:  %10d \n", parent -> leafCount);
   }
   if (multipleImputeFlag == FALSE) {
     if (_mRecordSize > 0) {
-      result = testNodeSize(parent);
+      result = (testNodeSize(parent) || (_leafCount_[b] == 1));
       if (result) {
         imputeNode(RSF_GROW,
                    TRUE,
-                   b, 
+                   b,
                    parent);
         if (_mTimeIndexFlag == TRUE) {
           updateTimeIndexArray(parent);
@@ -315,28 +379,25 @@ char makeTree (char     multipleImputeFlag,
     }
   }
   if (result == TRUE) {
-    result = getBestSplit(parent,
-                          & splitParameterMax,
-                          & splitValueMax);
+    result = getBestSplit(parent, & splitParameterMax);
     if (result == TRUE) {
       result = forkAndUpdate(_leafCount_ + b,
                              parent,
-                             splitParameterMax,
-                             splitValueMax);
+                             splitParameterMax);
       if (result == TRUE) {
-        if (getTraceFlag() & DL2_TRACE) {
+        if (getTraceFlag() & SUMM_HGH_TRACE) {
           Rprintf("\nNode Membership:  \n");
           for (i=1; i <=  _observationSize; i++) {
             Rprintf("%10d %10d \n", i, _nodeMembership[i] -> leafCount);
           }
         }
-        if (getTraceFlag() & DL1_TRACE) {
+        if (getTraceFlag() & SUMM_HGH_TRACE) {
           Rprintf("\nmakeTree() LEFT:  \n");
         }
         makeTree (multipleImputeFlag,
                   b,
                   parent -> left);
-        if (getTraceFlag() & DL1_TRACE) {
+        if (getTraceFlag() & SUMM_HGH_TRACE) {
           Rprintf("\nmakeTree() RIGHT:  \n");
         }
         makeTree (multipleImputeFlag,
@@ -353,18 +414,18 @@ char makeTree (char     multipleImputeFlag,
     }  
     else {
       parent -> splitFlag = FALSE;
-      if (getTraceFlag() & DL1_TRACE) {
+      if (getTraceFlag() & SUMM_HGH_TRACE) {
         Rprintf("\ngetBestSplit() FAILED ...\n");
       }
     }
   }  
   else {
     parent -> splitFlag = FALSE;
-    if (getTraceFlag() & DL1_TRACE) {
+    if (getTraceFlag() & SUMM_HGH_TRACE) {
       Rprintf("\ntestMinimumDeath() FAILED ...\n");
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nmakeTree() EXIT ...\n");
   }
   return result;
@@ -389,20 +450,27 @@ SEXP rsf(char mode, uint traceFlag) {
   uint    *ensembleDenPtr;
   double concordanceIndex;
   int concordancePolarity;
+  uint **mwcpPtr;
   char result;
-  clock_t    start;
-  clock_t    now;
   uint i, j, k, b, r;
-  statusPtr = NULL;     
-  timePtr   = NULL;     
+  clock_t totalTime, startTime;
+  statusPtr    = NULL;  
+  timePtr      = NULL;  
   predictorPtr = NULL;  
-  _traceFlagDiagLevel = (traceFlag | mode) & 0xFF;
-  _traceFlagIterValue = traceFlag >> 8;
+  mwcpPtr      = NULL;  
+  _benchTime  = 0;
+  _splitTime  = 0;
+  _hazrdTime  = 0;
+  _ensblTime  = 0;
+  _vimprTime  = 0;
+  _cindxTime  = 0;
+  _traceFlagDiagLevel = traceFlag & 0xFFFF;
+  _traceFlagIterValue = traceFlag >> 16;
   updateTraceFlag(TRUE);
-  if (getTraceFlag() & DL0_TRACE) {
+  if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Native code rsf() entry. \n");
   }
-  start = clock();
+  startTime = clock();
   if (_imputeSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
@@ -433,11 +501,12 @@ SEXP rsf(char mode, uint traceFlag) {
     Rprintf("\nRSF:  Number of parameters must be greater than zero:  %10d \n", _xSize);
     return R_NilValue;
   }
-  if (getTraceFlag() & DL0_TRACE) {
+  if (getTraceFlag() & SUMM_USR_TRACE) {
     switch (mode) {
     case RSF_GROW:
       Rprintf("\nRSF:  Mode is GROW.");
       Rprintf("\nRSF:  Split rule is:               %10d", _splitRule);
+      Rprintf("\nRSF:  Split random rule is:        %10d", _splitRandomRule);
       Rprintf("\nRSF:  Number of GROW individuals:  %10d", _observationSize);
       Rprintf("\nRSF:  Number of impute iterations: %10d", _imputeSize);
       break;
@@ -480,6 +549,7 @@ SEXP rsf(char mode, uint traceFlag) {
     break;
   }
   initializeArrays(mode, &sortedTimeInterestSize);
+  stackFactorArrays(mode);
   result =  stackMissingArrays(mode,
                                & dmRecordBootFlag,
                                & dmvImputation);
@@ -521,20 +591,23 @@ SEXP rsf(char mode, uint traceFlag) {
   }
   ran2(_seed2Ptr);
   ran2(_seed2Ptr);
-  *_seed2Ptr = -abs(*_seed2Ptr);
-  if (getTraceFlag() & DL2_TRACE) {
+  *_seed2Ptr = -abs(*_seed2Ptr) * 251;
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nStart of random seed chain ran1():  %20d", *_seed1Ptr);
     Rprintf("\nStart of random seed chain ran2():  %20d", *_seed2Ptr);
   }
   if (mode == RSF_GROW) {
-    forestNodeCounter = 0;
+    if (_opt & OPT_TREE) {
+      _totalMWCPCount = 0;
+    }
   }
   else {
     forestNodeCounter = 1;
+    mwcpPtr = & _mwcpPT_;
   }
   multipleImputeFlag = FALSE;
   for (r = 1; r <= _imputeSize; r++) {
-    if (getTraceFlag() & DL1_TRACE) {
+    if (getTraceFlag() & SUMM_LOW_TRACE) {
       if (mode == RSF_GROW) {
         Rprintf("\nStart of impute iteration:  %10d", r);
       }
@@ -554,18 +627,18 @@ SEXP rsf(char mode, uint traceFlag) {
       if (b == _forestSize) {
         updateTraceFlag(TRUE);
       }
-      if (getTraceFlag() & DL1_TRACE) {
+      if (getTraceFlag() & SUMM_LOW_TRACE) {
         Rprintf("\nStart of iteration:  (%10d, %10d)", r, b);
       }
-      if (getTraceFlag() & DL2_TRACE) {
+      if (getTraceFlag() & SUMM_MED_TRACE) {
         Rprintf("\nTree random seed ran1():  %20d", *_seed1Ptr);
         Rprintf("\nTree random seed ran2():  %20d", *_seed2Ptr);
       }
       if (FALSE) {
         unImpute (mode);
       }
-        if (mode == RSF_GROW) {
-          if (_imputeSize > 1) {
+      if (mode == RSF_GROW) {
+        if (_imputeSize > 1) {
           if (r == 2) {
             if (_mRecordSize > 0) {
               imputeUpdateShadow(RSF_GROW, 
@@ -592,13 +665,16 @@ SEXP rsf(char mode, uint traceFlag) {
       rootPtr -> parent = rootPtr;
       rootPtr -> left  = NULL;
       rootPtr -> right = NULL;
-      rootPtr -> splitValue      = NA_REAL;
-      rootPtr -> splitParameter  = 0;
-      rootPtr -> splitFlag       = TRUE;
+      rootPtr -> splitFlag          = TRUE;
+      rootPtr -> mortality          = NA_REAL;
+      rootPtr -> splitParameter     = 0;
+      rootPtr -> splitValueCont     = NA_REAL;
+      rootPtr -> splitValueFactSize = 0;
+      rootPtr -> splitValueFactPtr  = NULL;
+      rootPtr -> leafCount          = 1;
       for (i = 1; i <= _xSize; i++) {
         (rootPtr -> permissibleSplit)[i] = TRUE;
       }
-      rootPtr -> leafCount = 1;
       if ((_opt & OPT_TREE) && (r == _imputeSize)) {
         root[b] = rootPtr;
       }
@@ -610,16 +686,20 @@ SEXP rsf(char mode, uint traceFlag) {
                             dmRecordBootFlag); 
         if (result) {
           _leafCount_[b] = 1;
-          if (getTraceFlag() & DL1_TRACE) {
+          if (getTraceFlag() & SUMM_LOW_TRACE) {
             Rprintf("\nStart of makeTree():  (%10d, %10d)", r, b);
           }
-          makeTree (multipleImputeFlag,
-                    b, 
-                    rootPtr);
-          if (getTraceFlag() & DL1_TRACE) {
+          if (getTraceFlag() & TIME_DEF_TRACE) {
+            _benchTime = clock();
+          }
+          makeTree (multipleImputeFlag, b, rootPtr);
+          if (getTraceFlag() & TIME_DEF_TRACE) {
+            _splitTime = _splitTime + (clock() - _benchTime);
+          }
+          if (getTraceFlag() & SUMM_LOW_TRACE) {
             Rprintf("\nEnd of makeTree():  (%10d, %10d)", r, b);
           }
-          if (getTraceFlag() & DL0_TRACE) {
+          if (getTraceFlag() & SUMM_USR_TRACE) {
             Rprintf("\nRSF:  Tree construction complete:  (%10d, %10d)", r, b);  
             Rprintf("\nRSF:  Final leaf count:  %10d\n", _leafCount_[b]);
           }
@@ -630,7 +710,7 @@ SEXP rsf(char mode, uint traceFlag) {
           }  
         }  
         else {
-          if (getTraceFlag() & DL0_TRACE) {
+          if (getTraceFlag() & SUMM_USR_TRACE) {
             Rprintf("\nRSF:  Tree rejected:  %10d", b);  
           }
         }
@@ -643,11 +723,11 @@ SEXP rsf(char mode, uint traceFlag) {
                             dmRecordBootFlag); 
         if (result) {
           _leafCount_[b] = 1;
-          if ((getTraceFlag() & RSF_PRED) && (getTraceFlag() & DL2_TRACE)) {
+          if ((mode == RSF_PRED) && (getTraceFlag() & SUMM_MED_TRACE)) {
             Rprintf("\nIncoming Tree:  ");
             Rprintf("\n      tree       parm       node         splt \n");
           }
-          if (getTraceFlag() & DL1_TRACE) {
+          if (getTraceFlag() & SUMM_LOW_TRACE) {
             Rprintf("\nStart of restore process:  (%10d, %10d)", r, b);
           }
           restoreTree(b,
@@ -657,42 +737,63 @@ SEXP rsf(char mode, uint traceFlag) {
                       _treeID_,
                       _nodeID_,
                       _parmID_,
-                      _spltPT_);
-          if (getTraceFlag() & DL1_TRACE) {
+                      _contPT_,
+                      _mwcpSZ_,
+                      mwcpPtr);
+          if (getTraceFlag() & SUMM_LOW_TRACE) {
             Rprintf("\nEnd of restore process:  (%10d, %10d)", r, b);
           }
-          if (getTraceFlag() & DL0_TRACE) {
+          if (getTraceFlag() & SUMM_USR_TRACE) {
             Rprintf("\nRSF:  Tree construction complete:  (%10d, %10d)", r, b);  
             Rprintf("\nRSF:  Final leaf count:  %10d\n", _leafCount_[b]);
           }
-          imputeTree(mode, b, rootPtr);
+          imputeTree(mode, b, rootPtr, TRUE);
           if (_mTimeIndexFlag == TRUE) {
             updateTimeIndexArray(NULL);
           }
         }  
         else {
           forestNodeCounter ++;
-          if (getTraceFlag() & DL0_TRACE) {
+          if (getTraceFlag() & SUMM_USR_TRACE) {
             Rprintf("\nRSF:  Tree rejected:  %10d", b);  
           }
         }
       }  
       if (result) {
-        if (getTraceFlag() & DL2_TRACE) {
+        if (getTraceFlag() & SUMM_MED_TRACE) {
           Rprintf("\nFinal GROW Membership (all data):  %10d", b);
           Rprintf("\n     index       leaf  bootIndex\n");
           for (i=1; i <=  _observationSize; i++) {
             Rprintf("%10d %10d %10d \n", i, _nodeMembership[i] -> leafCount, _bootMembershipIndex[i]);
           }
+          uint *tnmCount = uivector(1, _leafCount_[b]);
+          uint *deathCount = uivector(1, _leafCount_[b]);
+          Rprintf("\nFinal GROW Diagnostics (in-bag data):  %10d", b);
+          Rprintf("\n      leaf   tnmCount deathCount\n");
+          for (i=1; i <= _leafCount_[b]; i++) {
+            tnmCount[i] = 0;
+            deathCount[i] = 0;
+          }
+          for (i=1; i <= _observationSize; i++) {
+            tnmCount[_nodeMembership[_bootMembershipIndex[i]] -> leafCount] ++;
+            if (_status[_bootMembershipIndex[i]] == 1) {
+              deathCount[_nodeMembership[_bootMembershipIndex[i]] -> leafCount] ++;
+            }
+          }
+          for (i=1; i <= _leafCount_[b]; i++) {
+            Rprintf("%10d %10d %10d \n", i, tnmCount[i], deathCount[i]);
+          }
+          free_uivector(tnmCount, 1, _leafCount_[b]);
+          free_uivector(deathCount, 1, _leafCount_[b]);
         }
-        if ((getTraceFlag() & RSF_PRED) && (getTraceFlag() & DL2_TRACE)) {
+        if ((mode == RSF_PRED) && (getTraceFlag() & SUMM_MED_TRACE)) {
           Rprintf("\nFinal PRED Membership (all data):  %10d", b);
           Rprintf("\n     index       leaf\n");
           for (i=1; i <=  _fobservationSize; i++) {
             Rprintf("%10d %10d \n", i, _fnodeMembership[i] -> leafCount);
           }
         }
-        if ((getTraceFlag() & RSF_INTR) && (getTraceFlag() & DL2_TRACE)) {
+        if ((mode == RSF_INTR) && (getTraceFlag() & SUMM_MED_TRACE)) {
           Rprintf("\nFinal INTR Membership (all data):  %10d", b);
           Rprintf("\n     index       leaf\n");
           for (i=1; i <=  _fobservationSize; i++) {
@@ -723,7 +824,7 @@ SEXP rsf(char mode, uint traceFlag) {
                 }
               }
             }
-            if (getTraceFlag() & DL0_TRACE) {
+            if (getTraceFlag() & SUMM_USR_TRACE) {
               Rprintf("\nRSF:  Proximity calculation complete.");  
             }
           }  
@@ -784,7 +885,11 @@ SEXP rsf(char mode, uint traceFlag) {
       if (!(_opt & OPT_TREE) || !(r == _imputeSize)) {
         freeTree(rootPtr);
       }
-      if (getTraceFlag() & DL1_TRACE) {
+      if (getTraceFlag() & TIME_DEF_TRACE) {
+        totalTime = clock() - startTime;
+        Rprintf("\n %20d %20d %20d %20d %20d %20d", _splitTime, _hazrdTime, _ensblTime, _vimprTime, _cindxTime, totalTime);
+      }
+      if (getTraceFlag() & SUMM_LOW_TRACE) {
         Rprintf("\nEnd of iteration:    (%10d, %10d)", r, b);
       }
       updateTraceFlag(FALSE);
@@ -810,10 +915,8 @@ SEXP rsf(char mode, uint traceFlag) {
         }  
       }  
     } 
-    if (getTraceFlag() & DL1_TRACE) {
-      if (getTraceFlag() & DL1_TRACE) {
-        Rprintf("\nEnd of impute iteration:  %10d", r);
-      }
+    if (getTraceFlag() & SUMM_LOW_TRACE) {
+      Rprintf("\nEnd of impute iteration:  %10d", r);
     }
   }  
   if (FALSE) {
@@ -828,7 +931,7 @@ SEXP rsf(char mode, uint traceFlag) {
       k ++;
     }
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nFinal Tree Leaf Counts:  ");
     Rprintf("\n         tree    leafCount");
     for (b = 1; b <= _forestSize; b++) {
@@ -836,12 +939,12 @@ SEXP rsf(char mode, uint traceFlag) {
     }
     Rprintf("\n");
   }
-  if (getTraceFlag() & DL0_TRACE) {
+  if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Trees rejected:  %10d ", rejectedTreeCount);
     Rprintf("\nRSF:  Trees stumped:   %10d ", k);
     Rprintf("\nRSF:  Trees (total):   %10d \n", _forestSize);
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
     if (_opt & OPT_PROX) {
       Rprintf("\nProximity Matrix:  \n");
       k = 0;
@@ -960,7 +1063,7 @@ SEXP rsf(char mode, uint traceFlag) {
             _vimpEnsembleRun[k][i] = _vimpEnsembleRun[k][i] / ensembleDenPtr[i];
           }
         }
-        if (getTraceFlag() & DL1_TRACE) {
+        if (getTraceFlag() & SUMM_LOW_TRACE) {
           Rprintf("\nConcordance Calculation for VIMP (covariate):  %10d", k);  
         }
         if (concordanceImputeFlag == TRUE) {
@@ -984,7 +1087,7 @@ SEXP rsf(char mode, uint traceFlag) {
           _importance_[k] = 1 - concordanceIndex;
         }
       }
-      if (getTraceFlag() & DL0_TRACE) {
+      if (getTraceFlag() & SUMM_USR_TRACE) {
         Rprintf("\nRSF:  Variable Importance Measure: \n");
         Rprintf("          ");  
         for (k=1; k <= varSize; k++) {
@@ -1027,7 +1130,7 @@ SEXP rsf(char mode, uint traceFlag) {
         }
       }
     }
-    if (getTraceFlag() & DL0_TRACE) {
+    if (getTraceFlag() & SUMM_USR_TRACE) {
       Rprintf("\nRSF:  Ensemble outputs finalized. \n");
     }
   }  
@@ -1050,30 +1153,38 @@ SEXP rsf(char mode, uint traceFlag) {
   }
   sexpIndex = 
     stackVariableOutputObjects(forestNodeCounter,  
+                               _totalMWCPCount,    
                                & _treeID_,         
                                & _nodeID_,         
                                & _parmID_,         
-                               & _spltPT_,         
+                               & _contPT_,         
+                               & _mwcpSZ_,         
+                               & _mwcpPT_,         
                                sexpIndex, 
                                sexpString,
                                sexpVector);
   if (mode == RSF_GROW) {
     if (_opt & OPT_TREE) {
+      mwcpPtr = & _mwcpPT_;
       forestNodeCounter = 1;
       for (b = 1; b <= _forestSize; b++) {
-        saveTree(b, root[b], & forestNodeCounter, _treeID_, _nodeID_, _parmID_, _spltPT_);
+        saveTree(b, 
+                 root[b], 
+                 & forestNodeCounter, 
+                 _treeID_, 
+                 _nodeID_, 
+                 _parmID_, 
+                 _contPT_,
+                 _mwcpSZ_,
+                 mwcpPtr);
       }
       forestNodeCounter --;
-      if (getTraceFlag() & DL3_TRACE) {
+      if (getTraceFlag() & SUMM_HGH_TRACE) {
         Rprintf("\nGrown Forest Node Count:  %10d", forestNodeCounter);
         Rprintf("\nGrown Forest Output:  ");
-        Rprintf("\n   TREE_ID    NODE_ID    PARM_ID      SPLT_PT");
+        Rprintf("\n    treeID     nodeID     parmID       contPT     mwcpSZ \n");
         for (i = 1; i <= forestNodeCounter; i++) {
-          Rprintf("\n%10d %10d %10d %12.4f",
-                  _treeID_[i],
-                  _nodeID_[i],
-                  _parmID_[i],
-                  _spltPT_[i]);
+          Rprintf("%10d %10d %10d %12.4f %10d \n", _treeID_[i], _nodeID_[i], _parmID_[i], _contPT_[i], _mwcpSZ_[i]);
         }
         Rprintf("\n");
         Rprintf("\nGrown Forest Membership by Observation:  ");
@@ -1097,12 +1208,16 @@ SEXP rsf(char mode, uint traceFlag) {
   unstackMissingArrays(mode,
                        dmRecordBootFlag,
                        dmvImputation);
+  unstackFactorArrays(mode);
   unstackDefinedOutputObjects(mode,
                               sortedTimeInterestSize,
                               root);
-  if (getTraceFlag() & DL0_TRACE) {
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    totalTime = clock() - startTime;
+    Rprintf("\n %20d %20d %20d %20d %20d %20d", _splitTime, _hazrdTime, _ensblTime, _vimprTime, _cindxTime, totalTime);
+  }
+  if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Native code rsf() exit. \n");
-    now = updateTimeStamp(start);
   }
   UNPROTECT(stackCount + 2);
   return sexpVector[RSF_OUTP_ID];

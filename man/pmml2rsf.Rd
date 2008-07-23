@@ -1,20 +1,19 @@
-\name{rsf_to_pmml}
-\alias{rsf_to_pmml}
-\title{Save Random Survival Forest As PMML}
+\name{pmml2rsf}
+\alias{pmml2rsf}
+\title{Restore Random Survival Forest From PMML}
 \description{
-    \code{rsf_to_pmml} implements the Predictive Model Markup
+    \code{pmml2rsf} implements the Predictive Model Markup
     Language specification for a \pkg{randomSurvivalForest} forest
-    object.  In particular, this function gives the user the ability to save the geometry of a
-    forest as a PMML XML document.
+    object.  In particular, this function gives the user the ability to
+    restore the geometry of a forest from a PMML XML document.
 }
 \usage{
-    rsf_to_pmml(rsfForest, ...)
+    pmml2rsf(pmmlRoot, ...)
 }
 \arguments{
-    \item{rsfForest}{The \code{forest} object contained in an object of class
-      \pkg{randomSurvivalForest}, as that contained in the object
-      returned by the function \code{rsf} with the parameter
-      \dQuote{forest=TRUE}.}
+    \item{pmmlRoot}{The top-level \dQuote{XMLNode} object, or
+      equivalently the root node, resulting from parsing an XML
+      document.  This node must be of type PMML.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -24,32 +23,28 @@
   information about PMML and the Data Mining Group can be found at
   http://www.dmg.org.  
 
-  Use of PMML and \code{rsf_to_pmml} requires the \pkg{XML} package.  Be
+  Use of PMML and \code{pmml2rsf} requires the \pkg{XML} package.  Be
   aware that XML is a very verbose data format.  Reasonably sized trees
   and data sets can lead to extremely large text files.  XML, while
   achieving interoperability, is not an efficient data storage mechanism
   in this case.
 
-  It is anticipated that \code{rsf_to_pmml} will be used to export the
-  geometry of the forest to other PMML compliant applications, including
-  graphics packages that are capable of printing binary trees.  In
-  addition, the user may wish to save the geometry of the forest for later
-  retrieval and prediction on new data sets using \code{rsf_to_pmml}
-  together with \code{pmml_to_rsf}.
+  It is anticipated that \code{pmml2rsf} will be used to import the
+  geometry of a forest from other PMML compliant applications.  In
+  addition, the user may wish to restore the geometry of a forest that
+  was previously saved using \code{rsf2pmml}.
 }    
 \value{
-  An object of class \code{XMLNode} as that defined by the \pkg{XML}
-  package.  This represents the top level, or root node, of the XML
-  document and is of type PMML.
+     A \pkg{randomSurvivalForest} \code{forest} object.  See note below.
 }
 \note{
   One cautionary note is in order.  The PMML representation of the
-  \pkg{randomSurvivalForest} forest object is incomplete, in that the
-  object needs to be massaged in order for prediction to be possible.
-  This will be clear in the examples.  This deficiency will be addressed
-  in future releases of this package.  However, it was felt that the
-  current functionality was important enough and mature enough to
-  warrant release in this version of the product.
+  forest object is incomplete, in that the object needs to be massaged
+  in order for prediction to be possible.  This will be clear in the
+  examples.  This deficiency will be addressed in future releases of
+  this package.  However, it was felt that the current functionality was
+  important enough and mature enough to warrant release in this version
+  of the product.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
@@ -69,12 +64,13 @@
   \code{saveXML},
   \code{rsf},
   \code{predict.rsf},
-  \code{pmml_to_rsf}.
+  \code{rsf2pmml}.
 }
 \examples{
   # Example 1:  Growing a forest, saving it as a PMML document,
   # restoring the forest from the PMML document, and using this forest to
   # perform prediction.
+
 
   \dontrun{
   library("XML")
@@ -85,25 +81,26 @@
         ntree = 5,
         forest = TRUE)
   veteran.forest <- veteran.out$forest
-  veteran.pmml <- rsf_to_pmml(veteran.forest)
+  veteran.pmml <- rsf2pmml(veteran.forest)
 
-    # Save the document to disk.
-    saveXML(veteran.pmml, "veteran.forest.xml")
-    veteran.pmml <- xmlRoot(xmlTreeParse("veteran.forest.xml"))
+  # Save the document to disk.
+  saveXML(veteran.pmml, "veteran.forest.xml")
+  veteran.pmml <- xmlRoot(xmlTreeParse("veteran.forest.xml"))
 
-  partial.forest <- pmml_to_rsf(veteran.pmml)
+  partial.forest <- pmml2rsf(veteran.pmml)
 
   # The PMML forest object must be massaged before it can be used
   # for prediction as follows:
   veteran.restored.forest <- list(
                       nativeArray=partial.forest$nativeArray, 
+                      nativeFactorArray=partial.forest$nativeFactorArray,
                       timeInterest=partial.forest$timeInterest, 
                       predictorNames=partial.forest$predictorNames,
-                      bootstrapSeed=partial.forest$bootstrapSeed,
+                      seed=partial.forest$seed
                       formula=partialForest$formula,
                       predictors=veteran.forest$predictors,
-                      Time=veteran.forest$Time,
-                      Cens=veteran.forest$Cens)
+                      time=veteran.forest$time,
+                      cens=veteran.forest$cens)
 
   # The actual time, censoring and prediction values of the data set
   # used to grow the forest are not contained in the PMML
@@ -113,7 +110,7 @@
   # prediction data are all retained in the PMML representation of the forest.
 
   class(veteran.restored.forest) <- c("rsf", "forest")
-  veteran.restored.out <- predict.rsf(veteran.restored.forest, veteran)
+  veteran.restored.out <- predict.rsf(veteran.restored.forest, test=veteran)
 
 }
 }

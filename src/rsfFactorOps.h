@@ -54,13 +54,23 @@
 //**********************************************************************
 //**********************************************************************
 
-#ifndef RSFSPLIT_H
-#define RSFSPLIT_H
-#include "extern.h"
-char randomSplit(Node *parent, uint *splitParameterMax);
-char logRankScore(Node *parent,
-                  uint *splitParameterMax);
-char conserveEvents(Node *parent,
-                    uint *splitParameterMax);
-char logRank(Node *parent, uint *splitParameterMax);
+#ifndef RSFFACTOROPS_H
+#define RSFFACTOROPS_H
+Factor **factorPtrVector(ulong nl, ulong nh);
+void free_factorPtrVector(Factor **v,
+                          ulong    nl,
+                          ulong    nh);
+Factor *makeFactor(uint r, char bookFlag);
+void free_Factor(Factor *f);
+char bookFactor(Factor *f);
+char unBookFactor(Factor *f);
+void bookPair (uint    levelCount, 
+               uint    setSize, 
+               uint    setColumn, 
+               uint   *setRow, 
+               uint   *pair, 
+               Factor *f);
+void nChooseK (uint n, uint r, char type, void *result);
+char reduceFraction(uint *numerator, uint *denominator);
+char splitOnFactor(uint level, uint *mwcp);
 #endif

@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,11 +58,9 @@
 #include   "nrutil.h"
 #include "node_ops.h"
 extern uint getTraceFlag();
-Node *makeNode() {
-  Node *parent = (Node*) malloc((size_t)sizeof(Node));
-  parent -> permissibleSplit = cvector(1, _xSize);
-  return parent;
-}
+extern double   _splitValueMaxCont;
+extern uint     _splitValueMaxFactSize;
+extern uint    *_splitValueMaxFactPtr;
 #define NR_END 1
 #define FREE_ARG char*
 Node ***nodePtrMatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
@@ -79,12 +77,6 @@ Node ***nodePtrMatrix(ulong nrl, ulong nrh, ulong ncl, ulong nch) {
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
   return m;
 }
-Node **nodePtrVector(ulong nl, ulong nh) {
-  Node **v;
-  v = (Node **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(Node*)));     
-  if (!v) nrerror("allocation failure in nodePtrVector()");
-  return v-nl+NR_END;
-}
 void free_nodePtrMatrix(Node ***m,
                         ulong nrl,
                         ulong nrh,
@@ -93,13 +85,25 @@ void free_nodePtrMatrix(Node ***m,
   free((FREE_ARG) (m[nrl]+ncl-1));
   free((FREE_ARG) (m+nrl-NR_END));
 }
+Node **nodePtrVector(ulong nl, ulong nh) {
+  Node **v;
+  v = (Node **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(Node*)));     
+  if (!v) nrerror("allocation failure in nodePtrVector()");
+  return v-nl+NR_END;
+}
 void free_nodePtrVector(Node **v,
                         ulong nl,
                         ulong nh) {
   free((FREE_ARG) (v+nl-NR_END));
 }
+Node *makeNode() {
+  Node *parent = (Node*) malloc((size_t)sizeof(Node));
+  parent -> permissibleSplit = cvector(1, _xSize);
+  return parent;
+}
 void free_Node(Node *parent) {
   free_cvector(parent -> permissibleSplit, 1, _xSize);
+  free_uivector(parent -> splitValueFactPtr, 1, parent -> splitValueFactSize);
   free((FREE_ARG) parent);
 }
 #undef NR_END
@@ -107,8 +111,17 @@ void free_Node(Node *parent) {
 void getNodeInfo(Node *leaf) {
   uint i;
   Rprintf("\nNodeInfo:  ");
-  Rprintf("\n   LeafCnt   SpltParm      SpltVal");
-  Rprintf("\n%10d %10d %12.4f", leaf -> leafCount, leaf -> splitParameter, leaf -> splitValue);
+  Rprintf("\n   LeafCnt   SpltParm  ");
+  Rprintf("\n%10d %10d \n", leaf -> leafCount, leaf -> splitParameter);
+  if (leaf -> splitValueFactSize > 0) {
+    Rprintf("0x ");
+    for (i = leaf -> splitValueFactSize; i >= 1; i--) {
+      Rprintf("%8x ", (leaf -> splitValueFactPtr)[i]);
+    }
+  }
+  else {
+    Rprintf(" %12.4f \n", leaf -> splitValueCont);
+  }
   Rprintf("\nPermissible Splits \n");
   for (i=1; i <= _xSize; i++) {
     Rprintf("%10d \n", (leaf -> permissibleSplit)[i]);
@@ -124,9 +137,8 @@ void setRightDaughter(Node *daughter, Node *parent) {
   parent -> right = daughter;
 }
 char forkNode (Node  *parent, 
-               uint   splitParameter, 
-               double splitValue) {
-  if (getTraceFlag() & DL1_TRACE) {
+               uint   splitParameter) {
+  if (getTraceFlag() & FORK_DEF_TRACE) {
     Rprintf("\nforkNode() ENTRY ...\n");
   }
   if (parent == NULL) {
@@ -162,7 +174,9 @@ char forkNode (Node  *parent,
   Node *left  = makeNode();
   Node *right = makeNode();
   parent -> splitParameter = splitParameter;
-  parent -> splitValue = splitValue;
+  parent -> splitValueCont = _splitValueMaxCont;
+  parent -> splitValueFactSize = _splitValueMaxFactSize;
+  parent -> splitValueFactPtr = _splitValueMaxFactPtr;
   setParent(left, parent);
   setParent(right, parent);
   setLeftDaughter(left, parent);
@@ -171,21 +185,29 @@ char forkNode (Node  *parent,
   nrCopyVector(right -> permissibleSplit, parent -> permissibleSplit, _xSize);
   left  -> left  = left  -> right = NULL;
   right -> left  = right -> right = NULL;
-  left -> splitParameter  = 0;
-  left -> splitValue      = NA_REAL;
-  left -> splitFlag       = TRUE;
-  left -> leafCount       = 0;
-  right -> splitParameter  = 0;
-  right -> splitValue      = NA_REAL;
-  right -> splitFlag       = TRUE;
-  right -> leafCount       = 0;
+  left -> splitFlag          = TRUE;
+  left -> mortality          = NA_REAL;
+  left -> splitParameter     = 0;
+  left -> splitValueCont     = NA_REAL;
+  left -> splitValueFactSize = 0;
+  left -> splitValueFactPtr  = NULL;
+  left -> leafCount          = 0;
+  right -> splitFlag          = TRUE;
+  right -> mortality          = NA_REAL;
+  right -> splitParameter     = 0;
+  right -> splitValueCont     = NA_REAL;
+  right -> splitValueFactSize = 0;
+  right -> splitValueFactPtr  = NULL;
+  right -> leafCount          = 0;
   parent -> splitFlag = FALSE;
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & FORK_DEF_TRACE) {
     Rprintf("\nParent Info:  "); getNodeInfo(parent);
-    Rprintf("\nLeft Info:    "); getNodeInfo(left);
-    Rprintf("\nRight Info:   "); getNodeInfo(right);
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & TURN_OFF_TRACE) {
+    Rprintf("\nLeft   Info:  "); getNodeInfo(left);
+    Rprintf("\nRight  Info:  "); getNodeInfo(right);
+  }
+  if (getTraceFlag() & FORK_DEF_TRACE) {
     Rprintf("\nforkNode() EXIT ...\n");
   }
   return TRUE;

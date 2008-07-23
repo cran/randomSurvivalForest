@@ -20,10 +20,12 @@
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
       forest)}.  Note: \code{forest}=TRUE must be used in the
       original \code{rsf} call.}
-    \item{predictorNames}{Character vector of variable names to be
-      considered.  This must be specified.}
-    \item{subset}{An index vector indicating which rows should be used.
-      Default is to use all the data.}
+    \item{predictorNames}{Character vector of x-variable names to be
+      considered.  If NULL (the default) all variables are used.  Only
+      x-variables listed in the object predictor matrix will be used.}
+    \item{subset}{Indices indicating which rows of the predictor
+      matrix to be used (note: this applies to the \emph{object}
+      predictor matrix, \code{predictors}).  Default is to use all rows.}
     \item{joint}{Should joint-VIMP or individual VIMP be calculated?
       See details below.}
     \item{rough}{Logical value indicating whether fast approximation
@@ -51,9 +53,11 @@
 }
 \value{
     A list with the following components:
-    \item{err.rate}{Vector of length \code{ntree} containing OOB error
-      rates for the (unperturbed) ensemble restricted to the subsetted
-      data.}
+    \item{err.rate}{OOB error rate for the (unperturbed) ensemble
+      restricted to the subsetted data.}
+    \item{err.perturb.rate}{OOB error rate for the perturbed ensemble
+      restricted to the subsetted data.   Either a vector
+      or a single number depending upon the option \code{joint}.}
     \item{importance}{Variable importance (VIMP).  Either a vector
       or a single number depending upon the option \code{joint}.}
 }
@@ -69,15 +73,19 @@
   \code{find.interaction}.
 }
 \examples{
-# Example of paired-VIMP.
+#------------------------------------------------------------------------
+# Example of paired-VIMP. 
 # Veteran data.
+
 data(veteran, package = "randomSurvivalForest") 
 v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000, forest = TRUE)
 interaction.rsf(v.out, c("karno","celltype"))$importance
 
 \dontrun{
+#------------------------------------------------------------------------
 # Individual VIMP for data restricted to events only.
 # PBC data.
+
 data(pbc, package = "randomSurvivalForest") 
 rsf.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, forest = TRUE)
 o.r <- rev(order(rsf.out$importance))
@@ -89,24 +97,33 @@ VIMP.events <-
  interaction.rsf(rsf.out, names(VIMP), events, joint = FALSE)$importance
 VIMP.all <- as.data.frame(cbind(VIMP.events = VIMP.events, VIMP = VIMP))
 print(round(VIMP.all, 3))
-# PBC data again.
-# Monte Carlo estimates for VIMP.
-# Bootstrap estimates for VIMP.
-VIMP.MC <- VIMP.BOOT <- NULL
+
+#------------------------------------------------------------------------
+# Estimate variability of VIMP in two ways (PBC data):
+# (i)  Monte Carlo:  Estimates variability of the procedure
+# (ii) Bootstrap:    Estimates statistical variability
+
+data(pbc, package = "randomSurvivalForest") 
+rsf.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, forest = TRUE)
+o.r <- rev(order(rsf.out$importance))
+VIMP <- rsf.out$importance[o.r]
+subset.index <- 1:nrow(rsf.out$predictors)
+VIMP.mc <- VIMP.boot <- NULL
 for (k in 1:100) {
-VIMP.MC <-
- cbind(VIMP.MC, interaction.rsf(rsf.out, names(VIMP), joint = FALSE)$importance)
-VIMP.BOOT <-
- cbind(VIMP.BOOT, interaction.rsf(rsf.out, names(VIMP),
-      subset = sample(1:dim(pbc)[1], replace = TRUE), joint = FALSE)$importance)
+  cat("iteration:", k , "\n")
+  VIMP.mc <-
+    cbind(VIMP.mc, interaction.rsf(rsf.out, names(VIMP), joint = FALSE)$importance)
+  VIMP.boot <-
+    cbind(VIMP.boot, interaction.rsf(rsf.out, names(VIMP),
+      subset = sample(subset.index, replace = TRUE), joint = FALSE)$importance)
 }
-VIMP.MC <- as.data.frame(cbind(VIMP.mean = apply(VIMP.MC, 1, mean),
-                               VIMP.sd = apply(VIMP.MC, 1, sd)))
-VIMP.BOOT <- as.data.frame(cbind(VIMP.mean = apply(VIMP.BOOT, 1, mean),
-                               VIMP.sd = apply(VIMP.BOOT, 1, sd)))
-rownames(VIMP.MC) <- rownames(VIMP.BOOT) <- names(VIMP)
-print(round(VIMP.MC, 3))
-print(round(VIMP.BOOT, 3))
+VIMP.mc <- as.data.frame(cbind(VIMP.mean = apply(VIMP.mc, 1, mean),
+                    VIMP.sd = apply(VIMP.mc, 1, sd)))
+VIMP.boot <- as.data.frame(cbind(VIMP.mean = apply(VIMP.boot, 1, mean),
+                    VIMP.sd = apply(VIMP.boot, 1, sd)))
+rownames(VIMP.mc) <- rownames(VIMP.boot) <- names(VIMP)
+print(round(VIMP.mc, 3))
+print(round(VIMP.boot, 3))
 }
 }
 \keyword{file}

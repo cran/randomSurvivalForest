@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -58,11 +58,12 @@
 #include   "nrutil.h"
 #include   "rsfEntry.h"
 extern uint getTraceFlag();
-extern SEXP rsf(char mode, uint traceFlag);
+extern SEXP rsf(uint mode, uint traceFlag);
 SEXP rsfGrow(SEXP traceFlag,
              SEXP opt,  
              SEXP seedPtr,  
              SEXP splitRule,  
+             SEXP splitRandomRule,  
              SEXP randomCovariateCount,  
              SEXP forestSize,  
              SEXP minimumDeathCount,
@@ -82,6 +83,7 @@ SEXP rsfGrow(SEXP traceFlag,
   _seed1Ptr              = &seed1Value;
   _seed2Ptr              = &seed2Value;
   _splitRule            = INTEGER(splitRule)[0];
+  _splitRandomRule      = INTEGER(splitRandomRule)[0];
   _randomCovariateCount = INTEGER(randomCovariateCount)[0];
   _forestSize           = INTEGER(forestSize)[0];
   _minimumDeathCount    = INTEGER(minimumDeathCount)[0];
@@ -117,13 +119,14 @@ SEXP rsfGrow(SEXP traceFlag,
   if ( (_splitRule != LOG_RANK) && 
        (_splitRule != CONSERVE_EVENTS) && 
        (_splitRule != LOG_RANK_SCORE) && 
-       (_splitRule != LOG_RANK_APPROX) && 
-       (_splitRule != RANDOM_SPLIT) &&
-       (_splitRule != LOG_RANK_RANDOM) ) {
+       (_splitRule != RANDOM_SPLIT) ) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Invalid split rule:  %10d \n", _splitRule);
     return R_NilValue;
+  }
+  if (_splitRule == RANDOM_SPLIT) {
+    _splitRandomRule = 1;
   }
   if ( ((_randomCovariateCount < 1) || (_randomCovariateCount > _xSize)) ) {
     Rprintf("\nRSF:  *** ERROR *** ");
@@ -149,7 +152,9 @@ SEXP rsfGrow(SEXP traceFlag,
   _treeID_ = NULL;
   _nodeID_ = NULL;
   _parmID_ = NULL;
-  _spltPT_ = NULL;
+  _contPT_ = NULL;
+  _mwcpSZ_ = NULL;
+  _mwcpPT_ = NULL;
   return rsf(RSF_GROW, INTEGER(traceFlag)[0]);
 }
 SEXP rsfPredict(SEXP traceFlag,
@@ -170,7 +175,9 @@ SEXP rsfPredict(SEXP traceFlag,
                 SEXP treeID,
                 SEXP nodeID,
                 SEXP parmID,
-                SEXP spltPT,
+                SEXP contPT,
+                SEXP mwcpSZ,
+                SEXP mwcpPT,
                 SEXP seed,
                 SEXP xType) {
   int seed1Value         = INTEGER(seedPtr)[0];
@@ -192,7 +199,9 @@ SEXP rsfPredict(SEXP traceFlag,
   _treeID_              = (uint*) INTEGER(treeID);  _treeID_ --;
   _nodeID_              = (uint*) INTEGER(nodeID);  _nodeID_ --;
   _parmID_              = (uint*) INTEGER(parmID);  _parmID_ --;
-  _spltPT_              =    REAL(spltPT);  _spltPT_ --;
+  _contPT_              =    REAL(contPT);  _contPT_ --;
+  _mwcpSZ_              = (uint*) INTEGER(mwcpSZ);  _mwcpSZ_ --;
+  _mwcpPT_              = (uint*) INTEGER(mwcpPT);  _mwcpPT_ --;
   _seed_                = INTEGER(seed);
   _sexp_xType = xType;
   _opt                  = INTEGER(opt)[0];
@@ -238,7 +247,9 @@ SEXP rsfInteraction(SEXP traceFlag,
                     SEXP treeID,
                     SEXP nodeID,
                     SEXP parmID,
-                    SEXP spltPT,
+                    SEXP contPT,
+                    SEXP mwcpSZ,
+                    SEXP mwcpPT,
                     SEXP seed,
                     SEXP xType,
                     SEXP intrPredictorSize,
@@ -262,7 +273,9 @@ SEXP rsfInteraction(SEXP traceFlag,
   _treeID_              = (uint*) INTEGER(treeID);  _treeID_ --;
   _nodeID_              = (uint*) INTEGER(nodeID);  _nodeID_ --;
   _parmID_              = (uint*) INTEGER(parmID);  _parmID_ --;
-  _spltPT_              =    REAL(spltPT);  _spltPT_ --;
+  _contPT_              =    REAL(contPT);  _contPT_ --;
+  _mwcpSZ_              = (uint*) INTEGER(mwcpSZ);  _mwcpSZ_ --;
+  _mwcpPT_              = (uint*) INTEGER(mwcpPT);  _mwcpPT_ --;
   _seed_                = INTEGER(seed);
   _sexp_xType = xType;
   _intrPredictorSize         = INTEGER(intrPredictorSize)[0];

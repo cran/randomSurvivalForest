@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -65,25 +65,24 @@ void stackPreDefinedPredictArrays();
 void unstackPreDefinedPredictArrays();
 void stackPreDefinedInteractionArrays();
 void unstackPreDefinedInteractionArrays();
-void initializeArrays(uint mode,
+void initializeArrays(char mode,
                       uint *sortedTimeInterestsize);
+void initializeFactorArrays(char mode);
+void stackFactorArrays(char mode);
+void unstackFactorArrays(char mode);
 char stackMissingSignatures (uint     obsSize, 
-                          double  *statusPtr, 
-                          double  *timePtr, 
-                          double **predictorPtr,
-                          uint    *recordMap,
-                          uint     recordSize, 
-                          uint   **p_recordIndex, 
-                          uint    *p_vSize,
-                          int   ***p_vSign, 
-                          int    **p_vIndex,
-                          int   ***p_vForestSign);
-char stackMissingArrays(uint       mode,
-                        char    ***p_dmRecordBootFlag,
-                        double ****p_dmvImputation);
-void unstackMissingArrays(uint      mode,
-                          char    **dmRecordBootFlag,
-                          double ***dmvImputation);
+                             double  *statusPtr, 
+                             double  *timePtr, 
+                             double **predictorPtr,
+                             uint    *recordMap,
+                             uint     recordSize, 
+                             uint   **p_recordIndex, 
+                             uint    *p_vSize,
+                             int   ***p_vSign, 
+                             int    **p_vIndex,
+                             int   ***p_vForestSign,
+                             uint    *p_mFactorSize,
+                             uint   **p_mFactorIndex);
 void unstackMissingSignatures(uint      obsSize, 
                               double   *statusPtr, 
                               double   *timePtr, 
@@ -94,8 +93,16 @@ void unstackMissingSignatures(uint      obsSize,
                               uint      vSize,
                               int     **vSign, 
                               int      *vIndex,
-                              int     **vForestSign);
-uint stackDefinedOutputObjects(uint      mode,
+                              int     **vForestSign,
+                              uint      mFactorSize,
+                              uint     *mFactorIndex);
+char stackMissingArrays(char       mode,
+                        char    ***p_dmRecordBootFlag,
+                        double ****p_dmvImputation);
+void unstackMissingArrays(char      mode,
+                          char    **dmRecordBootFlag,
+                          double ***dmvImputation);
+uint stackDefinedOutputObjects(char      mode,
                                uint      sortedTimeInterestSize,
                                char    **sexpString,
                                Node   ***p_root,
@@ -118,14 +125,17 @@ uint stackDefinedOutputObjects(uint      mode,
                                uint   ***p_varUsedPtr,
                                uint     *stackCount,
                                SEXP     *sexpVector);
-void unstackDefinedOutputObjects(uint      mode,
+void unstackDefinedOutputObjects(char      mode,
                                  uint      sortedTimeInterestSize,
                                  Node    **root);
 uint stackVariableOutputObjects(uint     totalNodeCount,
+                                uint     totalMWCPCount,
                                 uint   **p_treeID,
                                 uint   **p_nodeID,
                                 uint   **p_parmID,
-                                double **p_spltPT,
+                                double **p_contPT,
+                                uint   **p_mwcpSZ,
+                                uint   **p_mwcpPT,
                                 uint     sexpLength,
                                 char   **sexpString,
                                 SEXP    *sexpVector);

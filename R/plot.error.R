@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.3
+##  RANDOM SURVIVAL FOREST 3.5.0
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -106,11 +106,13 @@ plot.error <- function (x, ...) {
         if (length(unique(x$predictorWt)) == 1) x$predictorWt <- 1
         imp.out=as.data.frame(cbind(imp,imp/max(abs(imp),na.rm=T) ,x$predictorWt),
                             row.names=x$predictorNames)[rev(pred.order),]
+        if (nrow(imp.out) == 1) imp.out[1 , 2] <- 1
         colnames(imp.out) <- c("Importance","Relative Imp","predictorWt")
       }
       else {
         imp.out=as.data.frame(cbind(imp,imp/max(abs(imp),na.rm=T)),
                             row.names=x$predictorNames)[rev(pred.order),]
+        if (nrow(imp.out) == 1) imp.out[1 , 2] <- 1
         colnames(imp.out) <- c("Importance","Relative Imp")
       } 
       cat("\n")

@@ -5,18 +5,18 @@
 \title{Random Survival Forest Entry Point}
 \description{
   Random Survival Forests (RSF) (Ishwaran, Kogalur, Blackstone and
-  Lauer, 2007) is an extension of Breiman's Random Forests (Breiman,
+  Lauer, 2008) is an extension of Breiman's Random Forests (Breiman,
   2001) to right-censored survival analysis settings.  A forest of
-  survival trees is grown in order to estimate an ensemble cumulative
-  hazard function (CHF).  Trees can be grown using several different
-  survival tree splitting rules.  An \dQuote{out-of-bag} estimate of
-  Harrell's concordance index (Harrell, 1982) is provided for assessing
-  prediction accuracy of the CHF.  Variable importance (VIMP) can be
-  computed for single, as well as grouped variables, as a means to
-  filter variables and to assess variable predictiveness.  RSF can be
-  used to predict on test data. Missing data (x-variables, survival
-  times, censoring indicators) can be imputed on both training and test
-  data. Note this is the default generic method for the package.
+  survival trees is grown and used to estimate an ensemble cumulative
+  hazard function (CHF).  Trees can be grown using different survival
+  tree splitting rules.  An \dQuote{out-of-bag} estimate of Harrell's
+  concordance index (Harrell, 1982) is provided for assessing prediction
+  accuracy of the CHF.  Variable importance (VIMP) can be computed for
+  single, as well as grouped variables, as a means to filter variables
+  and to assess variable predictiveness.  RSF can be used to predict on
+  test data. Missing data (x-variables, survival times, censoring
+  indicators) can be imputed on both training and test data. Note this
+  is the default generic method for the package.
 }
 \usage{
 \method{rsf}{default}(formula,
@@ -24,7 +24,8 @@
     ntree = 1000,
     mtry = NULL,
     nodesize = NULL,
-    splitrule = c("logrank", "conserve", "logrankscore", "logrankrandom", "random")[1],
+    splitrule = c("logrank", "conserve", "logrankscore", "random")[1],
+    nsplit = 0,
     importance = c("randomsplit", "permute", "none")[1],
     big.data = FALSE,
     na.action = c("na.omit", "na.impute")[1],
@@ -52,24 +53,29 @@
         times required for a terminal node.  Default is roughly
         min(3,round(0.632*\code{ndead})). Larger values cause smaller
 	trees to be grown.}
-    \item{splitrule}{Splitting rule used to grow trees. See details below.}
+    \item{splitrule}{Splitting rule used to grow trees. See details
+      below.}
+    \item{nsplit}{Non-negative integer value.  If non-zero, a random
+      version of the specified tree splitting rule is implemented.  This can
+      significantly increase speed.  See details below.}
     \item{importance}{Method used to compute variable importance.
 	See details below.}    
     \item{big.data}{Logical.  Set this value to true when the number of
       variables \code{p} is \emph{very} large, or the data is very
       large.  See details below.}
-    \item{na.action}{Action to be taken if the data contain NA's.  Possible
-        values are \code{na.omit} and \code{na.impute}.  Default is
-        \code{na.omit}, which removes the entire record if even one of
-        its entries is NA (applies only to entries specifically called
-        in 'formula').  The action \code{na.impute} implements a
-        sophisticated tree imputation technique.  See details below.}
-    \item{nimpute}{Number of times missing data algorithm is to be iterated.}
+    \item{na.action}{Action to be taken if the data contain NA's.
+        Possible values are \code{na.omit} and \code{na.impute}.
+        Default is \code{na.omit}, which removes the entire record if
+        even one of its entries is NA (for x-variables this applies only
+        to those specifically listed in 'formula').  The action
+        \code{na.impute} implements a sophisticated tree imputation
+        technique.  See details below.}
+    \item{nimpute}{Number of iterations of missing data algorithm.}
     \item{predictorWt}{Vector of non-negative weights where entry
-        \code{k} represents the likehood of selecting variable \code{k}
-        as a candidate for splitting.  Default is to use uniform
-        weights.  Vector must be of dimension \code{p}, where \code{p}
-        equals the number of variables.}
+        \code{k}, after normalizing, is the probability of selecting
+        variable \code{k} as a candidate for splitting.  Default is to
+        use uniform weights.  Vector must be of dimension \code{p},
+        where \code{p} equals the number of variables.}
     \item{forest}{Logical. Should the forest object be returned?  Used
         for prediction on new data.  Default is FALSE.}
     \item{proximity}{Logical. Should proximity measure between
@@ -85,50 +91,78 @@
 	causes output to be printed each \code{do.trace} iteration.}
     \item{...}{Further arguments passed to or from other methods.}
 }
-\details{
-  There are 5 different splitting rules available for growing trees.
-  The default rule, \code{logrank}, splits nodes by maximization of the
-  log-rank test statistic (Segal, 1988; Leblanc and Crowley, 1993).
-  \code{conserve} splits nodes by finding daughters closest to the
-  conservation of events principle (see Naftel, Blackstone and Turner,
-  1985).  \code{logrankscore} uses a standardized log-rank statistic
-  (Hothorn and Lausen, 2003).  \code{random} implements pure random
-  splitting: a variable is randomly selected from the \code{mtry}
-  variables in a node and the node is split using a random split point
-  (Lin and Jeon, 2006). \code{logrankrandom} is a variant of
-  \code{random}.  A random split point is chosen for each of the
-  \code{mtry} variables, and the variable with maximum log-rank test is
-  used to split the node at its random split point.
+\details{  
+  Four primary splitting rules are available for growing a survival
+  forest.  The default rule, \code{logrank}, splits tree nodes by
+  maximization of the log-rank test statistic (Segal, 1988; Leblanc and
+  Crowley, 1993).  A second rule, \code{conserve}, splits nodes by
+  finding daughters closest to the conservation of events principle (see
+  Naftel, Blackstone and Turner, 1985).  A third rule,
+  \code{logrankscore}, uses a standardized log-rank statistic (Hothorn
+  and Lausen, 2003).  A fourth rule, \code{random}, implements pure
+  random splitting.  For each node, a variable is randomly selected from
+  a random set of \code{mtry} variables and the node is split using a
+  random split point (Lin and Jeon, 2006).
 
-  A detailed study carried out by Ishwaran et al. (2007) found
-  \code{logrank} and \code{logrankscore} to be the most accurate in
-  terms of prediction error, followed by \code{conserve}.
-  Computationally, \code{random} is by far fastest, followed closely by
-  \code{logrankrandom}.  Surprisingly, \code{random} can have decent
-  performance, while \code{logrankrandom} often has performance close to
-  \code{logrank}.  If users want speed and good accuracy,
-  \code{logrankrandom} is the best compromise.  Alternatively, to reduce
-  computations for \emph{very} large data sets, users can try
-  discretizing continuous variables and/or the observed survival times.
-  Discretization does not have to be overly granular for substantial
-  gains to be seen.
+  A random version of the \code{logrank}, \code{conserve} and
+  \code{logrankscore} splitting rules can be invoked using
+  \code{nsplit}.  If \code{nsplit} is set to a non-zero positive
+  integer, then a maximum of \code{nsplit} split points are chosen
+  randomly for each of the \code{mtry} variables within a node (this is
+  in contrast to deterministic splitting where all possible split points
+  for each of the \code{mtry} variables are considered).  The splitting
+  rule is applied to these random split points and the node is split on
+  that variable and random split point maximizing survival difference
+  (as measured by the splitting rule).  Note that \code{nsplit} has no
+  effect if the splitting rule is \code{random}.
 
-  A typical formula has the form \code{Survrsf(time, censoring) ~
+  In terms of performance, a detailed study carried out by Ishwaran et
+  al. (2008) found \code{logrank} and \code{logrankscore} to be the most
+  accurate in terms of prediction error, followed by \code{conserve}.
+  Setting \code{nsplit}=1 and using \code{logrank} splitting gave
+  performance close to \code{logrank}, but with significantly shorter
+  computational times.  Accuracy can be good further improved without
+  overly compromising speed by using larger values of \code{nsplit}.
+
+  In addition to random splitting, computation times for \emph{very}
+  large data sets can be improved by discretizing continuous variables
+  and/or the observed survival times.  Discretization does not have to
+  be overly granular for substantial gains to be seen.  Users may also
+  consider setting \code{big.data}=TRUE for data with a large number of
+  variables.  This bypasses the large overhead R needs to create design
+  matrices and parse formula.  Be aware, however, that variables are not
+  processed and are interpreted \emph{as is} when this option is turned
+  on.  Think of the data frame as containing time and censoring
+  information and the rest of the data as the pre-processed design
+  matrix when this option is on.  In particular, transformations used in
+  the formula (such as logs etc.) are ignored.
+
+  A typical RSF formula has the form \code{Survrsf(time, censoring) ~
   terms}, where \code{time} is survival time and \code{censoring} is a
   binary censoring indicator.  Note that censoring must be coded as
   0=censored and 1=death (event) and \code{time} must be strictly
   positive.
 
-  Variables which are encoded as factors will be coerced into dummy
-  variables.  These dummy variables will be automatically labelled using
-  the original variable name.  For example, if marital status is a
-  variable named \dQuote{marital} encoded as a factor with levels
-  \dQuote{S}, \dQuote{M} and \dQuote{D}, two new dummy variables will be
-  created labeled \dQuote{maritalM} and \dQuote{maritalS}.
-
+  Variables encoded as factors are treated as such.  If the factor is
+  ordered, then splits are similar to real valued variables.  If the
+  factor is unordered, a split will move a subset of the levels in the
+  parent node to the left daughter, and the complementary subset to the
+  right daughter.  All possible complementary pairs are considered and
+  apply to factors with an unlimited number of levels.  However, for
+  deterministic splitting there is an optimization check to ensure that
+  the number of splits is not greater than the number of complementary
+  pairs in a node (this internal check will be overridden in random
+  splitting mode if nsplit is set high enough).  Note that when
+  predicting on test data involving factors, the factor labels in the
+  test data must be the same as in the grow (training) data.  Consider
+  setting labels that are unique in the test data to missing.
+  
+  Other than factors, all other x-variables are coerced and treated as
+  being real valued.
+  
   Variable importance (VIMP) is computed similar to Breiman (2001),
   although there are two ways to perturb a variable to determine its
-  VIMP (\code{randomsplit}, \code{permute}).  The default method is
+  VIMP: \code{randomsplit}, \code{permute}.  The default method is
   \code{randomsplit} which works as follows.  To calculate VIMP for a
   variable \code{x}, out-of-bag (OOB) cases are dropped down the
   bootstrap (in-bag) survival tree.  A case is assigned a daughter node
@@ -138,33 +172,21 @@
   difference between this and the OOB error rate for the original forest
   (without random node assignment using \code{x}).  If \code{permute} is
   used, then \code{x} is randomly permuted in OOB data and dropped down
-  the in-bag tree (random assignment is not used).
+  the in-bag tree.  See Ishwaran et al. (2008) for further details.
   
   Prediction error is measured by 1-C, where C is Harrell's concordance
   index.  Prediction error is between 0 and 1, and measures how well the
-  ensemble can correctly rank (classify) two individuals in terms of
+  ensemble correctly ranks (classifies) any two individuals in terms of
   survival.  A value of 0.5 is no better than random guessing. A value
   of 0 is perfect.  Because VIMP is based on the concordance index, VIMP
   indicates how much misclassification increases, or decreases, for a
   new test case if a given variable were not available for that case
   (given that the forest was grown using that variable).
   
-  For \emph{very} large data sets, or data with a \emph{large} number of
-  variables, users should consider setting the logical flag
-  \code{big.data} to TRUE.  This bypasses the large overhead needed by R
-  in creating design matrices and parsing formula.  Be aware, however,
-  that variables are not processed and are interpreted \emph{as is} when
-  this option is turned on.  Think of the data frame as containing time
-  and censoring information and the rest of the data as the
-  pre-processed design matrix when this option is on.  Side effects are
-  that all variables (including factors) are converted to numeric mode
-  and transformations used in the formula (such as logs etc.) are
-  ignored.
-
   Setting \code{na.action} to \code{na.impute} implements a tree
   imputation method whereby missing data (x-variables or outcomes) are
   imputed dynamically as a tree is grown by randomly sampling from the
-  distribution within the current node (Ishwaran et al. 2007).  OOB data
+  distribution within the current node (Ishwaran et al. 2008).  OOB data
   is not used in imputation to avoid biasing prediction error and VIMP
   estimates.  Final imputation for integer valued variables and
   censoring indicators use a maximal class rule, whereas continuous
@@ -173,7 +195,7 @@
   having all missing values are removed.  The algorithm can be iterated
   by setting \code{nimpute} to a positive integer greater than 1.  A few
   iterations should be used in heavy missing data settings to improve
-  accuracy of imputed values (see Ishwaran et al., 2007).  Note if the
+  accuracy of imputed values (see Ishwaran et al., 2008).  Note if the
   algorithm is iterated, a side effect is that missing values in
   returned objects \code{predictors}, \code{time} and \code{cens} are
   replaced by imputed values.  Further, imputed objects such as
@@ -197,6 +219,7 @@
      \item{mtry}{Number of variables randomly selected for splitting at each node.}
      \item{nodesize}{Minimum size of terminal nodes.}
      \item{splitrule}{Splitting rule used.}
+     \item{nsplit}{Number of randomly selected split points.}
      \item{time}{Vector of length \code{n} of survival times.}
      \item{cens}{Vector of length \code{n} of censoring information (0=censored, 1=death).}
      \item{timeInterest}{Sorted unique event times.  Ensemble values are given
@@ -205,7 +228,7 @@
          growing the forest.}
      \item{predictorWt}{Vector of non-negative weights used for randomly
          sampling variables for splitting.}
-     \item{predictors}{Matrix of x-variables used to grow the forest.}
+     \item{predictors}{Data frame comprising x-variables used to grow the forest.}
      \item{ensemble}{A matrix of the bootstrap ensemble CHF with each row
          corresponding to an individual's CHF evaluated at each of the
          time points in \code{timeInterest}.}
@@ -237,11 +260,11 @@
          growing the forest.  Can be a vector, matrix, or NULL.}
      \item{imputedIndv}{Vector of indices for cases with missing
          values. Can be NULL.}
-     \item{imputedData}{Matrix of imputed data.  First two columns are
-        censoring and survival time, respectively.  Remaining columns
-        are the x-variables.  Row i contains imputed outcomes and
-        x-variables for row \code{imputedIndv}[i] of \code{predictors}.
-        Can be NULL.}
+     \item{imputedData}{Data frame comprising imputed data.  First two
+        columns are censoring and survival time, respectively.
+        Remaining columns are the x-variables.  Row i contains imputed
+        outcomes and x-variables for row \code{imputedIndv}[i] of
+        \code{predictors}.  Can be NULL.}
 }
 \note{
     The key deliverable is the matrix \code{ensemble} containing the
@@ -270,11 +293,11 @@
     \emph{J. Amer. Med. Assoc.}, 247:2543-2546.
 
     T. Hothorn and B. Lausen (2003). On the exact distribution of maximally selected
-    rank statistics, \emph{Computational Statistics & Data Analysis}, 43:121-137.    
+    rank statistics, \emph{Comp. Stat. Data Anal.}, 43:121-137.    
 
     H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2007).  Random survival forests, \emph{Cleveland Clinic Technical
-    Report}.
+    (2008).  Random survival forests, \emph{To appear in Ann. App.
+    Statist.}.
 
     H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
     \emph{Rnews}, 7/2:25-31.
@@ -305,11 +328,12 @@
   \code{predict.rsf},
   \code{print.rsf},
   \code{find.interaction},
-  \code{pmml_to_rsf},
-  \code{rsf_to_pmml},
+  \code{pmml2rsf},
+  \code{rsf2pmml},
   \code{Survrsf}.
 }
 \examples{
+#------------------------------------------------------------
 # Example 1:  Veteran's Administration lung cancer trial from
 # Kalbfleisch & Prentice.  Randomized trial of two treatment
 # regimens for lung cancer.  Minimal argument call.  Print
@@ -320,25 +344,33 @@ veteran.out <- rsf(Survrsf(time, status)~., data = veteran)
 print(veteran.out)
 plot(veteran.out)
 
-# Example 2:  Richer argument call.
-# Note that forest option is set to true to illustrate 
-# how one might use 'rsf' for prediction (see 'rsf.predict'
-# for more details).
+#------------------------------------------------------------
+# Example 2:  Richer argument call (veteran data).
+# Forest is saved by setting 'forest' option to true
+# (see 'rsf.predict' for more details about prediction).
+# Coerce variable 'celltype' as a factor, and karnofsky score
+# as an ordered factor to illustrate factor useage in RSF.
+# Use random splitting with 'nsplit'.
+# Use 'varUsed' option.
 
 data(veteran, package = "randomSurvivalForest")
 veteran.f <- as.formula(Survrsf(time, status)~.)
+veteran$celltype <- factor(veteran$celltype,
+    labels=c("squamous", "smallcell",  "adeno",  "large"))
+veteran$karno <- factor(veteran$karno, ordered = TRUE)
 ntree <- 200
 mtry <- 2
 nodesize <- 3
-splitrule <- "logrankrandom"
+splitrule <- "logrank"
+nsplit <- 10
 varUsed <- "by.tree"
 forest <- TRUE
 proximity <- TRUE
-seed <- -1
-do.trace <- 25
-veteran2.out <- rsf(veteran.f, veteran, ntree, mtry, nodesize, splitrule,
-                    varUsed = varUsed, forest = forest, proximity = proximity,
-                    seed = seed, do.trace = do.trace)
+do.trace <- 1
+veteran2.out <- rsf(veteran.f, veteran, ntree,
+       mtry, nodesize, splitrule, nsplit,
+       varUsed = varUsed, forest = forest, 
+       proximity = proximity, do.trace = do.trace)
 print(veteran2.out)
 plot.proximity(veteran2.out)
 
@@ -349,12 +381,13 @@ head(veteran2.out$forest$nativeArray)
 apply(veteran2.out$varUsed,2,mean)
 
 # Partial plot of top variable.
-plot.variable(veteran2.out, partial = TRUE, n.pred=1)
+plot.variable(veteran2.out, partial = TRUE, npred=1)
 
 
 \dontrun{
-# Example 3:  Veteran data again. Look specifically at
-# Karnofsky performance score.  Compare to Kaplan-Meier.
+#------------------------------------------------------------
+# Example 3:  Veteran data (again).
+# Consider Karnofsky performance score. Compare to Kaplan-Meier.
 # Assumes "survival" library is loaded.
 
 if (library("survival", logical.return = TRUE))
@@ -368,37 +401,43 @@ if (library("survival", logical.return = TRUE))
         plot(survfit(Surv(time, status)~karno, data = veteran))
 }
 
+#------------------------------------------------------------
 # Example 4:  Primary biliary cirrhosis (PBC) of the liver.
 # Data found in Appendix D.1 of Fleming and Harrington, Counting
-# Processes and Survival Analysis, Wiley, 1991 (only differences
-# are that age is in days and sex and stage variables are not
+# Processes and Survival Analysis, Wiley, 1991 (modified so
+# that age is in days and sex and stage variables are not
 # missing for observations 313-418).  
 
 data(pbc, package = "randomSurvivalForest") 
 pbc.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000)
 print(pbc.out)
 
-# Example 5:  Same as Example 4, but with imputation for missing values.
+#------------------------------------------------------------
+# Example 5:  Same as Example 4, but with imputation for
+# missing values.
 
 data(pbc, package = "randomSurvivalForest") 
-pbc2.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, na.action="na.impute")
+pbc2.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000,
+                na.action="na.impute")
 # summary of analysis
 print(pbc2.out)
 # Combine original data + imputed data.
-pbc.imputed.data <- cbind(status=pbc2.out$cens, days=pbc2.out$time, pbc2.out$predictors)
+pbc.imputed.data <- cbind(status=pbc2.out$cens, days=pbc2.out$time,
+                          pbc2.out$predictors)
 pbc.imputed.data[pbc2.out$imputedIndv,] <- pbc2.out$imputedData
 tail(pbc)
 tail(pbc.imputed.data)
 # Iterate the missing data algorithm.
-# Use random splitting to increase speed.
+# Use logrank random splitting (with nsplit=5) to increase speed.
 # Use trace to track algorithm in detail.
 # Note that a side effect of iterating is that the original data
 # are replaced by imputed values.
-pbc3.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000,
-         splitrule = "logrankrandom",  na.action="na.impute", nimpute=3, do.trace = 100)
+pbc3.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, nsplit=5, 
+         na.action="na.impute", nimpute=3, do.trace = TRUE)
 pbc.iterate.imputed.data <- cbind(status=pbc3.out$cens,
          days=pbc3.out$time, pbc3.out$predictors)
 
+#------------------------------------------------------------
 # Example 6:  Compare Cox regression to RSF (PBC data).
 # Compute OOB estimate of Harrell's concordance 
 # index for Cox regression using B = 100 bootstrap draws.
@@ -407,42 +446,34 @@ pbc.iterate.imputed.data <- cbind(status=pbc3.out$cens,
 if (library("survival", logical.return = TRUE) 
     & library("Hmisc", logical.return = TRUE))
 {
-    data(pbc, package = "randomSurvivalForest")
-    pbc3.out <- rsf(Survrsf(days,status)~., pbc, mtry = 2, ntree = 1000)
-    B <- 100 
-    cox.err <- rep(NA, B) 
-    cox.f <- as.formula(Surv(days,status)~.)  
-    pbc.data <- pbc[apply(is.na(pbc), 1, sum) == 0,] ##remove NA's 
-    cat("Out-of-bag Cox Analysis ...", "\n")
-    for (b in 1:B) {
-        cat("Cox bootstrap", b, "\n") 
-        bag.sample <- sample(1:dim(pbc.data)[1],
-                             dim(pbc.data)[1],
-                             replace = TRUE) 
-        oob.sample <- setdiff(1:dim(pbc.data)[1], bag.sample)
-        train <- pbc.data[bag.sample,]
-        test <- pbc.data[oob.sample,]
-        cox.out <- coxph(cox.f, train)
-        cox.out <- tryCatch({coxph(cox.f, train)}, error=function(ex){NULL})
-        if (is.list(cox.out)) {
-          cox.predict <- predict(cox.out, test)
-          cox.err[b] <- rcorr.cens(cox.predict, 
-                 Surv(pbc.data$days[oob.sample], pbc.data$status[oob.sample]))[1]
-        }
-     }
-     cat("Error rates:", "\n")
-     cat("Random Survival Forests:", pbc3.out$err.rate[pbc3.out$ntree], "\n")
-     cat("         Cox Regression:", mean(cox.err, na.rm = TRUE), "\n")
+  data(pbc, package = "randomSurvivalForest")
+  pbc3.out <- rsf(Survrsf(days,status)~., pbc, mtry = 2, ntree = 1000)
+  B <- 100 
+  cox.err <- rep(NA, B) 
+  cox.f <- as.formula(Surv(days,status)~.)  
+  pbc.data <- pbc[apply(is.na(pbc), 1, sum) == 0,] ##remove NA's 
+  cat("Out-of-bag Cox Analysis ...", "\n")
+  for (b in 1:B) {
+    cat("Cox bootstrap:", b, "\n") 
+    bag.sample <- sample(1:nrow(pbc.data),
+                         nrow(pbc.data),
+                         replace = TRUE) 
+    oob.sample <- setdiff(1:nrow(pbc.data), bag.sample)
+    train <- pbc.data[bag.sample,]
+    test <- pbc.data[oob.sample,]
+    cox.out <- coxph(cox.f, train)
+    cox.out <- tryCatch({coxph(cox.f, train)}, error=function(ex){NULL})
+    if (is.list(cox.out)) {
+      cox.predict <- predict(cox.out, test)
+      cox.err[b] <- rcorr.cens(cox.predict, 
+              Surv(pbc.data$days[oob.sample],
+              pbc.data$status[oob.sample]))[1]
+    }
+  }
+  cat("Error rates:", "\n")
+  cat("Random Survival Forests:", pbc3.out$err.rate[pbc3.out$ntree], "\n")
+  cat("         Cox Regression:", mean(cox.err, na.rm = TRUE), "\n")
 }
-
-
-# Example 7:  Using an external data set.
-
-file.in <- "other.data"
-other.data <- read.table(file.in, header = TRUE)
-rsf.f <- as.formula(Survrsf(time, status)~.)
-rsf.out <- rsf(formula = rsf.f, data = other.data) 
-
 }
 }
 \keyword{survival}

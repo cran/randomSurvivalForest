@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -61,9 +61,12 @@ extern uint     *_varUsed_;
 extern uint     *_treeID_;
 extern uint     *_nodeID_;
 extern uint     *_parmID_;
-extern double   *_spltPT_;
+extern uint     *_mwcpSZ_;
+extern double   *_contPT_;
+extern uint     *_mwcpPT_;
 extern uint      _opt;
 extern uint      _splitRule;
+extern uint      _splitRandomRule;
 extern uint      _imputeSize;
 extern uint      _forestSize;
 extern uint      _minimumDeathCount;
@@ -91,6 +94,16 @@ extern double   *_masterTime;
 extern uint     *_masterTimeIndex;
 extern uint      _masterTimeSize;
 extern char     *_importanceFlag;
+extern uint      _factorCount;
+extern uint     *_factorMap;
+extern uint     *_factorIndex;
+extern uint     *_factorSize;
+extern uint      _maxFactorLevel;
+extern Factor  **_factorList;
+extern uint      _mFactorSize;
+extern uint      _fmFactorSize;
+extern uint     *_mFactorIndex;
+extern uint     *_fmFactorIndex;
 extern char      _mTimeIndexFlag; 
 extern uint     *_mRecordMap;
 extern uint     *_fmRecordMap;
@@ -123,6 +136,7 @@ extern double   *_sOOBImputeStatusPtr;
 extern double   *_sOOBImputeTimePtr;
 extern double  **_sOOBImputePredictorPtr;
 extern uint   **_varUsedPtr;
+extern uint      _totalMWCPCount;
 extern int      *_seed1Ptr;
 extern int      *_seed2Ptr;
 extern Node    **_nodeMembership;
@@ -132,3 +146,12 @@ extern uint     *_oobSampleSize;
 extern Node    **_fnodeMembership;
 extern char     *_fbootMembershipFlag;
 extern uint     *_foobSampleSize;
+extern double   _splitValueMaxCont;
+extern uint     _splitValueMaxFactSize;
+extern uint    *_splitValueMaxFactPtr;
+extern clock_t _benchTime;
+extern clock_t _splitTime;
+extern clock_t _hazrdTime;
+extern clock_t _ensblTime;
+extern clock_t _vimprTime;
+extern clock_t _cindxTime;

@@ -54,13 +54,15 @@
 //**********************************************************************
 //**********************************************************************
 
-#ifndef RSFSPLIT_H
-#define RSFSPLIT_H
-#include "extern.h"
-char randomSplit(Node *parent, uint *splitParameterMax);
-char logRankScore(Node *parent,
-                  uint *splitParameterMax);
-char conserveEvents(Node *parent,
-                    uint *splitParameterMax);
-char logRank(Node *parent, uint *splitParameterMax);
+#ifndef FACTOR_H
+#define FACTOR_H
+typedef struct factor Factor;
+struct factor {
+  unsigned int r; 
+  unsigned int cardinalGroupCount; 
+  void *complementaryPairCount;
+  void *cardinalGroupSize; 
+  unsigned int **cardinalGroupBinary;
+  unsigned int mwcpSize;
+};
 #endif

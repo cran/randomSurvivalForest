@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -61,6 +61,7 @@ SEXP rsfGrow(SEXP traceFlag,
              SEXP opt,
              SEXP seedPtr,
              SEXP splitRule,
+             SEXP splitRandomRule,  
              SEXP randomCovariateCount,
              SEXP forestSize,
              SEXP minimumDeathCount,
@@ -92,8 +93,10 @@ SEXP rsfPredict(SEXP traceFlag,
                 SEXP treeID,
                 SEXP nodeID,
                 SEXP parmID,
-                SEXP spltPT,
-                SEXP seedVector,
+                SEXP contPT,
+                SEXP mwcpSZ,
+                SEXP mwcpPT,
+                SEXP seed,
                 SEXP xType);
 SEXP rsfInteraction(SEXP traceFlag,
                     SEXP opt,
@@ -109,7 +112,9 @@ SEXP rsfInteraction(SEXP traceFlag,
                     SEXP treeID,
                     SEXP nodeID,
                     SEXP parmID,
-                    SEXP spltPT,
+                    SEXP contPT,
+                    SEXP mwcpSZ,
+                    SEXP mwcpPT,
                     SEXP seed,
                     SEXP xType,
                     SEXP intrPredictorSize,

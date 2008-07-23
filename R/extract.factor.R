@@ -54,14 +54,49 @@
 ##**********************************************************************
 ##**********************************************************************
 
-.onAttach <- function(libname, pkgname) {
-    RSFver <- read.dcf(file=system.file("DESCRIPTION", package=pkgname), 
-                      fields="Version")
-    cat("\n")
-    cat(paste(pkgname, RSFver))
-    cat("\n")
-    cat("\n")
-    cat("Type rsf.news() to see new features, changes, and bug fixes.")
-    cat("\n")
-    cat("\n")
+extract.factor <- function(data, prednames=NULL) {
+  predictorType  <- xfactor.levels <- xfactor.order.levels <- NULL
+  xfactor <- names(data)[apply(cbind(1:ncol(data)), 1, function(k)
+                  {is.factor(data[ , k]) && !is.ordered(data[ , k])})]
+  xfactor.order <- names(data)[apply(cbind(1:ncol(data)), 1, function(k) {is.ordered(data[ , k])})]
+  if (!is.null(prednames)) xfactor <- intersect(xfactor , prednames)
+  if (!is.null(prednames)) xfactor.order <- intersect(xfactor.order , prednames)
+  if (length(xfactor) > 0) {
+    xfactor.levels <- apply(cbind(1:(1+length(xfactor))), 1, function(k) {
+        if (k <= length(xfactor)) {
+          levels(data[ , names(data) == xfactor[k]])
+        }
+        else {
+          NULL
+        }
+    })
+    xfactor.levels <- xfactor.levels[-(1+length(xfactor))]
+  }
+  if (length(xfactor.order) > 0 ) {
+    xfactor.order.levels <- apply(cbind(1:(1+length(xfactor.order))), 1, function(k) {
+        if (k <= length(xfactor.order)) {
+          levels(data[ , names(data) == xfactor.order[k]])
+        }
+        else {
+          NULL
+        }
+    })
+    xfactor.order.levels <- xfactor.order.levels[-(1+length(xfactor.order))]
+  }
+  if (!is.null(prednames)) {
+    predictorType <- rep("R", length(prednames))
+    if (length(xfactor) > 0) {
+      predictorType[is.element(prednames, xfactor)] <- "C"
+    }
+    if (length(xfactor.order) > 0) {
+      predictorType[is.element(prednames, xfactor.order)] <- "I"
+    }
+  }
+  return(list(
+    xfactor=xfactor,
+    xfactor.order=xfactor.order,
+    xfactor.levels=xfactor.levels,
+    xfactor.order.levels=xfactor.order.levels,
+    predictorType=predictorType
+    ))              
 }

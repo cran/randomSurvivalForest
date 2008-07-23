@@ -2,8 +2,9 @@
 \alias{plot.variable}
 \title{Plot of Ensemble Survival Effect of Variables}
 \description{
-  Plot of ensemble mortality (or median survival) for each variable.
-  Users can select between marginal and partial plots.
+  Plot of ensemble mortality, predicted median survival, or predicted
+  survival time for each variable.  Users can select between marginal
+  and partial plots.
 }
 \usage{
     plot.variable(x,
@@ -37,19 +38,23 @@
 	\code{predictorNames}=NULL).  Default is all.}
     \item{npts}{Maximum number of points used when generating partial
       plots for continuous variables.}
-    \item{subset}{An index vector indicating which rows should be used.
-        Default is to use all the data.}
+    \item{subset}{Indices indicating which rows of the predictor matrix
+      to be used (note: this applies to the \emph{processed} predictor
+      matrix, \code{predictors} of the object).  Default is to use all
+      rows.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-    Mortality, relative frequency of mortality, median survival, or
-    estimated survival times are plotted on the vertical axis (y-value)
-    against a variable (x-value) on the horizontal axis.  The choice of
-    y-value is controlled by \code{type}.  There are 4 different
-    choices: \code{mort} is ensemble mortality, \code{rel.freq} is
-    standardized mortality, \code{surv} is ensemble median survival,
-    \code{type} is estimated survival time (this last option only
-    applies to partial plots, however).  For continuous variables,
+    Either mortality, relative frequency of mortality, predicted median
+    survival, or predicted survival times are plotted on the vertical
+    axis (y-value) against x-variables on the horizontal axis.  The
+    choice of x-variables are specified by \code{predictorNames} or
+    using \code{npred}.  The choice of y-value is controlled by
+    \code{type}.  There are 4 different choices: \code{mort} is ensemble
+    mortality, \code{rel.freq} is standardized mortality, \code{surv} is
+    predicted median survival (predicted survival at the median survival
+    time), \code{time} is the predicted survival time (this last option
+    only applies to partial plots, however).  For continuous variables,
     points are colored so that blue corresponds to events, whereas black
     points represent censored observations.
   
@@ -107,6 +112,9 @@
   \code{predict.rsf}.
 }
 \examples{
+#------------------------------------------------------------------------
+# Some examples: veteran data.
+
 data(veteran, package = "randomSurvivalForest") 
 v.out <- rsf(Survrsf(time,status)~., veteran, forest = TRUE, ntree = 1000)
 plot.variable(v.out, plots.per.page = 3)
@@ -114,8 +122,10 @@ plot.variable(v.out, plots.per.page = 2, predictorNames = c("trt", "karno", "age
 plot.variable(v.out, type = "rel.freq", partial = TRUE, plots.per.page = 2, npred=3)
 
 \dontrun{
+#------------------------------------------------------------------------
 # Fast partial plots using 'time' type.
 # Top 8 predictors from PBC data.
+
 data(pbc, package = "randomSurvivalForest") 
 pbc.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000, forest = TRUE)
 plot.variable(pbc.out, type = "time", partial = TRUE, npred=8)

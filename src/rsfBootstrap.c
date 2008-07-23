@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -68,15 +68,15 @@ char bootstrap (char     multipleImputeFlag,
   uint ibgSampleSize;
   char result;
   uint i,k;
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nbootstrap() ENTRY ...\n");
   }
-  if (getTraceFlag() & DL0_TRACE) {
+  if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Bootstrap sample:  %10d ", b);  
   }
   result = TRUE;
   mOutcomeFlag = FALSE;
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nBootstrap random seed chain ran1():  ");
     Rprintf("\n%10d %20d ", b, *_seed1Ptr);
   }
@@ -84,11 +84,11 @@ char bootstrap (char     multipleImputeFlag,
     _bootMembershipFlag[i] = FALSE;
   }
   for (i=1; i <= _observationSize; i++) {
-    k = ceil(ran1(_seed1Ptr)*((_observationSize)*1.0));
+    k = (uint) ceil(ran1(_seed1Ptr)*((_observationSize)*1.0));
     _bootMembershipFlag[k] = TRUE;
     _bootMembershipIndex[i] = k;
   }
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\n\nIn-Bag Membership:  ");
     Rprintf("\n bootIndex   orgIndex (in original data) \n");
     for (i=1; i <=  _observationSize; i++) {
@@ -106,17 +106,17 @@ char bootstrap (char     multipleImputeFlag,
     }
   }
   ibgSampleSize = _observationSize - _oobSampleSize[b];
-  if (getTraceFlag() & DL2_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\n\nIBG Size:  %10d ", ibgSampleSize);
     Rprintf(  "\nOOB Size:  %10d ", _oobSampleSize[b]);
   }
   result = getForestSign(mode, b);
   if (result == FALSE) {
-    if (getTraceFlag() & DL0_TRACE) {
+    if (getTraceFlag() & SUMM_USR_TRACE) {
       Rprintf("\nRSF:  Status or Time values are all missing in the sample.  Bootstrap sample has been discarded.");  
     }
   }
-  if (getTraceFlag() & DL0_TRACE) {
+  if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Bootstrapping and all mode initialization complete.");  
   }
   if (result == TRUE) {
@@ -147,7 +147,7 @@ char bootstrap (char     multipleImputeFlag,
           _foobSampleSize[b] ++;
         }
       }
-      if (getTraceFlag() & DL2_TRACE) {
+      if (getTraceFlag() & SUMM_HGH_TRACE) {
         Rprintf(  "\nINTR OOB Size:  %10d ", _foobSampleSize[b]);
       }
       if (_fmRecordSize > 0) {
@@ -163,11 +163,11 @@ char bootstrap (char     multipleImputeFlag,
     }
   }  
   else {
-    if (getTraceFlag() & DL1_TRACE) {
+    if (getTraceFlag() & SUMM_HGH_TRACE) {
       Rprintf("\nBootstrap sample is invalid:  %10d \n", b);      
     }
   }
-  if (getTraceFlag() & DL1_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nbootstrap() EXIT ...\n");
   }
   return result;

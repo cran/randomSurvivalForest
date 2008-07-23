@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.3
+##  RANDOM SURVIVAL FOREST 3.5.0
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -102,7 +102,7 @@ plot.variable <- function(
     ### extract predictor names to be plotted
     ### should predictors be sorted by importance?
     predictors <- object$predictors
-    if (!is.null(object$imputedIndv)) predictors[object$imputedIndv, ] <- object$imputedData[,-c(1:2)]
+    if (!is.null(object$imputedIndv)) predictors[object$imputedIndv, ] <- object$imputedData[, -c(1:2)]
     if (is.null(predictorNames)) {
       cov.names <- object$predictorNames
     }
@@ -138,7 +138,24 @@ plot.variable <- function(
     ## Save par settings
     old.par <- par(no.readonly = TRUE)
 
+
+    ## nice y-label
+    if (type == "mort") {
+      ylabel <- "mortality"
+    }
+    else if (type == "rel.freq") {
+      ylabel <- "standardized mortality"
+    }
+    else if (type == "surv") {
+      ylabel <- "predicted median survival"
+    }
+    else {
+      ylabel <- "predicted survival time"
+    }
+    
+    ##--------------------------------------------------------------------------------
     ## Marginal plots
+    ##--------------------------------------------------------------------------------
     if (!partial) {
       if (n > 500) cex <- 0.5 else cex <- 0.75
       plots.per.page <- max(round(min(plots.per.page,n.cov)), 1)
@@ -152,17 +169,17 @@ plot.variable <- function(
       }
       else {
         yhat <-
-          100*exp(-object$ensemble[,max(which(object$timeInterest<=median(object$time)))])
+          100*exp(-object$ensemble[ , max(which(object$timeInterest<=na.omit(median(object$time))))])
       }
       for (k in 1:n.cov) {
         x <- predictors[, object$predictorNames == cov.names[k]]
         x.uniq <- unique(x)
         n.x <- length(x.uniq)
-        if (n.x > granule) {
+        if (!is.factor(x) & n.x > granule) {
             plot(x,
                  yhat,
-                 xlab=cov.names[k],
-                 ylab = "",
+                 xlab = cov.names[k],
+                 ylab = ylabel,
                  type = "n",
                  cex.lab = 1.5)
             points(x[object$cens == 1], yhat[object$cens == 1],
@@ -172,26 +189,29 @@ plot.variable <- function(
             lines(lowess(x[!is.na(x)], yhat[!is.na(x)]), col = 2, lwd=3)
         }
         else {
-            boxplot(yhat ~ x,
+          if (is.factor(x)) x <- factor(x, exclude = NULL)          
+          boxplot(yhat ~ x, na.action = "na.omit",
                     xlab = cov.names[k],
-                    notch = T,
-                    outline = F,
+                    ylab = ylabel,
+                    notch = TRUE,
+                    outline = FALSE,
                     data = predictors,
                     col = "bisque",
                     names = rep("", n.x),
                     xaxt = "n",
                     pars = list(cex.lab = 1.5))
-            at.pretty <- unique(round(pretty(1:n.x, min(30, n.x))))
-            at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
-            axis(1,
-                 at = at.pretty,
-                 labels = format(sort(x.uniq)[at.pretty], trim = T, digits = 4),
-                 tick = T)
+          at.pretty <- unique(round(pretty(1:n.x, min(30, n.x))))
+          at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
+          axis(1,
+               at = at.pretty,
+               labels = format(sort(x.uniq)[at.pretty], trim = TRUE, digits = 4),
+               tick = TRUE)
         }
       }
     }
-
+    ##--------------------------------------------------------------------------------
     ## Partial plots
+    ##--------------------------------------------------------------------------------
     else {
       if (is.null(object$forest)) {
         stop("Forest is empty!  Re-run rsf (grow) analysis with forest set to 'TRUE'.")
@@ -209,8 +229,9 @@ plot.variable <- function(
       if (npts < 1) npts <- 1 else npts <- round(npts)
       for (k in 1:n.cov) {
         x <- predictors[, object$predictorNames == cov.names[k]]
+        if (is.factor(x)) x <- factor(x, exclude = NULL)          
         n.x <- length(unique(x))
-        if (n.x > npts) {
+        if (!is.factor(x) & n.x > npts) {
           x.uniq <- sort(unique(x))[unique(as.integer(seq(1, n.x, length = min(npts, n.x))))]
         }
         else {
@@ -219,8 +240,7 @@ plot.variable <- function(
         n.x <- length(x.uniq)
         if (n.x > 25) cex <- 0.5 else cex <- 0.75
         yhat <- yhat.se <- NULL
-        newdata.x <- as.data.frame(predictors)
-        colnames(newdata.x) <- object$predictorNames
+        newdata.x <- predictors
         for (l in 1:n.x) {
           newdata.x[, object$predictorNames == cov.names[k]] <- rep(x.uniq[l], n)
           if (type == "mort" | type == "rel.freq" | type == "time") {
@@ -229,28 +249,28 @@ plot.variable <- function(
           else if (type == "surv") {
             pred.temp <-
              100*exp(-predict.rsf(baseForest, newdata.x)$ensemble[,
-                        max(which(object$timeInterest<=median(object$time)))])
+                    max(which(object$timeInterest<=median(na.omit(object$time))))])
           }
-          if (n.x > granule | n.cov == 1) {
-            yhat <- c(yhat, mean(pred.temp))
-            yhat.se <- c(yhat.se, sd(pred.temp/sqrt(n)))
+          if (!is.factor(x) & (n.x > granule | n.cov == 1)) {
+            yhat <- c(yhat, mean(pred.temp , na.rm = TRUE))
+            yhat.se <- c(yhat.se, sd(pred.temp/sqrt(n) , na.rm = TRUE))
           }
           else {
-            mean.temp <- mean(pred.temp)
+            mean.temp <- mean(pred.temp , na.rm = TRUE)
             pred.temp <- mean.temp + (pred.temp-mean.temp)/sqrt(n)
             yhat <- c(yhat, pred.temp)
           }
-        }
-        if (type == "rel.freq") nAdj <- max(n, yhat)
-        if (n.x > granule | n.cov == 1) {
+        }        
+        if (type == "rel.freq") nAdj <- max(n, yhat, na.rm = TRUE)
+        if (!is.factor(x) & (n.x > granule | n.cov == 1)) {
           if (type == "rel.freq") {
             yhat <- yhat/nAdj
             yhat.se <- yhat.se/n
           }
           plot(c(min(x), x.uniq, max(x), x.uniq, x.uniq),
                c(NA, yhat, NA, yhat+2*yhat.se, yhat-2*yhat.se),
-               xlab=cov.names[k],
-               ylab = "",
+               xlab = cov.names[k],
+               ylab = ylabel,
                type = "n",
                cex.lab = 1.5)
           points(x.uniq, yhat, pch = 16, cex = cex, col = 2)
@@ -262,31 +282,33 @@ plot.variable <- function(
           rug(x, ticksize=0.03)
         }
         else {
-            if (type != "rel.freq") {
-              y.se <- 2
-            }
-            else {
-              yhat <- yhat/nAdj
-              y.se <- 2/n
-            }
-            bxp.call <- boxplot(yhat ~ rep(x.uniq, rep(n, n.x)), range = 2, plot = F)
-            boxplot(yhat ~ rep(x.uniq, rep(n, n.x)),
-                    xlab = cov.names[k],
-                    notch = T,
-                    outline = F,
-                    range = 2,
-                    ylim = c(min(bxp.call$stats[1,])-y.se,max(bxp.call$stats[5,])+y.se),
-                    data = predictors,
-                    col = "bisque",
-                    names = rep("",n.x),
-                    xaxt = "n",
-                    pars = list(cex.lab = 1.5))
-            at.pretty <- unique(round(pretty(1:n.x, min(30,n.x))))
-            at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
-            axis(1,
-                 at = at.pretty,
-                 labels = format(sort(x.uniq)[at.pretty], trim = T, digits = 4),
-                 tick = T)
+          if (type != "rel.freq") {
+            y.se <- 2
+          }
+          else {
+            yhat <- yhat/nAdj
+            y.se <- 2/n
+          }          
+          bxp.call <- boxplot(yhat ~ rep(x.uniq, rep(n, n.x)), range = 2, plot = F)
+          boxplot(yhat ~ rep(x.uniq, rep(n, n.x)),
+                  xlab = cov.names[k],
+                  ylab = ylabel,
+                  notch = TRUE,
+                  outline = FALSE,
+                  range = 2,
+                  ylim = c(min(bxp.call$stats[1,], na.rm=TRUE)
+                      - y.se,max(bxp.call$stats[5,], na.rm=TRUE) + y.se),
+                  data = predictors,
+                  col = "bisque",
+                  names = rep("",n.x),
+                  xaxt = "n",
+                  pars = list(cex.lab = 1.5))
+          at.pretty <- unique(round(pretty(1:n.x, min(30,n.x))))
+          at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
+          axis(1,
+               at = at.pretty,
+               labels = format(sort(x.uniq)[at.pretty], trim = TRUE, digits = 4),
+               tick = TRUE)
         }
       }
     }

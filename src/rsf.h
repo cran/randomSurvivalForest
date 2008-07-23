@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -57,13 +57,11 @@
 uint getTraceFlag();
 void updateTraceFlag(char reset);
 char getBestSplit(Node    *parent,
-                  uint    *splitParameterMax,
-                  double  *splitValueMax);
+                  uint    *splitParameterMax);
 char makeTree(char     imputeFlag,
               uint     b,
               Node    *parent);
 char forkAndUpdate(uint  *leafCount,
                    Node  *parent,
-                   uint   splitParameter,
-                   double splitValue);
+                   uint   splitParameter);
 SEXP rsf(char mode, uint traceFlag);

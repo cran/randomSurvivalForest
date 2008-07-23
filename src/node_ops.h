@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.2.3
+//  RANDOM SURVIVAL FOREST 3.5.0
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -56,8 +56,17 @@
 
 #ifndef NODE_OPS_H
 #define NODE_OPS_H
-extern uint _xSize;
+extern double   _splitValueMaxCont;
+extern uint     _splitValueMaxFact;
+extern uint     _xSize;
 Node ***nodePtrMatrix(
+  ulong nrl,
+  ulong nrh,
+  ulong ncl,
+  ulong nch
+);
+void free_nodePtrMatrix(
+  Node ***m,
   ulong nrl,
   ulong nrh,
   ulong ncl,
@@ -67,19 +76,12 @@ Node **nodePtrVector(
   ulong nl,
   ulong nh
 );
-Node* makeNode();
-void free_nodePtrMatrix(
-  Node ***m,
-  ulong nrl,
-  ulong nrh,
-  ulong ncl,
-  ulong nch
-);
 void free_nodePtrVector(
   Node **v,
   ulong nl,
   ulong nh
 );
+Node* makeNode();
 void free_Node(Node *parent);
 void getNodeInfo(Node *leaf);
 void setParent(
@@ -94,9 +96,6 @@ void setRightDaughter(
   Node *daughter,
   Node *parent
 );
-char forkNode(
-  Node  *parent,
-  uint   splitParameter,
-  double splitValue
-);
+char forkNode(Node  *parent,
+              uint   splitParameter);
 #endif

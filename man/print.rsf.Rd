@@ -18,9 +18,9 @@
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
-    H. Ishwaran, Udaya B. Kogalur, Eugene H. Blackstone and Michael S. Lauer
-    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
-    Report}.
+    H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
+    (2008).  Random survival forests, \emph{To appear in Ann. App.
+    Statist.}.
 }
 \seealso{
   \code{rsf},

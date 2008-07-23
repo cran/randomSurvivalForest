@@ -1,7 +1,7 @@
 ##**********************************************************************
 ##**********************************************************************
 ##
-##  RANDOM SURVIVAL FOREST 3.2.3
+##  RANDOM SURVIVAL FOREST 3.5.0
 ##
 ##  Copyright 2008, Cleveland Clinic Foundation
 ##
@@ -76,62 +76,61 @@ interaction.rsf <- function(
     object <- object$forest
   }
 
-  ## Map interaction names to columns of predictor matrix
-  ## Map interaction terms and the (potentially proper) subset of
-  ## the GROW data to the native code requirements.
+  ## Map interaction names to columns of GROW predictor matrix
+  ## Ensure interaction names are coherent
   predictorNames <- unique(predictorNames)
-  predictorNames <- apply(cbind(1:length(predictorNames)), 1, function(i){
-                   which(is.element(colnames(object$predictors), predictorNames[i]))})
-  if (length(predictorNames)==0 || is.null(predictorNames)) {
-    ## The user has not specified any variable names.  Exit immediately. 
-    stop("Variable names must be specified.")
+  if (is.null(predictorNames)) {
+    predictorNames <- object$predictorNames
   }
   else {
-    if (is.null(subset)) {
-      ## The user has not specified a subset of the GROW data.
-      ## Assume the entire data set is to be used.
-      subset <- 1:dim(object$predictors)[1]
-    }
+    predictorNames <- intersect(predictorNames, object$predictorNames)
   }
-  subset <- unique(subset[subset >= 1
-                         & subset <= dim(object$predictors)[1]])
-  if (length(subset) == 0) stop("'subset' not set properly.")
+  if (length(predictorNames) == 0)
+    stop("predictor names do not match object predictor matrix")
+  predictorNames <- apply(cbind(1:length(predictorNames)), 1, function(i) {
+                   which(is.element(object$predictorNames, predictorNames[i]))})
+
+  ## The user has not specified a subset of the GROW data.
+  ## Assume the entire data set is to be used.
+  if (is.null(subset)) {
+    subset <- 1:nrow(object$predictors)
+  }
+  else {
+    subset <- unique(subset[subset >= 1
+                         & subset <= nrow(object$predictors)])
+    if (length(subset) == 0) stop("'subset' not set properly.")
+  }
   
-  ## Get names
-  fNames <- all.vars(object$formula, max.names=1e7)
+  ## Get information from the grow object
+  ## Identify unordered/ordered factors
+  ## Determine predictor types
+  ## Data conversion to numeric
   ntree <- length(unique(object$nativeArray[,1]))
-
-  ## Set the predictor types.
-  if (inherits(object, c("rsf", "grow", "bigdata"), TRUE) [3] == 3) big.data <- T else big.data <- F
-  if (!big.data) {
-    whole.number <- function(x) {
-      n.whole.number <- max(10, round(0.25*length(x)))
-      if (length(unique(x)) <= n.whole.number & all((na.omit(x) - floor(na.omit(x))) == 0)) "I" else "R"
-    }
-    predictorType <- apply(object$predictors, 2, whole.number)
-  }
-  else {
-    predictorType <- rep("R", dim(object$predictors)[2])
-  }
-
-  ## Generate the random seed.
+  get.factor <- extract.factor(object$predictors, object$predictorNames)
+  xfactor <- get.factor$xfactor
+  xfactor.order <- get.factor$xfactor.order
+  predictorType <- get.factor$predictorType
+  object$predictors <- as.matrix(data.matrix(object$predictors))
+  rownames(object$predictors) <- colnames(object$predictors) <- NULL
+  
+  ## Generate the random seed
   if (is.null(seed) || abs(seed)<1) seed <- runif(1,1,1e6)
   seed <- -round(abs(seed))
   
-  ## Set the trace level.
+  ## Set the trace level
   if (!is.logical(do.trace)) {
     if (do.trace >= 1){
-      do.trace <- 256*round(do.trace) + 1
+      do.trace <- 2^16 * round(do.trace) + 1
     }
     else {
       do.trace <- 0
     }
   }
   else {
-    do.trace <- 1*(do.trace)
+    do.trace <- 1 * do.trace
   }
 
-  ## Convert importance option into native code parameter.
+  ## Convert importance option into native code parameter
   if (importance == "none") {
     importanceBits <- 0
   }
@@ -154,19 +153,19 @@ interaction.rsf <- function(
     stop("Invalid choice for 'joint' option:  ", joint)
   }
   if (rough == TRUE) {
-    ## Use the mean survival time as predicted outcome.
+    ## Use the mean survival time as predicted outcome
     predictedOutcomeBits <- 2^14
   }
   else if (rough == FALSE) {
-    ## Use the CHF as predicted outcome.
+    ## Use the CHF as predicted outcome
     predictedOutcomeBits <- 0    
   }
   else {
     stop("Invalid choice for 'rough' option:  ", rough)
   }
-    
+
   
-  ## #####################################################################
+  ########################################################################
   ## rsfInteraction(...)
   ##
   ## Parameters passed:
@@ -215,17 +214,19 @@ interaction.rsf <- function(
   ## 12 - vector representing treeID
   ## 13 - vector representing nodeID
   ## 14 - vector representing parmID
-  ## 15 - vector representing spltPT
-  ## 16 - head of seed chain, integer < 0
-  ## 17 - vector of predictor types
+  ## 15 - vector representing contPT
+  ## 16 - vector representing mwcpSZ
+  ## 17 - vector representing mwcpPT  
+  ## 18 - head of seed chain, integer < 0
+  ## 19 - vector of predictor types
   ##        "R" - real value
   ##        "I" - integer value 
   ##        "C" - categorical
-  ## 18 - number of predictors in interaction, integer > 0
-  ## 19 - vector of predictors in interaction, integers > 0
-  ## 20 - number of individuals in the (potentially proper)
+  ## 20 - number of predictors in interaction, integer > 0
+  ## 21 - vector of predictors in interaction, integers > 0
+  ## 22 - number of individuals in the (potentially proper)
   ##      subsetted GROW data set, integer > 1
-  ## 21 - index of individuals in the subsetted GROW data set,
+  ## 23 - index of individuals in the subsetted GROW data set,
   ##      integers > 1
   ## ###########################################################
 
@@ -239,17 +240,19 @@ interaction.rsf <- function(
                                    importanceBits),
                         as.integer(seed),
                         as.integer(ntree),
-                        as.integer(dim(object$predictors)[1]),
+                        as.integer(nrow(object$predictors)),
                         as.double(object$time),
                         as.double(object$cens),
-                        as.integer(dim(object$predictors)[2]),
+                        as.integer(ncol(object$predictors)),
                         as.numeric(object$predictors),
                         as.integer(length(object$timeInterest)),
                         as.double(object$timeInterest),
-                        as.integer(object$nativeArray[,1]),
-                        as.integer(object$nativeArray[,2]),
-                        as.integer(object$nativeArray[,3]),
-                        as.double(object$nativeArray[,4]),
+                        as.integer((object$nativeArray)$treeID),
+                        as.integer((object$nativeArray)$nodeID),
+                        as.integer((object$nativeArray)$parmID),
+                        as.double((object$nativeArray)$contPT),
+                        as.integer((object$nativeArray)$mwcpSZ),                        
+                        as.integer(object$nativeFactorArray),                        
                         as.integer(object$seed),
                         as.character(predictorType),
                         as.integer(length(predictorNames)),
@@ -263,7 +266,8 @@ interaction.rsf <- function(
   }
 
   rsfOutput <- list(
-                    err.rate = nativeOutput$performance,
+                    err.rate = nativeOutput$performance[ntree],
+                    err.perturb.rate = nativeOutput$importance,
                     importance = nativeOutput$importance-nativeOutput$performance[ntree]
                     )
 
