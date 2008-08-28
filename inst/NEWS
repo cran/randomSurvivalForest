@@ -1,11 +1,19 @@
 Package: randomSurvivalForest
-Version: 3.5.0
-BUILD: bld20080723a
+Version: 3.5.1
+BUILD: release_3_5_0_branch_bld20080828
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.5.0
+CHANGES TO RELEASE 3.5.1
 
-RELEASE 3.5.0 represents a significant upgrade in the functionality of
+RELEASE 3.5.1 represents a minor upgrade of the product,
+and will not affect most users of the prior version of the product.
+Key changes are as follows:
+
+o An adaptive upper bound for the number of splits attempted is now in
+force.  It is not greater than the number of data points in a node.
+
+---------------------------------------------------------------------------------
+Release 3.5.0 represents a significant upgrade in the functionality of
 the product.  Key changes are as follows:
 
 o A random version of all computed split rules is now available.  See

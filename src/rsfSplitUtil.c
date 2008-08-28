@@ -1,7 +1,7 @@
 //**********************************************************************
 //**********************************************************************
 //
-//  RANDOM SURVIVAL FOREST 3.5.0
+//  RANDOM SURVIVAL FOREST 3.5.1
 //
 //  Copyright 2008, Cleveland Clinic Foundation
 //
@@ -563,7 +563,7 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
         }
       }
       if (*deterministicSplitFlag == FALSE) {
-        splitLength = 1 + _splitRandomRule;
+        splitLength = 1 + ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize);
       }
     }
     (*permissibleSplitPtr) = uivector(1, splitLength * (*mwcpSizeAbsolute));

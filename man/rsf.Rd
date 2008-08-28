@@ -148,15 +148,15 @@
   factor is unordered, a split will move a subset of the levels in the
   parent node to the left daughter, and the complementary subset to the
   right daughter.  All possible complementary pairs are considered and
-  apply to factors with an unlimited number of levels.  However, for
-  deterministic splitting there is an optimization check to ensure that
-  the number of splits is not greater than the number of complementary
-  pairs in a node (this internal check will be overridden in random
-  splitting mode if nsplit is set high enough).  Note that when
-  predicting on test data involving factors, the factor labels in the
-  test data must be the same as in the grow (training) data.  Consider
-  setting labels that are unique in the test data to missing.
-  
+  apply to factors with an unlimited number of levels.  However, there
+  is an optimization check to ensure that the number of splits attempted
+  is not greater than the number of cases in a node (this internal check
+  will override the nsplit value in random splitting mode if nsplit is
+  large enough).  Note that when predicting on test data involving
+  factors, the factor labels in the test data must be the same as in the
+  grow (training) data.  Consider setting labels that are unique in the
+  test data to missing.
+ 
   Other than factors, all other x-variables are coerced and treated as
   being real valued.
   
