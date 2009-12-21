@@ -14,29 +14,39 @@
         Default is TRUE.}
     \item{...}{Further arguments passed to or from other methods.}
 }
-\details{
+\details{  
   Four plots are produced.  Going from top to bottom, left to right: (1)
-  This shows the ensemble survival function for each individual in the
-  data.  Thick red line is overall ensemble survival, thick green line
-  is Nelson-Aalen estimator. (2) This is a comparison of the population
-  ensemble survival function to the Nelson-Aalen estimator. (3) The
-  Brier score, a value between 0 and 1 (where 0=perfect, 1=poor, and
-  0.25=guessing) is plotted at each of the unique event times with plot
-  stratified by ensemble mortality value (see Graf et al. for more
-  background on Brier scores).  Stratification is into 4 groups
-  corresponding to the 0-25, 25-50, 50-75 and 75-100 percentile values
-  of mortality.  Red line is non-stratified score.  (4) Plot of
-  estimated mortality versus observed time.  Points in blue correspond
-  to events, black points are censored observations.
+  Ensemble survival function for each individual.  Thick red line is
+  overall ensemble survival, thick green line is Nelson-Aalen
+  estimator. (2) Comparison of the population ensemble survival function
+  to the Nelson-Aalen estimator. (3) Brier score (0=perfect, 1=poor, and
+  0.25=guessing) stratified by ensemble mortality.  Based on the method
+  described in Gerds et al. (2008) in which the censoring distribution
+  is estimated using the Kaplan-Meier estimator.  Stratification is into
+  4 groups corresponding to the 0-25, 25-50, 50-75 and 75-100 percentile
+  values of mortality.  Red line is the overall (non-stratified) Brier
+  score.  (4) Plot of mortality versus observed time.  Points in blue
+  correspond to events, black points are censored observations.
 
   Note that when \code{x} is of class \code{(rsf, predict)} not all
   plots will be produced.
+
+  For competing risk analyses plots correspond to unconditional values
+  (i.e., they are non-event specific).  Use \code{competing.risk} for
+  event-specific curves and for a more comprehensive analysis in such
+  cases.
+
+  Whenever possible, out-of-bag (OOB) values are used.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
     Udaya B. Kogalur \email{ubk2101@columbia.edu}
 }
 \references{
+
+    T.A. Gerds, T. Cai and M. Schumacher (2008).  The performance of
+    risk prediction models, \emph{Biometrical Jour.}, 4:457-479.
+  
     E. Graf, C. Schmoor, W. Sauerbrei and M. Schumacher M (1999).
     Assessment and comparison of prognostic classification
     schemes for survival data, \emph{Statistics in Medicine},
@@ -46,12 +56,18 @@
     \emph{Rnews}, 7/2:25-31.
 }
 \seealso{
+  \code{competing.risk},
   \code{rsf},
   \code{predict.rsf}.
 }
 \examples{
-  data(veteran, package = "randomSurvivalForest") 
-  v.out <- rsf(Survrsf(time, status)~., veteran, ntree = 1000)
-  plot.ensemble(v.out)
+data(veteran, package = "randomSurvivalForest") 
+v.out <- rsf(Survrsf(time, status)~., veteran, ntree = 1000)
+plot.ensemble(v.out)
+
+# plot of ensemble survival for a single individual
+surv.ensb <- t(exp(-v.out$oob.ensemble))
+plot(v.out$timeInterest, surv.ensb[, 1])
+
 }
 \keyword{file}

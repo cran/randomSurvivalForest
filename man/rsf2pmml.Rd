@@ -8,13 +8,12 @@
     forest as a PMML XML document.
 }
 \usage{
-    rsf2pmml(rsfForest, ...)
+    rsf2pmml(object, ...)
 }
 \arguments{
-    \item{rsfForest}{The \code{forest} object contained in an object of class
-      \pkg{randomSurvivalForest}, as that contained in the object
-      returned by the function \code{rsf} with the parameter
-      \dQuote{forest=TRUE}.}
+    \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
+	forest)}. Note that \code{forest}=TRUE must be used in the
+        original \code{rsf} call.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -88,7 +87,11 @@
   veteran.pmml <- rsf2pmml(veteran.forest)
 
   # Save the document to disk.
-  saveXML(veteran.pmml, "veteran.forest.xml")
+  userFile = file("veteran.forest.xml")
+  saveXML(veteran.pmml, userFile)
+  close(userFile)
+
+  # Read the just written document.
   veteran.pmml <- xmlRoot(xmlTreeParse("veteran.forest.xml"))
 
   partial.forest <- pmml2rsf(veteran.pmml)

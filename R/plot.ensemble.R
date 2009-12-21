@@ -1,58 +1,89 @@
-##**********************************************************************
-##**********************************************************************
-##
-##  RANDOM SURVIVAL FOREST 3.5.1
-##
-##  Copyright 2008, Cleveland Clinic Foundation
-##
-##  This program is free software; you can redistribute it and/or
-##  modify it under the terms of the GNU General Public License
-##  as published by the Free Software Foundation; either version 2
-##  of the License, or (at your option) any later version.
-##
-##  This program is distributed in the hope that it will be useful,
-##  but WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##  GNU General Public License for more details.
-##
-##  You should have received a copy of the GNU General Public
-##  License along with this program; if not, write to the Free
-##  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##  Boston, MA  02110-1301, USA.
-##
-##  Project funded by:
-##    National Institutes of Health, HL072771-01
-##
-##    Michael S Lauer, MD, FACC, FAHA
-##    Cleveland Clinic Lerner College of Medicine of CWRU
-##    9500 Euclid Avenue
-##    Cleveland, OH 44195
-##
-##    email:  lauerm@ccf.org
-##    phone:   216-444-6798
-##
-##  Written by:
-##    Hemant Ishwaran, Ph.D.
-##    Dept of Quantitative Health Sciences/Wb4
-##    Cleveland Clinic Foundation
-##    9500 Euclid Avenue
-##    Cleveland, OH 44195
-##
-##    email:  hemant.ishwaran@gmail.com
-##    phone:  216-444-9932
-##    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-##    --------------------------------------------------------------
-##    Udaya B. Kogalur, Ph.D.
-##    Kogalur Shear Corporation
-##    5425 Nestleway Drive, Suite L1
-##    Clemmons, NC 27012
-##
-##    email:  ubk2101@columbia.edu
-##    phone:  919-824-9825
-##    URL:    www.kogalur-shear.com
-##
-##**********************************************************************
-##**********************************************************************
+####**********************************************************************
+####**********************************************************************
+####
+####  RANDOM SURVIVAL FOREST 3.6.0
+####
+####  Copyright 2009, Cleveland Clinic Foundation
+####
+####  This program is free software; you can redistribute it and/or
+####  modify it under the terms of the GNU General Public License
+####  as published by the Free Software Foundation; either version 2
+####  of the License, or (at your option) any later version.
+####
+####  This program is distributed in the hope that it will be useful,
+####  but WITHOUT ANY WARRANTY; without even the implied warranty of
+####  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+####  GNU General Public License for more details.
+####
+####  You should have received a copy of the GNU General Public
+####  License along with this program; if not, write to the Free
+####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+####  Boston, MA  02110-1301, USA.
+####
+####  ----------------------------------------------------------------
+####  Project Partially Funded By:
+####    --------------------------------------------------------------
+####    National Institutes of Health,  Grant HHSN268200800026C/0001
+####
+####    Michael S. Lauer, M.D., FACC, FAHA 
+####    National Heart, Lung, and Blood Institute
+####    6701 Rockledge Dr, Room 10122
+####    Bethesda, MD 20892
+####
+####    email:  lauerm@nhlbi.nih.gov
+####
+####    --------------------------------------------------------------
+####    Case Western Reserve University/Cleveland Clinic  
+####    CTSA Grant:  UL1 RR024989, National Center for
+####    Research Resources (NCRR), NIH
+####
+####    --------------------------------------------------------------
+####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+####    Andy Minn, M.D., Ph.D.
+####    Department of Radiation and Cellular Oncology, and
+####    Ludwig Center for Metastasis Research
+####    The University of Chicago, Jules F. Knapp Center, 
+####    924 East 57th Street, Room R318
+####    Chicago, IL 60637
+#### 
+####    email:  aminn@radonc.uchicago.edu
+####
+####    --------------------------------------------------------------
+####    Bryan Lau, Ph.D.
+####    Department of Medicine, Johns Hopkins School of Medicine,
+####    Baltimore, Maryland 21287
+####
+####    email:  blau1@jhmi.edu
+####
+####  ----------------------------------------------------------------
+####  Written by:
+####    --------------------------------------------------------------
+####    Hemant Ishwaran, Ph.D.
+####    Dept of Quantitative Health Sciences/Wb4
+####    Cleveland Clinic Foundation
+####    9500 Euclid Avenue
+####    Cleveland, OH 44195
+####
+####    email:  hemant.ishwaran@gmail.com
+####    phone:  216-444-9932
+####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+####
+####    --------------------------------------------------------------
+####    Udaya B. Kogalur, Ph.D.
+####    Dept of Quantitative Health Sciences/Wb4
+####    Cleveland Clinic Foundation
+####    
+####    Kogalur Shear Corporation
+####    5425 Nestleway Drive, Suite L1
+####    Clemmons, NC 27012
+####
+####    email:  ubk2101@columbia.edu
+####    phone:  919-824-9825
+####    URL:    www.kogalur-shear.com
+####    --------------------------------------------------------------
+####
+####**********************************************************************
+####**********************************************************************
 
 plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
 
@@ -80,115 +111,158 @@ plot.ensemble <- function (x, plots.one.page = TRUE, ...) {
     ### not enough deaths
     if (x$n < 5 | sum(x$cens) < 2) return()
 
-    # survival curves
-    survival.ensemble <- t(exp(-x$ensemble))
-    survival.mean.ensemble <- apply(survival.ensemble,1,mean)
-    if (!rsfPred) {
-      allTime.unique <- sort(unique(x$time[x$cens == 1]))
-      unique.pt <- is.element(allTime.unique, x$timeInterest)
-      Y <- apply(cbind(1:length(allTime.unique)),
-                 1,
-                 function(j, tau, t.unq) {sum(tau >= t.unq[j])},
-                 tau = x$time,
-                 t.unq = allTime.unique)
-      d <- apply(cbind(1:length(allTime.unique)),
-                 1,
-                 function(j, d, tau, t.unq) {sum(tau == t.unq[j])},
-                 tau = x$time[x$cens == 1],
-                 t.unq = allTime.unique)
-      r <- d/(Y+1*(Y == 0))
-      survival.aalen <- exp(-cumsum(r))[unique.pt]
+    # use OOB values for grow forest
+    if (rsfPred) {
+      mort    <- x$mortality
+      ensb    <- x$ensemble
+      y.lab   <- "Mortality"
+      title.1 <- "Ensemble Survival"
+      title.2 <- "Mortality vs Time"
+    }
+    else {
+      mort    <- x$oob.mortality
+      ensb    <- x$oob.ensemble
+      y.lab   <- "OOB Mortality"
+      title.1 <- "OOB Ensemble Survival"
+      title.2 <- "OOB Mortality vs Time"
     }
 
-    # Brier score
-    # . all distinct time points
-    # . stratified by mortality percentiles
-    brier.score <- matrix(NA, length(x$timeInterest), 4)
-    mort.perc <- c(min(x$mortality)-1e-5, quantile(x$mortality, (1:4)/4))
-    brier.wt <- c(apply(cbind(1:x$n),
+    # number of event types
+    n.event  <- length(unique(na.omit(x$cens)[na.omit(x$cens) > 0]))
+    if (n.event > 1) ensb <- ensb[,,1]
+
+    # survival curves
+    surv.ensb <- t(exp(-ensb))
+    surv.mean.ensb <- apply(surv.ensb, 1, mean, na.rm = TRUE)
+    if (!rsfPred) {
+      ## KM estimator for survival distributin
+      Y <- sapply(1:length(x$timeInterest),
+                 function(j, tau, t.unq) {sum(tau >= t.unq[j])},
+                 tau = x$time,
+                 t.unq = x$timeInterest)
+      d <- sapply(1:length(x$timeInterest),
+                 function(j, d, tau, t.unq) {sum(tau == t.unq[j])},
+                 tau = x$time[x$cens != 0],
+                 t.unq = x$timeInterest)
+      r <- d/(Y+1*(Y == 0))
+      surv.aalen <- exp(-cumsum(r))
+
+      sIndex <- function(Ju,Ev) { sapply(1:length(Ev), function(j) {sum(Ju <= Ev[j])}) }
+      ## KM estimator for censoring distribution
+      censTime <- sort(unique(x$time[x$cens == 0]))
+      censTime.pt <- sIndex(censTime, x$timeInterest)
+      Y <- sapply(1:length(censTime),
+                 function(j, tau, t.unq) {sum(tau >= t.unq[j])},
+                 tau = x$time,
+                 t.unq = censTime)
+      d <- sapply(1:length(censTime),
+                 function(j, d, tau, t.unq) {sum(tau == t.unq[j])},
+                 tau = x$time[x$cens == 0],
+                 t.unq = censTime)
+      r <- d/(Y+1*(Y == 0))
+      cens.aalen <- c(1, exp(-cumsum(r)))[1+censTime.pt]
+    }
+
+    # Brier score stratified by mortality percentiles
+    if (!rsfPred) {
+      brier.wt <- t(apply(cbind(1:x$n),
                    1,
                    function(i, tau, event, t.unq) {
-                     1*(tau[i] > t.unq) + 1*(tau[i] <= t.unq & event[i] == 1)
+                     pt <- sIndex(t.unq, tau[i])
+                     c1 <- 1*(tau[i] <= t.unq & event[i] != 0)/c(1,cens.aalen)[1+pt]
+                     c2 <- 1*(tau[i] > t.unq)/cens.aalen
+                     (c1 + c2)
                    },
                    tau =  x$time, event = x$cens,
                    t.unq = x$timeInterest))
-    delta <- t(apply(cbind(1:x$n),
+      delta <- t(apply(cbind(1:x$n),
                    1,
                    function(i, tau, event, t.unq) {1*(tau[i] > t.unq)},
                    tau =  x$time, event = x$cens,
-                   t.unq = x$timeInterest)  - survival.ensemble)^2
-    for (k in 1:4){
-      mort.pt <- (x$mortality > mort.perc[k]) & (x$mortality <= mort.perc[k+1])
-      brier.score[,k] <- apply(as.matrix(delta[mort.pt,]), 2, function(x) {
-                         sum(brier.wt[mort.pt]*x)/(1*(sum(brier.wt[mort.pt])==0)
-                                 +sum(brier.wt[mort.pt]))})
-    }                  
-
+                   t.unq = x$timeInterest)  -  surv.ensb)^2
+      brier.score <- matrix(NA, length(x$timeInterest), 4)
+      mort.perc   <- c(min(mort, na.rm = TRUE) - 1e-5, quantile(mort, (1:4)/4, na.rm = TRUE))
+      for (k in 1:4){
+        mort.pt <- (mort > mort.perc[k]) & (mort <= mort.perc[k+1])
+        brier.score[, k] <- sapply(1:length(x$timeInterest),
+                                  function(j) {mean(brier.wt[mort.pt, j]*delta[mort.pt, j], na.rm = TRUE)})
+      }
+      brier.score <- cbind(brier.score, sapply(1:length(x$timeInterest),
+                                  function(j) {mean(brier.wt[, j]*delta[, j], na.rm = TRUE)}))
+    }
+    
     # plots
     old.par <- par(no.readonly = TRUE)
-    if (plots.one.page) par(mfrow = c(2,2)) else par(mfrow=c(1,1))
+    if (plots.one.page) {
+      if (!rsfPred) par(mfrow = c(2,2)) else par(mfrow = c(1,2))
+    }
+    else {
+      par(mfrow=c(1,1))
+    }
     par(cex = 1.0)
     if (x$n > 500) {
         r.pt <- sample(1:x$n, 500, replace = FALSE)
         matplot(x$timeInterest,
-                survival.ensemble[,r.pt],
+                surv.ensb[,r.pt],
                 xlab = "Time",
-                ylab = "Survival",
+                ylab = title.1,
                 type = "l",
                 col = 1, 
                 lty = 3)
     }
     else {
         matplot(x$timeInterest,
-                survival.ensemble,
+                surv.ensb,
                 xlab = "Time",
-                ylab = "Survival",
+                ylab = title.1,
                 type = "l",
                 col = 1,
                 lty = 3)
     }
-    if (!rsfPred) lines(x$timeInterest, survival.aalen, lty = 1, col = 3, lwd = 3)
-    lines(x$timeInterest, survival.mean.ensemble, lty = 1, col = 2, lwd = 3)
+    if (!rsfPred) lines(x$timeInterest, surv.aalen, lty = 1, col = 3, lwd = 3)
+    lines(x$timeInterest, surv.mean.ensb, lty = 1, col = 2, lwd = 3)
     rug(x$timeInterest, ticksize=-0.03)
-    if (plots.one.page) title("Ensemble Survival", cex.main = 1.25) 
+    if (plots.one.page) title(title.1, cex.main = 1.25) 
     if (!rsfPred) {
-      plot(survival.aalen,
-           survival.mean.ensemble,
+      plot(surv.aalen,
+           surv.mean.ensb,
            xlab = "Nelson-Aalen Survival",
-           ylab = "Ensemble Survival",
+           ylab = title.1,
            type = "l")
       abline(0, 1, col = 2, lty = 2)
       if (plots.one.page) title("Survival", cex.main = 1.25)
     }
-    matplot(x$timeInterest, brier.score,
+    if (!rsfPred) {
+      matplot(x$timeInterest, brier.score,
          xlab = "Time",
          ylab = "Score",
          type = "l",
-         col  = 1,
-         lty  = 1:4)
-    lines(x$timeInterest, apply(delta, 2, mean), col=2, lwd=3)
-    point.x=round(length(x$timeInterest)*c(3,4)/4)
-    text(x$timeInterest[point.x],brier.score[point.x,1],"0-25",col=4)
-    text(x$timeInterest[point.x],brier.score[point.x,2],"25-50",col=4)
-    text(x$timeInterest[point.x],brier.score[point.x,3],"50-75",col=4)
-    text(x$timeInterest[point.x],brier.score[point.x,4],"75-100",col=4)
-    rug(x$timeInterest, ticksize=0.03)
-    if (plots.one.page) title("Brier Score",cex.main = 1.25)
-    plot(x$time, x$mortality, xlab = "Time", ylab = "Ensemble Mortality", type = "n")
-    if (plots.one.page) title("Mortality vs Time", cex.main = 1.25)
+         lwd  = c(rep(1, 4), 2),
+         col  = c(rep(1, 4), 2),
+         lty  = c(1:4, 1))
+      point.x=round(length(x$timeInterest)*c(3,4)/4)
+      text(x$timeInterest[point.x],brier.score[point.x,1],"0-25",col=4)
+      text(x$timeInterest[point.x],brier.score[point.x,2],"25-50",col=4)
+      text(x$timeInterest[point.x],brier.score[point.x,3],"50-75",col=4)
+      text(x$timeInterest[point.x],brier.score[point.x,4],"75-100",col=4)
+      rug(x$timeInterest, ticksize=0.03)
+      if (plots.one.page) title("Brier Score",cex.main = 1.25)
+    }
+    plot(x$time, mort, xlab = "Time", ylab = y.lab, type = "n")
+    if (plots.one.page) title(title.2, cex.main = 1.25)
     if (x$n > 500) cex <- 0.5 else cex <- 0.75
-    points(x$time[x$cens == 1], x$mortality[x$cens == 1], pch = 16, col = 4, cex = cex)
-    points(x$time[x$cens == 0], x$mortality[x$cens == 0], pch = 16, cex = cex)
+    points(x$time[x$cens == 1], mort[x$cens == 1], pch = 16, col = 4, cex = cex)
+    points(x$time[x$cens == 0], mort[x$cens == 0], pch = 16, cex = cex)
     if (sum(x$cens == 1) > 1)
       points(supsmu(x$time[x$cens == 1][order(x$time[x$cens == 1])],
-                  x$mortality[x$cens == 1][order(x$time[x$cens == 1])]),
+                  mort[x$cens == 1][order(x$time[x$cens == 1])]),
              type = "l",
              lty = 3,
              col = 4,
              cex = cex)
     if (sum(x$cens == 0) > 1)
       points(supsmu(x$time[x$cens == 0][order(x$time[x$cens == 0])],
-                  x$mortality[x$cens == 0][order(x$time[x$cens == 0])]),
+                  mort[x$cens == 0][order(x$time[x$cens == 0])]),
              type = "l",
              lty = 3,
              cex = cex)

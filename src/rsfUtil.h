@@ -1,123 +1,135 @@
-//**********************************************************************
-//**********************************************************************
-//
-//  RANDOM SURVIVAL FOREST 3.5.1
-//
-//  Copyright 2008, Cleveland Clinic Foundation
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public
-//  License along with this program; if not, write to the Free
-//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-//  Boston, MA  02110-1301, USA.
-//
-//  Project funded by:
-//    National Institutes of Health, HL072771-01
-//
-//    Michael S Lauer, MD, FACC, FAHA
-//    Cleveland Clinic Lerner College of Medicine of CWRU
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  lauerm@ccf.org
-//    phone:   216-444-6798
-//
-//  Written by:
-//    Hemant Ishwaran, Ph.D.
-//    Dept of Quantitative Health Sciences/Wb4
-//    Cleveland Clinic Foundation
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  hemant.ishwaran@gmail.com
-//    phone:  216-444-9932
-//    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-//    --------------------------------------------------------------
-//    Udaya B. Kogalur, Ph.D.
-//    Kogalur Shear Corporation
-//    5425 Nestleway Drive, Suite L1
-//    Clemmons, NC 27012
-//
-//    email:  ubk2101@columbia.edu
-//    phone:  919-824-9825
-//    URL:    www.kogalur-shear.com
-//
-//**********************************************************************
-//**********************************************************************
+////**********************************************************************
+////**********************************************************************
+////
+////  RANDOM SURVIVAL FOREST 3.6.0
+////
+////  Copyright 2009, Cleveland Clinic Foundation
+////
+////  This program is free software; you can redistribute it and/or
+////  modify it under the terms of the GNU General Public License
+////  as published by the Free Software Foundation; either version 2
+////  of the License, or (at your option) any later version.
+////
+////  This program is distributed in the hope that it will be useful,
+////  but WITHOUT ANY WARRANTY; without even the implied warranty of
+////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+////  GNU General Public License for more details.
+////
+////  You should have received a copy of the GNU General Public
+////  License along with this program; if not, write to the Free
+////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+////  Boston, MA  02110-1301, USA.
+////
+////  ----------------------------------------------------------------
+////  Project Partially Funded By:
+////    --------------------------------------------------------------
+////    National Institutes of Health,  Grant HHSN268200800026C/0001
+////
+////    Michael S. Lauer, M.D., FACC, FAHA 
+////    National Heart, Lung, and Blood Institute
+////    6701 Rockledge Dr, Room 10122
+////    Bethesda, MD 20892
+////
+////    email:  lauerm@nhlbi.nih.gov
+////
+////    --------------------------------------------------------------
+////    Case Western Reserve University/Cleveland Clinic  
+////    CTSA Grant:  UL1 RR024989, National Center for
+////    Research Resources (NCRR), NIH
+////
+////    --------------------------------------------------------------
+////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+////    Andy Minn, M.D., Ph.D.
+////    Department of Radiation and Cellular Oncology, and
+////    Ludwig Center for Metastasis Research
+////    The University of Chicago, Jules F. Knapp Center, 
+////    924 East 57th Street, Room R318
+////    Chicago, IL 60637
+//// 
+////    email:  aminn@radonc.uchicago.edu
+////
+////    --------------------------------------------------------------
+////    Bryan Lau, Ph.D.
+////    Department of Medicine, Johns Hopkins School of Medicine,
+////    Baltimore, Maryland 21287
+////
+////    email:  blau1@jhmi.edu
+////
+////  ----------------------------------------------------------------
+////  Written by:
+////    --------------------------------------------------------------
+////    Hemant Ishwaran, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    9500 Euclid Avenue
+////    Cleveland, OH 44195
+////
+////    email:  hemant.ishwaran@gmail.com
+////    phone:  216-444-9932
+////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+////
+////    --------------------------------------------------------------
+////    Udaya B. Kogalur, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    
+////    Kogalur Shear Corporation
+////    5425 Nestleway Drive, Suite L1
+////    Clemmons, NC 27012
+////
+////    email:  ubk2101@columbia.edu
+////    phone:  919-824-9825
+////    URL:    www.kogalur-shear.com
+////    --------------------------------------------------------------
+////
+////**********************************************************************
+////**********************************************************************
 
 #ifndef RSFUTIL_H
 #define RSFUTIL_H
-#include "extern.h"
-uint updateTimeStamp(uint before);
-void freeTree(Node *parent);
-char restoreTree(uint    b,
-                 Node   *parent,
-                 uint   *leafCount,
-                 uint   *offset,
-                 uint   *treeID,
-                 uint   *nodeID,
-                 uint   *parmID,
-                 double *contPT,
-                 uint   *mwcpSZ,
-                 uint   **mwcpPtr);
-void saveTree(uint    b,
-              Node   *parent,
-              uint   *offset,
-              uint   *treeID,
-              uint   *nodeID,
-              uint   *parmID,
-              double *contPT,
-              uint   *mwcpSZ,
-              uint  **mwcpPtr);
-char testNodeSize(Node *parent);
-Node* getMembership(Node    *parent,
-                    double **predictor,
-                    uint     index);
-Node *getTerminalNode(uint leaf);
-Node* randomizeMembership(Node    *parent, 
-                          double **predictor, 
-                          uint     individual, 
-                          uint     splitParameter);
+#include "node.h"
+void getNelsonAalenEstimate(uint mode, double **nelsonAalen, uint treeID);
+void updateEnsembleCHF(uint     mode,
+                       uint     treeID,
+                       double **cumulativeHazard,
+                       double  *mortality);
+void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID);
+void updateEnsembleSubSurvivalAndDistribution(uint      mode,
+                                              uint      treeID,
+                                              double  **conditionalMortality);
+void getMeanSurvivalTime(uint mode, double *meanSurvivalTime, uint treeID);
+void updateEnsembleSurvivalTime(uint    mode, 
+                                uint    treeID, 
+                                double *meanSurvivalTime,
+                                double *mortality);
 double getConcordanceIndex(int     polarity,
                            uint    size, 
                            double *statusPtr, 
                            double *timePtr, 
                            double *predictedOutcome,
                            uint   *oobCount);
-void getNelsonAalenEstimate(double **cumulativeHazard,
-                            uint     treeID,
-                            uint     sortedTimeInterestSize);
-void updateEnsembleCHF(uint     mode, 
-                       uint     sortedTimeInterestSize,
-                       uint     treeID,
-                       double **cumulativeHazard);
-void getMeanSurvivalTime(double *meanSurvivalTime,
-                         uint    treeID);
-void updateEnsembleSurvivalTime(uint    mode, 
-                                uint    treeID, 
-                                double *meanSurvivalTime);
-void getVariableImportance(uint     mode,
-                           uint     sortedTimeInterestSize,
-                           uint     leafCount,
-                           double **cumulativeHazard,
-                           double  *meanSurvivalTime,
-                           Node    *rootPtr,
-                           uint     b);
+void getConditionalConcordanceArrays(uint     j, 
+                                     double  *statusPtr, 
+                                     double  *timePtr, 
+                                     double  *mortalityPtr, 
+                                     uint    *genericEnsembleDenPtr,
+                                     double  *subsettedStatus,
+                                     double  *subsettedTime,
+                                     double  *subsettedMortality,
+                                     uint    *subsettedEnsembleDen);
+void getConditionalPerformance (uint     mode,
+                                uint     concordancePolarity, 
+                                uint     obsSize,
+                                double  *statusPtr, 
+                                double  *timePtr,
+                                double **conditionalMortality,
+                                uint    *ensembleDenPtr,
+                                double  *performanceVector);
+void updateEnsembleCalculations (char      multipleImputeFlag,
+                                 uint      mode,
+                                 Node     *rootPtr,
+                                 uint      b,
+                                 char    **dmRecordBootFlag,
+                                 double ***dmvImputation);
 void getVariablesUsed(Node *rootPtr, uint *varUsedPtr);
-void updateEnsembleEvents (char      multipleImputeFlag,
-                           uint      mode,
-                           uint      sortedTimeInterestSize,
-                           Node     *rootPtr,
-                           uint      b,
-                           char    **dmRecordBootFlag,
-                           double ***dmvImputation);
 #endif

@@ -5,7 +5,7 @@ export(rsf.news,
        randomSurvivalForest,
        Survrsf,
        predict.rsf,
-       interaction.rsf,
+       vimp,
        rsf2pmml,
        pmml2rsf,
        plot.error,
@@ -15,7 +15,11 @@ export(rsf.news,
        plot.rsf,
        print.rsf,
        find.interaction,
-       plot.rsf)
+       max.subtree,
+       rsf2rfz,
+       competing.risk,
+       varSel,
+       impute.rsf)
 
 S3method(rsf, default)
 S3method(print, rsf)

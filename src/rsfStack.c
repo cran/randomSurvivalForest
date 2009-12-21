@@ -1,67 +1,99 @@
-//**********************************************************************
-//**********************************************************************
-//
-//  RANDOM SURVIVAL FOREST 3.5.1
-//
-//  Copyright 2008, Cleveland Clinic Foundation
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public
-//  License along with this program; if not, write to the Free
-//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-//  Boston, MA  02110-1301, USA.
-//
-//  Project funded by:
-//    National Institutes of Health, HL072771-01
-//
-//    Michael S Lauer, MD, FACC, FAHA
-//    Cleveland Clinic Lerner College of Medicine of CWRU
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  lauerm@ccf.org
-//    phone:   216-444-6798
-//
-//  Written by:
-//    Hemant Ishwaran, Ph.D.
-//    Dept of Quantitative Health Sciences/Wb4
-//    Cleveland Clinic Foundation
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  hemant.ishwaran@gmail.com
-//    phone:  216-444-9932
-//    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-//    --------------------------------------------------------------
-//    Udaya B. Kogalur, Ph.D.
-//    Kogalur Shear Corporation
-//    5425 Nestleway Drive, Suite L1
-//    Clemmons, NC 27012
-//
-//    email:  ubk2101@columbia.edu
-//    phone:  919-824-9825
-//    URL:    www.kogalur-shear.com
-//
-//**********************************************************************
-//**********************************************************************
+////**********************************************************************
+////**********************************************************************
+////
+////  RANDOM SURVIVAL FOREST 3.6.0
+////
+////  Copyright 2009, Cleveland Clinic Foundation
+////
+////  This program is free software; you can redistribute it and/or
+////  modify it under the terms of the GNU General Public License
+////  as published by the Free Software Foundation; either version 2
+////  of the License, or (at your option) any later version.
+////
+////  This program is distributed in the hope that it will be useful,
+////  but WITHOUT ANY WARRANTY; without even the implied warranty of
+////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+////  GNU General Public License for more details.
+////
+////  You should have received a copy of the GNU General Public
+////  License along with this program; if not, write to the Free
+////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+////  Boston, MA  02110-1301, USA.
+////
+////  ----------------------------------------------------------------
+////  Project Partially Funded By:
+////    --------------------------------------------------------------
+////    National Institutes of Health,  Grant HHSN268200800026C/0001
+////
+////    Michael S. Lauer, M.D., FACC, FAHA 
+////    National Heart, Lung, and Blood Institute
+////    6701 Rockledge Dr, Room 10122
+////    Bethesda, MD 20892
+////
+////    email:  lauerm@nhlbi.nih.gov
+////
+////    --------------------------------------------------------------
+////    Case Western Reserve University/Cleveland Clinic  
+////    CTSA Grant:  UL1 RR024989, National Center for
+////    Research Resources (NCRR), NIH
+////
+////    --------------------------------------------------------------
+////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+////    Andy Minn, M.D., Ph.D.
+////    Department of Radiation and Cellular Oncology, and
+////    Ludwig Center for Metastasis Research
+////    The University of Chicago, Jules F. Knapp Center, 
+////    924 East 57th Street, Room R318
+////    Chicago, IL 60637
+//// 
+////    email:  aminn@radonc.uchicago.edu
+////
+////    --------------------------------------------------------------
+////    Bryan Lau, Ph.D.
+////    Department of Medicine, Johns Hopkins School of Medicine,
+////    Baltimore, Maryland 21287
+////
+////    email:  blau1@jhmi.edu
+////
+////  ----------------------------------------------------------------
+////  Written by:
+////    --------------------------------------------------------------
+////    Hemant Ishwaran, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    9500 Euclid Avenue
+////    Cleveland, OH 44195
+////
+////    email:  hemant.ishwaran@gmail.com
+////    phone:  216-444-9932
+////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+////
+////    --------------------------------------------------------------
+////    Udaya B. Kogalur, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    
+////    Kogalur Shear Corporation
+////    5425 Nestleway Drive, Suite L1
+////    Clemmons, NC 27012
+////
+////    email:  ubk2101@columbia.edu
+////    phone:  919-824-9825
+////    URL:    www.kogalur-shear.com
+////    --------------------------------------------------------------
+////
+////**********************************************************************
+////**********************************************************************
 
-#include   "global.h"
-#include   "nrutil.h"
-#include   "node_ops.h"
-#include   "rsfFactorOps.h"
-#include   "rsfImpute.h"
-#include   "rsfUtil.h"
-#include   "rsfStack.h"
-extern uint getTraceFlag();
+#include        "global.h"
+#include        "extern.h"
+#include         "trace.h"
+#include        "nrutil.h"
+#include       "nodeOps.h"
+#include  "rsfFactorOps.h"
+#include     "rsfImpute.h"
+#include       "rsfTree.h"
+#include      "rsfStack.h"
 void stackPreDefinedCommonArrays() {
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackPreDefinedCommonArrays() ENTRY ...\n");
@@ -91,9 +123,19 @@ void unstackPreDefinedCommonArrays() {
   }
 }
 void stackPreDefinedGrowthArrays() {
+  uint i;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackPreDefinedGrowthArrays() ENTRY ...\n");
   }
+  _individualIndex = uivector(1, _observationSize);
+  for (i = 1; i <= _observationSize; i++) {
+    _individualIndex[i] = i;
+  }
+  _predictorIndex  = uivector(1, _xSize);
+  for (i = 1; i <= _xSize; i++) {
+    _predictorIndex[i] = i;
+  }
+  _genericMembershipFlag = _bootMembershipFlag;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackPreDefinedGrowthArrays() EXIT ...\n");
   }
@@ -102,15 +144,30 @@ void unstackPreDefinedGrowthArrays() {
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nunstackPreDefinedGrowthArrays() ENTRY ...\n");
   }
+  free_uivector(_individualIndex, 1, _observationSize);
+  free_uivector(_predictorIndex, 1, _xSize);
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nunstackPreDefinedGrowthArrays() EXIT ...\n");
   }
 }
 void stackPreDefinedPredictArrays() {
+  uint i;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackPreDefinedPredictArrays() ENTRY ...\n");
   }
   _fnodeMembership = nodePtrVector(1, _fobservationSize);
+  _individualIndex = uivector(1, _fobservationSize);
+  for (i = 1; i <= _fobservationSize; i++) {
+    _individualIndex[i] = i;
+  }
+  _predictorIndex = uivector(1, _xSize);
+  for (i = 1; i <= _xSize; i++) {
+    _predictorIndex[i] = i;
+  }
+  _genericMembershipFlag = cvector(1, _fobservationSize);
+  for (i = 1; i <= _fobservationSize; i++) {
+    _genericMembershipFlag[i] = ACTIVE;
+  }
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackPreDefinedPredictArrays() EXIT ...\n");
   }
@@ -120,6 +177,9 @@ void unstackPreDefinedPredictArrays() {
     Rprintf("\nunstackPreDefinedPredictArrays() ENTRY ...\n");
   }
   free_nodePtrVector(_fnodeMembership, 1, _fobservationSize);
+  free_uivector(_individualIndex, 1, _fobservationSize);
+  free_uivector(_predictorIndex, 1, _xSize);
+  free_cvector(_genericMembershipFlag, 1, _fobservationSize);
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nunstackPreDefinedPredictArrays() EXIT ...\n");
   }
@@ -138,6 +198,9 @@ void stackPreDefinedInteractionArrays() {
   for (i = 1; i <= _intrPredictorSize; i++) {
     _importanceFlag[_intrPredictor[i]] = TRUE;
   }
+  _individualIndex = _intrIndividual;
+  _predictorIndex = _intrPredictor;
+  _genericMembershipFlag = _bootMembershipFlag;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackPreDefinedInteractionArrays() EXIT ...\n");
   }
@@ -147,12 +210,13 @@ void unstackPreDefinedInteractionArrays() {
     Rprintf("\nunstackPreDefinedInteractionArrays() ENTRY ...\n");
   }
   free_nodePtrVector(_fnodeMembership, 1, _fobservationSize);
+  free_uivector(_foobSampleSize, 1, _forestSize);
   free_cvector(_importanceFlag, 1, _xSize);
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nunstackPreDefinedInteractionArrays() EXIT ...\n");
   }
 }
-void initializeArrays(char mode, uint *sortedTimeInterestSize) {
+void initializeArrays(char mode) {
   uint i,j;
   uint leadingIndex;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
@@ -174,7 +238,7 @@ void initializeArrays(char mode, uint *sortedTimeInterestSize) {
     }
   }
   if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nIncoming GROW Data:  ");
+    Rprintf("\nIncoming TRAINING Data:  ");
     Rprintf("\n       index       status         time   observations -> \n");
     Rprintf("\n                                      ");
     for (i=1; i <= _xSize; i++) {
@@ -214,9 +278,9 @@ void initializeArrays(char mode, uint *sortedTimeInterestSize) {
     }
     Rprintf("\n");
     for (j = 1; j <= _fobservationSize; j++) {
-      Rprintf("%12d %12.4f %12.4f", _intrObservation[j], _status[_intrObservation[j]], _time[_intrObservation[j]]);
+      Rprintf("%12d %12.4f %12.4f", _intrIndividual[j], _status[_intrIndividual[j]], _time[_intrIndividual[j]]);
       for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12.4f", (_xData+((i-1)*(_observationSize)))[_intrObservation[j]-1]);
+        Rprintf(" %12.4f", (_xData+((i-1)*(_observationSize)))[_intrIndividual[j]-1]);
       }
       Rprintf("\n");
     }
@@ -249,7 +313,7 @@ void initializeArrays(char mode, uint *sortedTimeInterestSize) {
     _masterTime[i] = 0;
   }
   if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\n\nSorted Unique Event Times:  \n");
+    Rprintf("\n\nSorted Unique Times:  \n");
     for (i=1; i <= _masterTimeSize; i++) {
       Rprintf("%10d %10.4f \n", i, _masterTime[i]);
     }
@@ -257,33 +321,35 @@ void initializeArrays(char mode, uint *sortedTimeInterestSize) {
   if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Initialization of master time data complete.");  
   }
-  hpsort(_timeInterest, _timeInterestSize);
-  *sortedTimeInterestSize = 1;
-  for (i=2; i <= _timeInterestSize; i++) {
-    if (_timeInterest[i] > _timeInterest[*sortedTimeInterestSize]) {
-      (*sortedTimeInterestSize) ++;
-      _timeInterest[*sortedTimeInterestSize] = _timeInterest[i];
+  if (!(_opt & OPT_IMPU_ONLY)) {
+    hpsort(_timeInterest, _timeInterestSize);
+    _sortedTimeInterestSize = 1;
+    for (i=2; i <= _timeInterestSize; i++) {
+      if (_timeInterest[i] > _timeInterest[_sortedTimeInterestSize]) {
+        (_sortedTimeInterestSize) ++;
+        _timeInterest[_sortedTimeInterestSize] = _timeInterest[i];
+      }
     }
-  }
-  if (*sortedTimeInterestSize != _timeInterestSize) {
-    Rprintf("\nRSF:  *** WARNING *** ");
-    Rprintf("\nRSF:  Time points of interest are not unique.");
-    Rprintf("\nRSF:  The ensemble estimate output matrix is being");
-    Rprintf("\nRSF:  resized as [N'] x [n], where N' is the");
-    Rprintf("\nRSF:  unique time points of interest and n is");
-    Rprintf("\nRSF:  number of observations in the data.");
-  }
-  for (i= (*sortedTimeInterestSize) + 1; i <= _timeInterestSize; i++) {
-    _timeInterest[i] = 0;
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\n\nSorted Distinct Times of Interest:  \n");
-    for (i=1; i <= *sortedTimeInterestSize; i++) {
-      Rprintf("%10d %10.4f \n", i, _timeInterest[i]);
+    if (_sortedTimeInterestSize != _timeInterestSize) {
+      Rprintf("\nRSF:  *** WARNING *** ");
+      Rprintf("\nRSF:  Time points of interest are not unique.");
+      Rprintf("\nRSF:  The ensemble estimate output matrix is being");
+      Rprintf("\nRSF:  resized as [N'] x [n], where N' is the");
+      Rprintf("\nRSF:  unique time points of interest and n is");
+      Rprintf("\nRSF:  number of observations in the data.");
     }
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Initialization of time interest data complete.");  
+    for (i= (_sortedTimeInterestSize) + 1; i <= _timeInterestSize; i++) {
+      _timeInterest[i] = 0;
+    }
+    if (getTraceFlag() & SUMM_MED_TRACE) {
+      Rprintf("\n\nSorted Distinct Times of Interest:  \n");
+      for (i=1; i <= _sortedTimeInterestSize; i++) {
+        Rprintf("%10d %10.4f \n", i, _timeInterest[i]);
+      }
+    }
+    if (getTraceFlag() & SUMM_USR_TRACE) {
+      Rprintf("\nRSF:  Initialization of time interest data complete.");  
+    }
   }
 }
 void initializeFactorArrays(char mode) {
@@ -393,6 +459,348 @@ void initializeFactorArrays(char mode) {
   }
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\ninitializeFactorArrays() EXIT ...\n");
+  }
+}
+char stackCompetingArrays(char mode) {
+  uint obsSize;
+  double  *statusPtr;
+  uint    *mRecordMap;
+  int    **mvSign;
+  char eventAnalysisFlag, consistencyFlag, overWriteFlag;
+  char statusFlag;
+  uint *eventCounter;
+  uint i, j, jgrow, n;
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
+    Rprintf("\nstackCompetingArrays() ENTRY ...\n");
+  }
+  _eventType = uivector(1, _observationSize);
+  overWriteFlag = FALSE;
+  if (mode == RSF_GROW) {
+    if (_splitRule < SPLIT_RULE_CR) {
+      overWriteFlag = TRUE;
+    }
+  }
+  getEventTypeSize(_observationSize, 
+                   _status, 
+                   _mRecordMap, 
+                   _mvSign,  
+                   overWriteFlag, 
+                   & _eventTypeSize,
+                   & _mStatusSize,
+                   _eventType);
+  if (mode == RSF_GROW) {
+    if (_splitRule > SPLIT_RULE_CR) {
+      if (_eventTypeSize == 1) {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Split rule specified is for Competing Risk scenarios only.");
+        Rprintf("\nRSF:  The data set does not contain multiple events.");
+        return FALSE;
+      }
+    }
+  }
+  if (_eventTypeSize > 1) {
+    _eventTypeIndex  = uivector(1, _eventType[_eventTypeSize]);
+    for (j = 1; j <= _eventType[_eventTypeSize]; j++) {
+      _eventTypeIndex[j] = 0;
+    }
+    for (j = 1; j <= _eventTypeSize; j++) {
+      _eventTypeIndex[_eventType[j]] = j;
+    }
+    if (getTraceFlag() & SUMM_MED_TRACE) {
+      Rprintf("\n\nSorted Unique Event Types:  \n");
+      for (j=1; j <= _eventTypeSize; j++) {
+        Rprintf("%10d %10d \n", j, _eventType[j]);
+      }
+      Rprintf("\nEvent Type Index Mapping:  \n");
+      for (j = 1; j <= _eventType[_eventTypeSize]; j++) {
+        Rprintf("%10d %10d \n", j, _eventTypeIndex[_eventType[j]]);
+      }
+      Rprintf("\nNumber in GROW data missing status:  %10d \n", _mStatusSize);
+    }
+  }
+  switch (mode) {
+  case RSF_PRED:
+    if ((_opt & OPT_PERF) || (_opt & OPT_VIMP)) {
+      eventAnalysisFlag = TRUE;        
+    }
+    else {
+      eventAnalysisFlag = FALSE;
+    }
+    break;
+  case RSF_INTR:
+    eventAnalysisFlag = TRUE;
+    break;
+  default:
+    eventAnalysisFlag = FALSE;
+    break;
+  }  
+  if (eventAnalysisFlag == TRUE) {
+      uint feventTypeSize;
+      uint *feventType;
+      feventType = uivector(1, _fobservationSize);
+      feventTypeSize = 0;
+      consistencyFlag = TRUE;
+      overWriteFlag = FALSE;
+      if (_eventTypeSize == 1) {
+        overWriteFlag = TRUE;
+      }
+      getEventTypeSize(_fobservationSize, 
+                       _fstatus, 
+                       _fmRecordMap, 
+                       _fmvSign,  
+                       overWriteFlag, 
+                       & feventTypeSize,
+                       & _mStatusSize,
+                       feventType);
+      if (_eventTypeSize > 1) {
+        for (j = 1; j <= feventTypeSize; j++) {
+          for (jgrow = 1; jgrow <= _eventTypeSize; jgrow++) {
+            if (feventType[j] != _eventType[jgrow]) {
+              if (jgrow == _eventTypeSize) {
+                consistencyFlag = FALSE;
+              }
+            }
+            else {
+              jgrow = _eventTypeSize;
+            }
+          }
+        }
+      }
+      free_uivector(feventType, 1, _fobservationSize);
+      if (consistencyFlag == FALSE) {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown event type encountered in !GROW mode. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        return FALSE;
+      }
+  }  
+  if (_eventTypeSize > 1) {
+    if (mode == RSF_PRED) {
+      if ((_opt & OPT_PERF) || (_opt & OPT_VIMP)) {
+        eventAnalysisFlag = TRUE;        
+      }
+      else {
+        eventAnalysisFlag = FALSE;
+      }
+    }
+    else {
+      eventAnalysisFlag = TRUE;
+    }
+  }
+  else {
+    eventAnalysisFlag = FALSE;
+  }
+  if (eventAnalysisFlag == TRUE) {
+    if (mode == RSF_GROW) {
+      obsSize = _observationSize;
+      statusPtr = _status;
+      mvSign = _mvSign;
+      mRecordMap = _mRecordMap;
+    }
+    else {
+      obsSize = _fobservationSize;
+      statusPtr = _fstatus;
+      mvSign = _fmvSign;
+      mRecordMap = _fmRecordMap;
+    }
+    _eIndividualSize  = uivector(1, _eventTypeSize);
+    for (j = 1; j <= _eventTypeSize; j++) {
+      _eIndividualSize[j] = 0;
+    }
+    for (i = 1; i <= obsSize; i++) {
+      statusFlag = FALSE;
+      if (mRecordMap[i] == 0) { 
+        statusFlag = TRUE;
+      }
+      else {
+        if (mvSign[(uint) abs(CENS_IDX)][mRecordMap[i]] == 0) {
+          statusFlag = TRUE;
+        }
+      }
+      if (statusFlag == TRUE) {
+        if ((uint) statusPtr[i] > 0) {
+          _eIndividualSize[_eventTypeIndex[(uint) statusPtr[i]]] ++;
+        } 
+        else {
+          for (j=1; j <= _eventTypeSize; j++) {
+            _eIndividualSize[j] ++;
+          }
+        }
+      }
+    }  
+    _eIndividual = puivector(1, _eventTypeSize);
+    for (j = 1; j <= _eventTypeSize; j++) {
+      _eIndividual[j] = uivector(1, _eIndividualSize[j] + _mStatusSize + 1);
+    }
+    if (getTraceFlag() & SUMM_MED_TRACE) {
+      Rprintf("\nMaximum (allocated - 1) Event Type Subset Sizes:  \n");
+      for (j=1; j <= _eventTypeSize; j++) {
+        Rprintf("%10d %10d %10d \n", j, _eventType[j], _eIndividualSize[j] + _mStatusSize);
+      }
+      Rprintf("\nNon-missing Event Type Subset Sizes:  \n");
+      for (j=1; j <= _eventTypeSize; j++) {
+        Rprintf("%10d %10d %10d \n", j, _eventType[j], _eIndividualSize[j]);
+      }
+    }
+    eventCounter = uivector(1, _eventTypeSize);
+    for (j = 1; j <= _eventTypeSize; j++) {
+      eventCounter[j] = 0;
+    }
+    for (i = 1; i <= obsSize; i++) {
+      statusFlag = FALSE;
+      if (mRecordMap[i] == 0) { 
+        statusFlag = TRUE;
+      }
+      else {
+        if (mvSign[(uint) abs(CENS_IDX)][mRecordMap[i]] == 0) {
+          statusFlag = TRUE;
+        }
+      }
+      if (statusFlag == TRUE) {
+        if ((uint) statusPtr[i] > 0) {
+          j = _eventTypeIndex[(uint) statusPtr[i]];
+          eventCounter[j] ++;
+          _eIndividual[j][eventCounter[j]] = i;
+        } 
+        else {
+          for (j=1; j <= _eventTypeSize; j++) {
+            eventCounter[j] ++;
+            _eIndividual[j][eventCounter[j]] = i;
+          }
+        }
+      }
+    }
+    free_uivector(eventCounter, 1, _eventTypeSize);
+    if (_mStatusSize > 0) {
+      _meIndividualSize  = uivector(1, _eventTypeSize);
+    }
+    else {
+      _meIndividualSize  = _eIndividualSize;
+    }
+    if (getTraceFlag() & SUMM_MED_TRACE) {
+      Rprintf("\nEvent Type Subsets:  \n");
+      Rprintf("          ");
+      for (n=1; n <= obsSize; n++) {
+        Rprintf("%10d", n);
+      }
+      Rprintf("\n");
+      for (j=1; j <= _eventTypeSize; j++) {
+        Rprintf("%10d", j);
+        for (n=1; n <= _eIndividualSize[j]; n++) {
+          Rprintf("%10d", _eIndividual[j][n]);
+        }
+        Rprintf("\n");
+      }
+    }
+  }  
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
+    Rprintf("\nstackCompetingArrays() EXIT ...\n");
+  }
+  return TRUE;
+}
+void getEventTypeSize(uint     obsSize, 
+                      double  *status, 
+                      uint    *mRecordMap, 
+                      int    **mvSign,  
+                      char     overWriteFlag,
+                      uint    *eventTypeSize,
+                      uint    *msize,
+                      uint    *eventType) {
+  uint statusFlag;
+  uint leadingIndex;
+  uint i;
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
+    Rprintf("\ngetEventTypeSize() ENTRY ...\n");
+  }
+  *eventTypeSize = *msize = 0;
+  for (i = 1; i <= obsSize; i++) {
+    statusFlag = FALSE;
+    if (mRecordMap[i] == 0) { 
+      statusFlag = TRUE;
+    }
+    else {
+      if (mvSign[(uint) abs(CENS_IDX)][mRecordMap[i]] == 0) {
+        statusFlag = TRUE;
+      }
+    }
+    if (statusFlag == TRUE) {
+      if ((uint) status[i] > 0) {
+        if (overWriteFlag == TRUE) { 
+          status[i] = 1;
+        }
+        else {
+          (*eventTypeSize) ++;
+          eventType[*eventTypeSize] = (uint) status[i];
+        }
+      }  
+      else {
+      }
+    }
+    else {
+      (*msize) ++;
+    }
+  }  
+  if (overWriteFlag == TRUE) {
+    *eventTypeSize = 1;
+  }
+  else {
+    hpsortui(eventType, *eventTypeSize);
+    leadingIndex = 1;
+    for (i=2; i <= *eventTypeSize; i++) {
+      if (eventType[i] > eventType[leadingIndex]) {
+        leadingIndex++;
+        eventType[leadingIndex] = eventType[i];
+      }
+    }
+    *eventTypeSize = leadingIndex;
+    for (i= *eventTypeSize + 1; i <= obsSize; i++) {
+      eventType[i] = 0;
+    }
+  }
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nUnique  Event Type Count:  %10d ", *eventTypeSize);
+    Rprintf("\nMissing Event Type Count:  %10d \n", *msize);
+  }
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
+    Rprintf("\ngetEventTypeSize() EXIT ...\n");
+  }
+}
+void unstackCompetingArrays(char mode) {
+  char eventAnalysisFlag;
+  uint j;
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
+    Rprintf("\nunstackCompetingArrays() ENTRY ...\n");
+  }
+  free_uivector(_eventType, 1, _observationSize);
+  if (_eventTypeSize > 1) {
+    if (mode == RSF_PRED) {
+      if ((_opt & OPT_PERF) || (_opt & OPT_VIMP)) {
+        eventAnalysisFlag = TRUE;        
+      }
+      else {
+        eventAnalysisFlag = FALSE;
+      }
+    }
+    else {
+      eventAnalysisFlag = TRUE;
+    }
+  }
+  else {
+    eventAnalysisFlag = FALSE;
+  }
+  if (eventAnalysisFlag == TRUE) {
+    if (_mStatusSize > 0) {
+      free_uivector(_meIndividualSize, 1, _eventTypeSize);
+    }
+    for (j = 1; j <= _eventTypeSize; j++) {
+      free_uivector(_eIndividual[j], 1, _eIndividualSize[j] + _mStatusSize + 1);
+    }
+    free_puivector(_eIndividual, 1, _eventTypeSize);
+    free_uivector(_eIndividualSize, 1, _eventTypeSize);
+    free_uivector(_eventTypeIndex, 1, _eventType[_eventTypeSize]);
+  }  
+  if (getTraceFlag() & SUMM_LOW_TRACE) {
+    Rprintf("\nunstackCompetingArrays() EXIT ...\n");
   }
 }
 void stackFactorArrays(char mode) {
@@ -668,12 +1076,8 @@ char stackMissingArrays(char       mode,
     if (!ISNA(_time[i])) {
       if (_time[i] <= 0) {
         result = FALSE;
-        Rprintf("\nRSF:  GROW time elements must be greater than zero or NA:  [%10d] = %12.4f \n", i, _time[i]);
+        Rprintf("\nRSF:  TRAINING time elements must be greater than zero or NA:  [%10d] = %12.4f \n", i, _time[i]);
       }
-    }
-    if ( (_status[i] != 0) && (_status[i] != 1) && (!ISNA(_status[i])) ) {
-      result = FALSE;
-      Rprintf("\nRSF:  GROW status elements must be equal to one, zero, or NA:  [%10d] = %12.4f \n", i, _status[i]);
     }
   }
   if (result == FALSE) {
@@ -687,18 +1091,18 @@ char stackMissingArrays(char       mode,
     }
   }
   if (mFlag == FALSE) {
-    Rprintf("\nRSF:  All GROW time elements are missing. \n");
+    Rprintf("\nRSF:  All TRAINING time elements are missing. \n");
     result = FALSE;
   }
   mFlag = FALSE;
   for (i = 1 ; i <= _observationSize; i++) {
-    if (!ISNA(_status[i]) || (_status[i] == 1)) {
+    if (!ISNA(_status[i]) && (_status[i] > 0)) {
       mFlag = TRUE;
       i = _observationSize;
     }
   }
   if (mFlag == FALSE) {
-    Rprintf("\nRSF:  All GROW status elements are are censored or missing. \n");
+    Rprintf("\nRSF:  All TRAINING status elements are are censored or missing. \n");
     result = FALSE;
   }
   if (result == FALSE) {
@@ -712,10 +1116,6 @@ char stackMissingArrays(char       mode,
             result = FALSE;
             Rprintf("\nRSF:  PRED time elements must be greater than zero or NA when PERF or VIMP is requested:  [%10d] = %12.4f \n", i, _ftime[i]);
           }
-        }
-        if ( (_fstatus[i] != 0) && (_fstatus[i] != 1) && (!ISNA(_fstatus[i])) ) {
-          result = FALSE;
-          Rprintf("\nRSF:  PRED status elements must be equal to one, zero, or NA when PERF or VIMP is requested:  [%10d] = %12.4f \n", i, _fstatus[i]);
         }
       }
     }
@@ -744,7 +1144,7 @@ char stackMissingArrays(char       mode,
       _imputeSize = 1;
     }
     if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Missing data analysis of GROW complete -- none found.");  
+      Rprintf("\nRSF:  Missing TRAINING data analysis complete -- none found.");  
     }
   }
   else {
@@ -776,7 +1176,7 @@ char stackMissingArrays(char       mode,
                                              & _mFactorSize,
                                              & _mFactorIndex);
     if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Missing data analysis of GROW complete -- some found.");  
+      Rprintf("\nRSF:  Missing data analysis of TRAINING complete -- some found.");  
     }
   }  
   if (mode == RSF_PRED) {
@@ -848,10 +1248,10 @@ char stackMissingArrays(char       mode,
     _ftime   = dvector(1, _fobservationSize);
     _fobservation = dmatrix(1, _xSize, 1, _fobservationSize);
     for (j = 1; j <= _fobservationSize; j++) {
-      _ftime[j] = _time[_intrObservation[j]];
-      _fstatus[j] = _status[_intrObservation[j]];
+      _ftime[j] = _time[_intrIndividual[j]];
+      _fstatus[j] = _status[_intrIndividual[j]];
       for (i=1; i <= _xSize; i++) {
-        _fobservation[i][j] = (_xData+((i-1)*(_observationSize)))[_intrObservation[j]-1];
+        _fobservation[i][j] = (_xData+((i-1)*(_observationSize)))[_intrIndividual[j]-1];
       }
     }
     if (getTraceFlag() & MISS_LOW_TRACE) {
@@ -917,18 +1317,6 @@ char stackMissingArrays(char       mode,
   }  
   dualUseFlag = FALSE;
   switch (mode) {
-  case RSF_GROW:
-    if (_mRecordSize > 0) {
-      recordSize = _mRecordSize;
-      vSize = _mvSize;
-      dualUseFlag = TRUE;
-      mFlag = FALSE;
-    }
-    else {
-      _opt = _opt & (~OPT_MISS);
-      _opt = _opt & (~OPT_OMIS);
-    }
-    break;
   case RSF_PRED:
     if (_fmRecordSize > 0) {
       recordSize = _fmRecordSize;
@@ -953,11 +1341,16 @@ char stackMissingArrays(char       mode,
     }
     break;
   default:
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Unknown case in switch encountered. ");
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    if (_mRecordSize > 0) {
+      recordSize = _mRecordSize;
+      vSize = _mvSize;
+      dualUseFlag = TRUE;
+      mFlag = FALSE;
+    }
+    else {
+      _opt = _opt & (~OPT_MISS);
+      _opt = _opt & (~OPT_OMIS);
+    }
     break;
   }  
   if (dualUseFlag == TRUE) {
@@ -1051,7 +1444,9 @@ void unstackMissingArrays(char   mode,
   if (mode == RSF_INTR) {
     free_uivector(_fmRecordMap, 1, _fobservationSize);
     if (_fmRecordSize == 0) {
-      free_pdvector(_fobservation, 1, _xSize);
+      free_dvector(_fstatus, 1, _fobservationSize);
+      free_dvector(_ftime, 1, _fobservationSize);
+      free_dmatrix(_fobservation, 1, _xSize, 1, _fobservationSize);
     }
     else {
       unstackMissingSignatures(_fobservationSize,
@@ -1071,13 +1466,6 @@ void unstackMissingArrays(char   mode,
   }  
   dualUseFlag = FALSE;
   switch (mode) {
-  case RSF_GROW:
-    if (_mRecordSize > 0) {
-      dualUseFlag = TRUE;
-      recordSize = _mRecordSize;
-      vSize = _mvSize;
-    }
-    break;
   case RSF_PRED:
     if (_fmRecordSize > 0) {
       dualUseFlag = TRUE;
@@ -1093,11 +1481,11 @@ void unstackMissingArrays(char   mode,
     }
     break;
   default:
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Unknown case in switch encountered. ");
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    if (_mRecordSize > 0) {
+      dualUseFlag = TRUE;
+      recordSize = _mRecordSize;
+      vSize = _mvSize;
+    }
     break;
   }  
   if (dualUseFlag == TRUE) {
@@ -1109,7 +1497,6 @@ void unstackMissingArrays(char   mode,
   }
 }
 uint stackDefinedOutputObjects(char      mode,
-                               uint      sortedTimeInterestSize,
                                char    **sexpString,
                                Node   ***p_root,
                                double  **p_oobEnsemble,
@@ -1119,8 +1506,8 @@ uint stackDefinedOutputObjects(char      mode,
                                uint    **p_proximity,
                                double  **p_importance,
                                int     **p_seed,
-                               double  **p_imputation,
                                double  **p_oobImputation,
+                               double  **p_imputation,
                                double  **p_sImputeStatusPtr,
                                double  **p_sImputeTimePtr,
                                double ***p_sImputePredictorPtr,
@@ -1129,6 +1516,11 @@ uint stackDefinedOutputObjects(char      mode,
                                double ***p_sOOBImputePredictorPtr,
                                uint    **p_varUsed,
                                uint   ***p_varUsedPtr,
+                               double  **p_splitDepth,
+                               double ***p_splitDepthPtr,
+                               double  **localSplitDepthPtr,
+                               double  **p_oobEnsemblePOE,
+                               double  **p_fullEnsemblePOE,
                                uint     *stackCount,
                                SEXP     *sexpVector) {
   uint sexpIndex;
@@ -1137,6 +1529,7 @@ uint stackDefinedOutputObjects(char      mode,
   uint proximitySize;
   uint imputationSize;
   uint importanceSize;
+  uint importanceMult;
   uint varUsedSize;
   uint  obsSize;
   uint  mRecordSize;
@@ -1144,7 +1537,8 @@ uint stackDefinedOutputObjects(char      mode,
   double  *statusPtr;
   double  *timePtr;
   double **predictorPtr;
-  uint i,j,p;
+  uint adjEventSize;
+  uint i,j,k,p;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nstackDefinedOutputObjects() ENTRY ...\n");
   }
@@ -1154,6 +1548,7 @@ uint stackDefinedOutputObjects(char      mode,
   proximitySize  = 0;  
   imputationSize = 0;  
   importanceSize = 0;  
+  importanceMult = 0;  
   varUsedSize    = 0;  
   obsSize        = 0;  
   mRecordSize    = 0;  
@@ -1161,22 +1556,35 @@ uint stackDefinedOutputObjects(char      mode,
   timePtr        = NULL;  
   predictorPtr   = NULL;  
   mRecordIndex   = NULL;  
-  _ensembleRun = NULL;
+  if (_eventTypeSize > 1) {
+    adjEventSize = _eventTypeSize + 1;
+  }
+  else {
+    adjEventSize = 1;
+  }
   switch (mode) {
   case RSF_GROW:
     obsSize = _observationSize;
     mRecordSize = _mRecordSize;
-    performanceSize = _forestSize;
     statusPtr = _status;
     timePtr = _time;
     predictorPtr = _observation;
     mRecordIndex = _mRecordIndex;
-    *stackCount = 4;
-    if (_opt & (OPT_POUT_TYPE)) {
-      ensembleSize = 1;
+    if (_opt & OPT_IMPU_ONLY) {
+      *stackCount = 1;
     }
     else {
-      ensembleSize = sortedTimeInterestSize;
+      *stackCount = 4;
+    }
+    if (_opt & OPT_FENS) {
+      if (_eventTypeSize > 1) {
+        (*stackCount) += 1;
+      }
+    }
+    if (_opt & OPT_OENS) {
+      if (_eventTypeSize > 1) {
+        (*stackCount) += 1;
+      }
     }
     if (_opt & OPT_PROX) {
       proximitySize = ((obsSize + 1)  * obsSize) / 2; 
@@ -1198,10 +1606,6 @@ uint stackDefinedOutputObjects(char      mode,
       imputationSize = (_xSize + 3) * mRecordSize;
       (*stackCount) += 2;
     }
-    if (_opt & OPT_VIMP) {
-      importanceSize = _xSize;
-      (*stackCount) += 1;
-    }
     if (_opt & OPT_VUSE) {
       if (_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
         varUsedSize = _forestSize;
@@ -1211,21 +1615,33 @@ uint stackDefinedOutputObjects(char      mode,
       }
       (*stackCount) += 1;
     }
+    if (_opt & OPT_SPLT_DPTH) {
+      (*stackCount) += 1;
+    }
+    if (_opt & OPT_VIMP) {
+      (*stackCount) += 1;
+      if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+        importanceMult = 1;
+        importanceSize = adjEventSize;
+      }
+      else {
+        importanceMult = _xSize;
+        importanceSize = adjEventSize * _xSize;
+      }
+    }
     break;
   case RSF_PRED:
     obsSize = _fobservationSize;
     mRecordSize = _fmRecordSize;
-    performanceSize = _forestSize;
     statusPtr = _fstatus;
     timePtr = _ftime;
     predictorPtr = _fobservation;
     mRecordIndex = _fmRecordIndex;
     *stackCount = 2;
-    if (_opt & (OPT_POUT_TYPE)) {
-      ensembleSize = 1;
-    }
-    else {
-      ensembleSize = sortedTimeInterestSize;
+    if (_opt & OPT_FENS) {
+      if (_eventTypeSize > 1) {
+        (*stackCount) += 1;
+      }
     }
     if (_opt & OPT_PERF) {
       (*stackCount) += 1;
@@ -1234,42 +1650,55 @@ uint stackDefinedOutputObjects(char      mode,
       proximitySize = ((obsSize + 1)  * obsSize) / 2; 
       (*stackCount) += 1;
     }
-    if (_opt & OPT_VIMP) {
-      importanceSize = _xSize;
-      (*stackCount) += 1;
-    }
     if (_opt & OPT_MISS) {
       imputationSize = (_xSize + 3) * mRecordSize;
       (*stackCount) += 1;
+    }
+    if (_opt & OPT_SPLT_DPTH) {
+      (*stackCount) += 1;
+    }
+    if (_opt & OPT_VIMP) {
+      (*stackCount) += 1;
+      if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+        importanceMult = 1;
+        importanceSize = adjEventSize;
+      }
+      else {
+        importanceMult = _xSize;
+        importanceSize = adjEventSize * _xSize;
+      }
     }
     break;
   case RSF_INTR:
     obsSize = _fobservationSize;
     mRecordSize = _fmRecordSize;
-    performanceSize = _forestSize;
     statusPtr = _fstatus;
     timePtr = _ftime;
     predictorPtr = _fobservation;
     mRecordIndex = _fmRecordIndex;
     *stackCount = 3;
-    if (_opt & OPT_VIMP) {
-      if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
-        importanceSize = 1;
+    if (_opt & OPT_OENS) {
+      if (_eventTypeSize > 1) {
+        (*stackCount) += 1;
       }
-      else {
-        importanceSize = _intrPredictorSize;
-      }
-      (*stackCount) += 1;
-    }
-    if (_opt & (OPT_POUT_TYPE)) {
-      ensembleSize = 1;
-    }
-    else {
-      ensembleSize = sortedTimeInterestSize;
     }
     if (_opt & OPT_OMIS) {
       imputationSize = (_xSize + 3) * mRecordSize;
       (*stackCount) += 1;
+    }
+    if (_opt & OPT_SPLT_DPTH) {
+      (*stackCount) += 1;
+    }
+    if (_opt & OPT_VIMP) {
+      (*stackCount) += 1;
+      if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+        importanceMult = 1;
+        importanceSize = adjEventSize;
+      }
+      else {
+        importanceMult = _intrPredictorSize;
+        importanceSize = adjEventSize * _intrPredictorSize;
+      }
     }
     break;
   default:
@@ -1286,66 +1715,151 @@ uint stackDefinedOutputObjects(char      mode,
   if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nSEXP VECTOR mapped at: %20x", sexpVector);  
   }    
+  performanceSize = adjEventSize * _forestSize;
+  ensembleSize = adjEventSize * _sortedTimeInterestSize * obsSize;
   PROTECT(sexpVector[RSF_OUTP_ID] = allocVector(VECSXP, *stackCount));
   PROTECT(sexpVector[RSF_STRG_ID] = allocVector(STRSXP, *stackCount));
   setAttrib(sexpVector[RSF_OUTP_ID], R_NamesSymbol, sexpVector[RSF_STRG_ID]);
   sexpIndex = 0;
   if (_opt & OPT_FENS) {
-    PROTECT(sexpVector[RSF_FENS_ID] = NEW_NUMERIC(ensembleSize * obsSize));
+    PROTECT(sexpVector[RSF_FENS_ID] = NEW_NUMERIC(ensembleSize));
     if (getTraceFlag() & SUMM_MED_TRACE) {
       Rprintf("\nFENS memory mapped at: %20x", sexpVector + RSF_FENS_ID);  
       Rprintf("\nFENS memory:           %20x", sexpVector[RSF_FENS_ID]);  
-      Rprintf("\nFENS memory sized:     %20d", ensembleSize * obsSize);
+      Rprintf("\nFENS memory sized:     %20d", ensembleSize);
       Rprintf("\nFENS SEXP index:       %20d", sexpIndex);  
     }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_FENS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_FENS_ID]));
     *p_fullEnsemble = NUMERIC_POINTER(sexpVector[RSF_FENS_ID]);
-    _fullEnsemblePtr = pdvector(1, ensembleSize);
+    sexpIndex ++;
+    _fullEnsemblePtr = ppdvector(1, adjEventSize);
     _fullEnsembleDen = uivector(1, obsSize);
-    if (_ensembleRun == NULL) {
-      _ensembleRun     = dvector(1, obsSize);
+    for (j = 1; j <= adjEventSize; j++) {
+      _fullEnsemblePtr[j] = pdvector(1, _sortedTimeInterestSize);
+      for (k = 1; k <= _sortedTimeInterestSize; k++) {
+        _fullEnsemblePtr[j][k]  = (*p_fullEnsemble) + ((j-1) * _sortedTimeInterestSize * obsSize) + ((k-1) * obsSize) - 1;
+      }
     }
-    for (i = 1; i <= ensembleSize; i++) {
-      _fullEnsemblePtr[i] = (*p_fullEnsemble) + ((i-1)*(obsSize)) - 1;
+    if (getTraceFlag() & TURN_OFF_TRACE) {
+      Rprintf("\nFENS Numerator Address Map for sub-matrix [1][][]: \n");
+      Rprintf("          ");
+      for (i=1; i <= obsSize; i++) {
+        Rprintf("%20d", i);
+      }
+      Rprintf("\n");
+      for (k=1; k <= _sortedTimeInterestSize; k++) {
+        Rprintf("%10d", k);
+        for (i=1; i <= obsSize; i++) {
+          Rprintf("%20x", &_fullEnsemblePtr[1][k][i]);
+        }
+        Rprintf("\n");
+      }
     }
     for (i = 1; i <= obsSize; i++) {
-      for (j = 1; j <= ensembleSize; j++) {
-        _fullEnsemblePtr[j][i] = 0.0;
+      for (j = 1; j <= adjEventSize; j++) {
+        for (k = 1; k <= _sortedTimeInterestSize; k++) {
+          _fullEnsemblePtr[j][k][i] = 0.0;
+        }
       }
       _fullEnsembleDen[i] = 0;
     }
-    sexpIndex ++;
+    if (_eventTypeSize > 1) {
+      PROTECT(sexpVector[RSF_FPOE_ID] = NEW_NUMERIC(_eventTypeSize * obsSize));
+      if (getTraceFlag() & SUMM_MED_TRACE) {
+        Rprintf("\nFPOE memory mapped at: %20x", sexpVector + RSF_FPOE_ID);  
+        Rprintf("\nFPOE memory:           %20x", sexpVector[RSF_FPOE_ID]);  
+        Rprintf("\nFPOE memory sized:     %20d", _eventTypeSize * obsSize);
+        Rprintf("\nFPOE SEXP index:       %20d", sexpIndex);  
+      }
+      SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_FPOE_ID]);
+      SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_FPOE_ID]));
+      *p_fullEnsemblePOE = NUMERIC_POINTER(sexpVector[RSF_FPOE_ID]);
+      sexpIndex ++;
+      _fullPOEPtr = pdvector(1, _eventTypeSize);
+      for (j = 1; j <= _eventTypeSize; j++) {
+          _fullPOEPtr[j]  = (*p_fullEnsemblePOE) + ((j-1) * obsSize) - 1;
+      }
+      for (i = 1; i <= obsSize; i++) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+            _fullPOEPtr[j][i] = 0.0;
+        }
+      }
+      _fullSubSurvivalPtr     = dmatrix3(1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      _fullSubDistributionPtr = dmatrix3(1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      for (i = 1; i <= obsSize; i++) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          for (k = 1; k <= _sortedTimeInterestSize; k++) {
+            _fullSubSurvivalPtr[j][k][i] = 0.0;
+            _fullSubDistributionPtr[j][k][i] = 0.0;
+          }
+        }
+      }
+    }
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nAllocating for OPT FENS complete.");  
     }
   }
   if (_opt & OPT_OENS) {
-    PROTECT(sexpVector[RSF_OENS_ID] = NEW_NUMERIC(ensembleSize * obsSize));
+    PROTECT(sexpVector[RSF_OENS_ID] = NEW_NUMERIC(ensembleSize));
     if (getTraceFlag() & SUMM_MED_TRACE) {
       Rprintf("\nOENS memory mapped at: %20x", sexpVector + RSF_OENS_ID);  
       Rprintf("\nOENS memory:           %20x", sexpVector[RSF_OENS_ID]);  
-      Rprintf("\nOENS memory sized:     %20d", ensembleSize * obsSize);
+      Rprintf("\nOENS memory sized:     %20d", ensembleSize);
       Rprintf("\nOENS SEXP index:       %20d", sexpIndex);  
     }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_OENS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_OENS_ID]));
     *p_oobEnsemble = NUMERIC_POINTER(sexpVector[RSF_OENS_ID]);
-    _oobEnsemblePtr  = pdvector(1, ensembleSize);
+    sexpIndex ++;
+    _oobEnsemblePtr  = ppdvector(1, adjEventSize);
     _oobEnsembleDen  = uivector(1, obsSize);
-    if (_ensembleRun == NULL) {
-      _ensembleRun     = dvector(1, obsSize);
-    }
-    for (i = 1; i <= ensembleSize; i++) {
-      _oobEnsemblePtr[i]  = (*p_oobEnsemble)  + ((i-1)*(obsSize)) - 1;
+    for (j = 1; j <= adjEventSize; j++) {
+      _oobEnsemblePtr[j] = pdvector(1, _sortedTimeInterestSize);
+      for (k = 1; k <= _sortedTimeInterestSize; k++) {
+        _oobEnsemblePtr[j][k]  = (*p_oobEnsemble) + ((j-1) * _sortedTimeInterestSize * obsSize) + ((k-1) * obsSize) - 1;
+      }
     }
     for (i = 1; i <= obsSize; i++) {
-      for (j = 1; j <= ensembleSize; j++) {
-        _oobEnsemblePtr[j][i]  = 0.0;
+      for (j = 1; j <= adjEventSize; j++) {
+        for (k = 1; k <= _sortedTimeInterestSize; k++) {
+          _oobEnsemblePtr[j][k][i] = 0.0;
+        }
       }
-      _oobEnsembleDen[i]  = 0;
+      _oobEnsembleDen[i] = 0;
     }
-    sexpIndex ++;
+    if (_eventTypeSize > 1) {
+      PROTECT(sexpVector[RSF_OPOE_ID] = NEW_NUMERIC(_eventTypeSize * obsSize));
+      if (getTraceFlag() & SUMM_MED_TRACE) {
+        Rprintf("\nOPOE memory mapped at: %20x", sexpVector + RSF_OPOE_ID);  
+        Rprintf("\nOPOE memory:           %20x", sexpVector[RSF_OPOE_ID]);  
+        Rprintf("\nOPOE memory sized:     %20d", _eventTypeSize * obsSize);
+        Rprintf("\nOPOE SEXP index:       %20d", sexpIndex);  
+      }
+      SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_OPOE_ID]);
+      SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_OPOE_ID]));
+      *p_oobEnsemblePOE = NUMERIC_POINTER(sexpVector[RSF_OPOE_ID]);
+      sexpIndex ++;
+      _oobPOEPtr  = pdvector(1, _eventTypeSize);
+      for (j = 1; j <= _eventTypeSize; j++) {
+          _oobPOEPtr[j] = (*p_oobEnsemblePOE) + ((j-1) * obsSize) - 1;
+      }
+      for (i = 1; i <= obsSize; i++) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+            _oobPOEPtr[j][i] = 0.0;
+        }
+      }
+      _oobSubSurvivalPtr     = dmatrix3(1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      _oobSubDistributionPtr = dmatrix3(1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      for (i = 1; i <= obsSize; i++) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          for (k = 1; k <= _sortedTimeInterestSize; k++) {
+            _oobSubSurvivalPtr[j][k][i] = 0.0;
+            _oobSubDistributionPtr[j][k][i] = 0.0;
+          }
+        }
+      }
+    }  
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nAllocating for OPT OENS complete.");  
     }
@@ -1360,10 +1874,30 @@ uint stackDefinedOutputObjects(char      mode,
     }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_PERF_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_PERF_ID]));
-    *p_performance  = NUMERIC_POINTER(sexpVector[RSF_PERF_ID]);
-    (*p_performance) --;
-    for (i = 1; i <= performanceSize; i++) {
-      (*p_performance)[i] = NA_REAL;
+    *p_performance = NUMERIC_POINTER(sexpVector[RSF_PERF_ID]);
+    _performancePtr = pdvector(1, adjEventSize);
+    for (i = 1; i <= adjEventSize; i++) {
+      _performancePtr[i]  = (*p_performance)  + ((i-1) * _forestSize) - 1;
+    }
+    for (j = 1; j <= adjEventSize; j++) {
+      for (k = 1; k <= _forestSize; k++) {
+        _performancePtr[j][k] = NA_REAL;
+      }
+    }
+    if (getTraceFlag() & TURN_OFF_TRACE) {
+      Rprintf("\nPERF Address Map for matrix [][]: \n");
+      Rprintf("          ");
+      for (j = 1; j <= _forestSize; j++) {
+        Rprintf("%20d", j);
+      }
+      Rprintf("\n");
+      for (i = 1; i <= adjEventSize; i++) {
+        Rprintf("%10d", i);
+        for (j = 1; j <= _forestSize; j++) {
+          Rprintf("%20x", &_performancePtr[i][j]);
+        }
+        Rprintf("\n");
+      }
     }
     sexpIndex ++;
     if (getTraceFlag() & SUMM_LOW_TRACE) {
@@ -1398,8 +1932,8 @@ uint stackDefinedOutputObjects(char      mode,
       Rprintf("\nLEAF memory sized:     %20d", _forestSize);  
       Rprintf("\nLEAF SEXP index:       %20d", sexpIndex);  
     }
-    SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_LEAF_ID]));
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_LEAF_ID]);
+    SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_LEAF_ID]));
     *p_leafCount    = (uint*) INTEGER_POINTER(sexpVector[RSF_LEAF_ID]);
     (*p_leafCount) --;
     for (i = 1; i <= _forestSize; i++) {
@@ -1506,22 +2040,48 @@ uint stackDefinedOutputObjects(char      mode,
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_VIMP_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_VIMP_ID]));
     *p_importance = NUMERIC_POINTER(sexpVector[RSF_VIMP_ID]);
-    (*p_importance) --;
-    for (i = 1; i <= importanceSize; i++) {
-      (*p_importance)[i] = NA_REAL;
+    _importancePtr = pdvector(1, adjEventSize);
+    for (i = 1; i <= adjEventSize; i++) {
+      _importancePtr[i]  = (*p_importance)  + ((i-1) * importanceMult) - 1;
     }
-    _vimpEnsembleRun = dmatrix(1, importanceSize, 1, obsSize);
-    for (i = 1; i <= importanceSize; i++) {
-      (*p_importance)[i] = NA_REAL;
-      for (j = 1; j <= obsSize; j++) {
-        _vimpEnsembleRun[i][j] = 0;
+    for (j = 1; j <= adjEventSize; j++) {
+      for (k = 1; k <= importanceMult; k++) {
+        _importancePtr[j][k] = NA_REAL;
+      }
+    }
+    _vimpMortality = dmatrix(1, importanceMult, 1, obsSize);
+    for (k=1; k <= importanceMult; k++) {
+      for (i = 1; i <= obsSize; i++) {
+        _vimpMortality[k][i] = 0.0;
+      }
+    }
+    if (_opt & OPT_VOUT_TYPE) {
+      _oobVimpInvalidDen  = uimatrix(1, importanceMult, 1, obsSize);
+      for (k=1; k <= importanceMult; k++) {
+      for (i = 1; i <= obsSize; i++) {
+        _oobVimpInvalidDen[k][i] = 0;
+      }
+    }
+    }
+    if (_eventTypeSize > 1) {
+      _crVimpEnsemble = dmatrix4(1, importanceMult, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      _crVimpPOE      = dmatrix3(1, importanceMult, 1, _eventTypeSize, 1, obsSize);
+      for (p = 1; p <= importanceMult; p++) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          for (i = 1; i <= obsSize; i++) {
+            _crVimpPOE[p][j][i] = 0.0;
+            for (k = 1; k <= _sortedTimeInterestSize; k++) {
+              _crVimpEnsemble[p][j][k][i] = 0.0;
+            }
+          }
+        }
       }
     }
     sexpIndex++;
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nAllocating for OPT VIMP complete.");  
     }
-  }
+  }  
   if (_opt & OPT_VUSE) {
     PROTECT(sexpVector[RSF_VUSE_ID] = NEW_INTEGER(varUsedSize * _xSize));
     if (getTraceFlag() & SUMM_MED_TRACE) {
@@ -1547,10 +2107,36 @@ uint stackDefinedOutputObjects(char      mode,
       Rprintf("\nAllocating for OPT VUSE complete.");  
     }
   }
+  if (_opt & OPT_SPLT_DPTH) {
+    PROTECT(sexpVector[RSF_DPTH_ID] = NEW_NUMERIC(_xSize * _observationSize));
+    if (getTraceFlag() & SUMM_MED_TRACE) {
+      Rprintf("\nDPTH memory mapped at: %20x", sexpVector + RSF_DPTH_ID);  
+      Rprintf("\nDPTH memory:           %20x", sexpVector[RSF_DPTH_ID]);  
+      Rprintf("\nDPTH memory sized:     %20d", _xSize * _observationSize);
+      Rprintf("\nDPTH SEXP index:       %20d", sexpIndex);  
+    }
+    SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_DPTH_ID]);
+    SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_DPTH_ID]));
+    *p_splitDepth = NUMERIC_POINTER(sexpVector[RSF_DPTH_ID]);
+    *p_splitDepthPtr  = pdvector(1, _xSize);
+    for (j = 1; j <= _xSize; j++) {
+      (*p_splitDepthPtr)[j] = (*p_splitDepth) + ((j-1)*(_observationSize)) - 1;
+    }
+    for (j = 1; j <= _xSize; j++) {
+      for (i = 1; i <= _observationSize; i++) {
+        (*p_splitDepthPtr)[j][i] = 0;
+      }
+    }
+    *localSplitDepthPtr = dvector(1, _xSize);
+    sexpIndex ++;
+    if (getTraceFlag() & SUMM_LOW_TRACE) {
+      Rprintf("\nAllocating for OPT DPTH complete.");  
+    }
+  }
   if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Allocation of defined output objects complete:  %10d", sexpIndex);  
   }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
+  if (getTraceFlag() & MISS_LOW_TRACE) {
     if (_opt & OPT_MISS) {
       Rprintf("\nImputed Data Output Object:  (at initialization)");
       Rprintf("\n       index   imputation -> \n");
@@ -1576,27 +2162,33 @@ uint stackDefinedOutputObjects(char      mode,
   return (sexpIndex);
 }
 void unstackDefinedOutputObjects(char      mode,
-                                 uint      sortedTimeInterestSize,
-                                 Node    **root) {
-  uint  obsSize;
+                                 Node    **root,
+                                 double   *localSplitDepthPtr) {
+  uint obsSize;
   uint mRecordSize;
   uint importanceSize;
+  uint importanceMult;
   uint varUsedSize;
-  uint i;
+  uint adjEventSize;
+  uint i, j;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nunstackDefinedOutputObjects() ENTRY ...\n");
   }
   obsSize        = 0;  
   mRecordSize    = 0;  
   importanceSize = 0;  
+  importanceMult = 0;  
   varUsedSize    = 0;  
+  if (_eventTypeSize > 1) {
+    adjEventSize = _eventTypeSize + 1;
+  }
+  else {
+    adjEventSize = 1;
+  }
   switch (mode) {
   case RSF_GROW:
     obsSize = _observationSize;
     mRecordSize = _mRecordSize;
-    if (_opt & OPT_VIMP) {
-      importanceSize = _xSize;
-    }
     if (_opt & OPT_VUSE) {
       if (_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
         varUsedSize = _forestSize;
@@ -1605,23 +2197,42 @@ void unstackDefinedOutputObjects(char      mode,
         varUsedSize = 1;
       }
     }
+    if (_opt & OPT_VIMP) {
+      if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+        importanceMult = 1;
+        importanceSize = adjEventSize;
+      }
+      else {
+        importanceMult = _xSize;
+        importanceSize = adjEventSize * _xSize;
+      }
+    }
     break;
   case RSF_PRED:
     obsSize = _fobservationSize;
     mRecordSize = _fmRecordSize;
     if (_opt & OPT_VIMP) {
-      importanceSize = _xSize;
+      if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
+        importanceMult = 1;
+        importanceSize = adjEventSize;
+      }
+      else {
+        importanceMult = _xSize;
+        importanceSize = adjEventSize * _xSize;
+      }
     }
     break;
   case RSF_INTR:
-    obsSize = _observationSize;
+    obsSize = _fobservationSize;
     mRecordSize = _fmRecordSize;
     if (_opt & OPT_VIMP) {
       if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
-        importanceSize = 1;
+        importanceMult = 1;
+        importanceSize = adjEventSize;
       }
       else {
-        importanceSize = _intrPredictorSize;
+        importanceMult = _intrPredictorSize;
+        importanceSize = adjEventSize * _intrPredictorSize;
       }
     }
     break;
@@ -1634,29 +2245,46 @@ void unstackDefinedOutputObjects(char      mode,
     break;
   }
   if (_opt & OPT_FENS) {
-    free_pdvector(_fullEnsemblePtr, 1, sortedTimeInterestSize);
+    for (j = 1; j <= adjEventSize; j++) {
+      free_pdvector(_fullEnsemblePtr[j], 1, _sortedTimeInterestSize);
+    }
+    free_ppdvector(_fullEnsemblePtr, 1, adjEventSize);
     free_uivector(_fullEnsembleDen, 1, obsSize);
-    if (_ensembleRun != NULL) {
-      free_dvector(_ensembleRun, 1, obsSize);
-      _ensembleRun = NULL;
+    if (_eventTypeSize > 1) {
+      free_pdvector(_fullPOEPtr, 1, _eventTypeSize);
+      free_dmatrix3(_fullSubSurvivalPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      free_dmatrix3(_fullSubDistributionPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
     }
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nDe-allocating for OPT FENS complete.");  
     }
   }
   if (_opt & OPT_OENS) {
+    for (j = 1; j <= adjEventSize; j++) {
+      free_pdvector(_oobEnsemblePtr[j], 1, _sortedTimeInterestSize);
+    }
+    free_ppdvector(_oobEnsemblePtr, 1, adjEventSize);
     free_uivector(_oobEnsembleDen, 1, obsSize);
-    free_pdvector(_oobEnsemblePtr, 1, sortedTimeInterestSize);
-    if (_ensembleRun != NULL) {
-      free_dvector(_ensembleRun, 1, obsSize);
-      _ensembleRun = NULL;
+    if (_eventTypeSize > 1) {
+      free_pdvector(_oobPOEPtr, 1, _eventTypeSize);
+      free_dmatrix3(_oobSubSurvivalPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      free_dmatrix3(_oobSubDistributionPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
     }
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nDe-allocating for OPT OENS complete.");  
     }
   }
+  if (_opt & OPT_PERF) {
+    free_pdvector(_performancePtr, 1, adjEventSize);
+    if (getTraceFlag() & SUMM_LOW_TRACE) {
+      Rprintf("\nDe-allocating for OPT PERF complete.");  
+    }
+  }
   if (_opt & OPT_TREE) {
     for (i = 1; i <= _forestSize; i++) {
+      if (getTraceFlag() & FORK_DEF_TRACE) {
+        Rprintf("\nDe-allocating treeID:  %10d", i);          
+      }
       freeTree(root[i]);
     }
     free_nodePtrVector(root, 1, _forestSize);
@@ -1677,7 +2305,15 @@ void unstackDefinedOutputObjects(char      mode,
     }
   }
   if (_opt & OPT_VIMP) {
-    free_dmatrix(_vimpEnsembleRun, 1, importanceSize, 1, obsSize);
+    free_pdvector(_importancePtr, 1, adjEventSize);
+    free_dmatrix(_vimpMortality, 1, importanceMult, 1, obsSize);
+    if (_opt & OPT_VOUT_TYPE) {
+      free_uimatrix(_oobVimpInvalidDen, 1, importanceMult, 1, obsSize);
+    }
+    if (_eventTypeSize > 1) {
+      free_dmatrix4(_crVimpEnsemble, 1, importanceMult, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
+      free_dmatrix3(_crVimpPOE, 1, importanceMult, 1, _eventTypeSize, 1, obsSize);
+    }
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nDe-allocating for OPT VIMP complete.");  
     }
@@ -1686,6 +2322,13 @@ void unstackDefinedOutputObjects(char      mode,
     free_puivector(_varUsedPtr, 1, varUsedSize);
     if (getTraceFlag() & SUMM_LOW_TRACE) {
       Rprintf("\nDe-allocating for OPT VUSE complete.");  
+    }
+  }  
+  if (_opt & OPT_SPLT_DPTH) {
+    free_pdvector(_splitDepthPtr, 1, _xSize);
+    free_dvector(localSplitDepthPtr, 1, _xSize);
+    if (getTraceFlag() & SUMM_LOW_TRACE) {
+      Rprintf("\nDe-allocating for OPT DPTH complete.");  
     }
   }  
   if (getTraceFlag() & SUMM_LOW_TRACE) {

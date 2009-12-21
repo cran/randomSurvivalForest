@@ -1,58 +1,89 @@
-##**********************************************************************
-##**********************************************************************
-##
-##  RANDOM SURVIVAL FOREST 3.5.1
-##
-##  Copyright 2008, Cleveland Clinic Foundation
-##
-##  This program is free software; you can redistribute it and/or
-##  modify it under the terms of the GNU General Public License
-##  as published by the Free Software Foundation; either version 2
-##  of the License, or (at your option) any later version.
-##
-##  This program is distributed in the hope that it will be useful,
-##  but WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##  GNU General Public License for more details.
-##
-##  You should have received a copy of the GNU General Public
-##  License along with this program; if not, write to the Free
-##  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##  Boston, MA  02110-1301, USA.
-##
-##  Project funded by:
-##    National Institutes of Health, HL072771-01
-##
-##    Michael S Lauer, MD, FACC, FAHA
-##    Cleveland Clinic Lerner College of Medicine of CWRU
-##    9500 Euclid Avenue
-##    Cleveland, OH 44195
-##
-##    email:  lauerm@ccf.org
-##    phone:   216-444-6798
-##
-##  Written by:
-##    Hemant Ishwaran, Ph.D.
-##    Dept of Quantitative Health Sciences/Wb4
-##    Cleveland Clinic Foundation
-##    9500 Euclid Avenue
-##    Cleveland, OH 44195
-##
-##    email:  hemant.ishwaran@gmail.com
-##    phone:  216-444-9932
-##    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-##    --------------------------------------------------------------
-##    Udaya B. Kogalur, Ph.D.
-##    Kogalur Shear Corporation
-##    5425 Nestleway Drive, Suite L1
-##    Clemmons, NC 27012
-##
-##    email:  ubk2101@columbia.edu
-##    phone:  919-824-9825
-##    URL:    www.kogalur-shear.com
-##
-##**********************************************************************
-##**********************************************************************
+####**********************************************************************
+####**********************************************************************
+####
+####  RANDOM SURVIVAL FOREST 3.6.0
+####
+####  Copyright 2009, Cleveland Clinic Foundation
+####
+####  This program is free software; you can redistribute it and/or
+####  modify it under the terms of the GNU General Public License
+####  as published by the Free Software Foundation; either version 2
+####  of the License, or (at your option) any later version.
+####
+####  This program is distributed in the hope that it will be useful,
+####  but WITHOUT ANY WARRANTY; without even the implied warranty of
+####  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+####  GNU General Public License for more details.
+####
+####  You should have received a copy of the GNU General Public
+####  License along with this program; if not, write to the Free
+####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+####  Boston, MA  02110-1301, USA.
+####
+####  ----------------------------------------------------------------
+####  Project Partially Funded By:
+####    --------------------------------------------------------------
+####    National Institutes of Health,  Grant HHSN268200800026C/0001
+####
+####    Michael S. Lauer, M.D., FACC, FAHA 
+####    National Heart, Lung, and Blood Institute
+####    6701 Rockledge Dr, Room 10122
+####    Bethesda, MD 20892
+####
+####    email:  lauerm@nhlbi.nih.gov
+####
+####    --------------------------------------------------------------
+####    Case Western Reserve University/Cleveland Clinic  
+####    CTSA Grant:  UL1 RR024989, National Center for
+####    Research Resources (NCRR), NIH
+####
+####    --------------------------------------------------------------
+####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+####    Andy Minn, M.D., Ph.D.
+####    Department of Radiation and Cellular Oncology, and
+####    Ludwig Center for Metastasis Research
+####    The University of Chicago, Jules F. Knapp Center, 
+####    924 East 57th Street, Room R318
+####    Chicago, IL 60637
+#### 
+####    email:  aminn@radonc.uchicago.edu
+####
+####    --------------------------------------------------------------
+####    Bryan Lau, Ph.D.
+####    Department of Medicine, Johns Hopkins School of Medicine,
+####    Baltimore, Maryland 21287
+####
+####    email:  blau1@jhmi.edu
+####
+####  ----------------------------------------------------------------
+####  Written by:
+####    --------------------------------------------------------------
+####    Hemant Ishwaran, Ph.D.
+####    Dept of Quantitative Health Sciences/Wb4
+####    Cleveland Clinic Foundation
+####    9500 Euclid Avenue
+####    Cleveland, OH 44195
+####
+####    email:  hemant.ishwaran@gmail.com
+####    phone:  216-444-9932
+####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+####
+####    --------------------------------------------------------------
+####    Udaya B. Kogalur, Ph.D.
+####    Dept of Quantitative Health Sciences/Wb4
+####    Cleveland Clinic Foundation
+####    
+####    Kogalur Shear Corporation
+####    5425 Nestleway Drive, Suite L1
+####    Clemmons, NC 27012
+####
+####    email:  ubk2101@columbia.edu
+####    phone:  919-824-9825
+####    URL:    www.kogalur-shear.com
+####    --------------------------------------------------------------
+####
+####**********************************************************************
+####**********************************************************************
 
 plot.variable <- function(
     x, 
@@ -64,7 +95,8 @@ plot.variable <- function(
     predictorNames = NULL,
     npred = NULL,                           
     npts = 25,
-    subset = NULL, 
+    subset = NULL,
+    percentile = 50,
     ...) {
 
     ### don't want to use x for object 
@@ -75,9 +107,14 @@ plot.variable <- function(
         sum(inherits(object, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
       stop("Function only works for objects of class `(rsf, grow)', '(rsf, predict)'.")
     if (type != "mort" & type != "rel.freq" & type != "surv" & type != "time")
-      stop("Invalid choice for 'type:  " + type)
+      stop("Invalid choice for 'type:  ", type)
     if (!partial & type == "time") stop("Type 'time' can only be used for partial plots.")
+
+    # number of event types
+    n.event  <- length(unique(na.omit(object$cens)[na.omit(object$cens) > 0]))
+    if (n.event > 1) object$ensemble <- object$ensemble[,,1]
     
+
     ### subset the data?
     if (!is.null(subset) & length(unique(subset)) != 0) {
       subset <- subset[subset >=1 & subset <= dim(object$predictors)[1]]
@@ -109,9 +146,7 @@ plot.variable <- function(
     else {
       cov.names <- predictorNames
       if (sum(is.element(object$predictorNames, cov.names)) == 0){
-           cat("Coefficient list does not match available predictors:","\n")
-           print(object$predictorNames)
-           stop()
+        stop("Coefficient list does not match available predictors:\n", object$predictorNames)
       }
       cov.names <- unique(cov.names[is.element(cov.names, object$predictorNames)])
       npred <- NULL
@@ -121,8 +156,9 @@ plot.variable <- function(
       if (!is.null(object$importance)) {
         n.cov <- length(cov.names)
         cov.imp <- rep(0, n.cov)
+        if (n.event == 1) covImp <- object$importance else covImp <- object$importance[1,]
         for (k in 1:n.cov) {
-          cov.imp[k] <- object$importance[object$predictorNames == cov.names[k]]
+          cov.imp[k] <- covImp[object$predictorNames == cov.names[k]]
         }
         cov.names <- cov.names[rev(order(cov.imp))]
       }
@@ -147,12 +183,16 @@ plot.variable <- function(
       ylabel <- "standardized mortality"
     }
     else if (type == "surv") {
-      ylabel <- "predicted median survival"
+      ylabel <- "predicted survival"
     }
     else {
       ylabel <- "predicted survival time"
     }
-    
+
+    ## ensure percentile value is set correctly
+    if (percentile > 1) percentile <- percentile/100
+    if (percentile < 0 || percentile > 1) percentile = 0.5
+
     ##--------------------------------------------------------------------------------
     ## Marginal plots
     ##--------------------------------------------------------------------------------
@@ -169,7 +209,8 @@ plot.variable <- function(
       }
       else {
         yhat <-
-          100*exp(-object$ensemble[ , max(which(object$timeInterest<=na.omit(median(object$time))))])
+          100*exp(-object$ensemble[ , max(which(object$timeInterest <=
+                         quantile(object$time, probs = percentile, na.rm = TRUE)))])
       }
       for (k in 1:n.cov) {
         x <- predictors[, object$predictorNames == cov.names[k]]
@@ -244,12 +285,21 @@ plot.variable <- function(
         for (l in 1:n.x) {
           newdata.x[, object$predictorNames == cov.names[k]] <- rep(x.uniq[l], n)
           if (type == "mort" | type == "rel.freq" | type == "time") {
-            pred.temp <- predict.rsf(baseForest, newdata.x)$mortality
+              pred.temp <- predict.rsf(baseForest, newdata.x)$mortality
           }
           else if (type == "surv") {
+            if (n.event == 1) {
+              pred.temp <-
+               100*exp(-predict.rsf(baseForest, newdata.x)$ensemble[,
+                    max(which(object$timeInterest <=
+                              quantile(object$time, probs = percentile, na.rm = TRUE)))])
+            }
+            else {
             pred.temp <-
-             100*exp(-predict.rsf(baseForest, newdata.x)$ensemble[,
-                    max(which(object$timeInterest<=median(na.omit(object$time))))])
+               100*exp(-predict.rsf(baseForest, newdata.x)$ensemble[,
+                    max(which(object$timeInterest <=
+                              quantile(object$time, probs = percentile, na.rm = TRUE))),1])
+            }
           }
           if (!is.factor(x) & (n.x > granule | n.cov == 1)) {
             yhat <- c(yhat, mean(pred.temp , na.rm = TRUE))
@@ -288,7 +338,7 @@ plot.variable <- function(
           else {
             yhat <- yhat/nAdj
             y.se <- 2/n
-          }          
+          }
           bxp.call <- boxplot(yhat ~ rep(x.uniq, rep(n, n.x)), range = 2, plot = F)
           boxplot(yhat ~ rep(x.uniq, rep(n, n.x)),
                   xlab = cov.names[k],

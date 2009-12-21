@@ -1,390 +1,98 @@
-//**********************************************************************
-//**********************************************************************
-//
-//  RANDOM SURVIVAL FOREST 3.5.1
-//
-//  Copyright 2008, Cleveland Clinic Foundation
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public
-//  License along with this program; if not, write to the Free
-//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-//  Boston, MA  02110-1301, USA.
-//
-//  Project funded by:
-//    National Institutes of Health, HL072771-01
-//
-//    Michael S Lauer, MD, FACC, FAHA
-//    Cleveland Clinic Lerner College of Medicine of CWRU
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  lauerm@ccf.org
-//    phone:   216-444-6798
-//
-//  Written by:
-//    Hemant Ishwaran, Ph.D.
-//    Dept of Quantitative Health Sciences/Wb4
-//    Cleveland Clinic Foundation
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  hemant.ishwaran@gmail.com
-//    phone:  216-444-9932
-//    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-//    --------------------------------------------------------------
-//    Udaya B. Kogalur, Ph.D.
-//    Kogalur Shear Corporation
-//    5425 Nestleway Drive, Suite L1
-//    Clemmons, NC 27012
-//
-//    email:  ubk2101@columbia.edu
-//    phone:  919-824-9825
-//    URL:    www.kogalur-shear.com
-//
-//**********************************************************************
-//**********************************************************************
+////**********************************************************************
+////**********************************************************************
+////
+////  RANDOM SURVIVAL FOREST 3.6.0
+////
+////  Copyright 2009, Cleveland Clinic Foundation
+////
+////  This program is free software; you can redistribute it and/or
+////  modify it under the terms of the GNU General Public License
+////  as published by the Free Software Foundation; either version 2
+////  of the License, or (at your option) any later version.
+////
+////  This program is distributed in the hope that it will be useful,
+////  but WITHOUT ANY WARRANTY; without even the implied warranty of
+////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+////  GNU General Public License for more details.
+////
+////  You should have received a copy of the GNU General Public
+////  License along with this program; if not, write to the Free
+////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+////  Boston, MA  02110-1301, USA.
+////
+////  ----------------------------------------------------------------
+////  Project Partially Funded By:
+////    --------------------------------------------------------------
+////    National Institutes of Health,  Grant HHSN268200800026C/0001
+////
+////    Michael S. Lauer, M.D., FACC, FAHA 
+////    National Heart, Lung, and Blood Institute
+////    6701 Rockledge Dr, Room 10122
+////    Bethesda, MD 20892
+////
+////    email:  lauerm@nhlbi.nih.gov
+////
+////    --------------------------------------------------------------
+////    Case Western Reserve University/Cleveland Clinic  
+////    CTSA Grant:  UL1 RR024989, National Center for
+////    Research Resources (NCRR), NIH
+////
+////    --------------------------------------------------------------
+////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+////    Andy Minn, M.D., Ph.D.
+////    Department of Radiation and Cellular Oncology, and
+////    Ludwig Center for Metastasis Research
+////    The University of Chicago, Jules F. Knapp Center, 
+////    924 East 57th Street, Room R318
+////    Chicago, IL 60637
+//// 
+////    email:  aminn@radonc.uchicago.edu
+////
+////    --------------------------------------------------------------
+////    Bryan Lau, Ph.D.
+////    Department of Medicine, Johns Hopkins School of Medicine,
+////    Baltimore, Maryland 21287
+////
+////    email:  blau1@jhmi.edu
+////
+////  ----------------------------------------------------------------
+////  Written by:
+////    --------------------------------------------------------------
+////    Hemant Ishwaran, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    9500 Euclid Avenue
+////    Cleveland, OH 44195
+////
+////    email:  hemant.ishwaran@gmail.com
+////    phone:  216-444-9932
+////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+////
+////    --------------------------------------------------------------
+////    Udaya B. Kogalur, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    
+////    Kogalur Shear Corporation
+////    5425 Nestleway Drive, Suite L1
+////    Clemmons, NC 27012
+////
+////    email:  ubk2101@columbia.edu
+////    phone:  919-824-9825
+////    URL:    www.kogalur-shear.com
+////    --------------------------------------------------------------
+////
+////**********************************************************************
+////**********************************************************************
 
-#include   "global.h"
-#include   "nrutil.h"
-#include   "node_ops.h"
-#include   "rsfFactorOps.h"
-#include   "rsfImpute.h"
-#include   "rsfUtil.h"
-extern uint getTraceFlag();
-uint updateTimeStamp(uint before) {
-  uint stamp;
-  double cpuTimeUsed;
-  stamp = clock();
-  cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  }
-  return stamp;
-}
-void freeTree(Node *parent) {
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    freeTree(parent -> left);
-    freeTree(parent -> right);
-  }
-  free_Node(parent);
-}
-char restoreTree(uint    b,
-                 Node   *parent,
-                 uint   *leafCount,
-                 uint   *offset,
-                 uint   *treeID,
-                 uint   *nodeID,
-                 uint   *parmID,
-                 double *contPT,
-                 uint   *mwcpSZ,
-                 uint  **mwcpPtr) {
-  uint i;
-  char splitResult;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nrestoreTree() ENTRY ...\n");
-  }
-  if (b != treeID[*offset]) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Invalid forest input record at line:  %10d", b);
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    Rprintf("\nDiagnostic Trace of Tree Record:  \n");
-    Rprintf("\n    treeID     nodeID     parmID       spltPT     mwcpSZ \n");
-    Rprintf("%10d %10d %10d %12.4f %10d \n", treeID[*offset], nodeID[*offset], parmID[*offset], contPT[*offset], mwcpSZ[*offset]);
-    exit(TRUE);
-  }
-  parent -> parent = parent;
-  parent -> left  = NULL;
-  parent -> right = NULL;
-  for (i = 1; i <= _xSize; i++) {
-    parent -> permissibleSplit[i] = FALSE;
-  }
-  parent -> splitFlag = FALSE;
-  parent -> mortality = NA_REAL;
-  parent -> leafCount = nodeID[*offset];
-  parent -> splitParameter = parmID[*offset];
-  if ((parent -> splitParameter) != 0) {
-    if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-      if (getTraceFlag() & SUMM_HGH_TRACE) {
-        Rprintf("  mwcpPT (reversed):  [%16x] 0x ", (*mwcpPtr) + 1);
-      }
-      parent -> splitValueFactSize = mwcpSZ[*offset];
-      parent -> splitValueFactPtr = uivector(1, mwcpSZ[*offset]);    
-      for (i = 1; i <= parent -> splitValueFactSize; i++) {
-        (*mwcpPtr) ++;
-        (parent -> splitValueFactPtr)[i] = **mwcpPtr;
-        if (getTraceFlag() & SUMM_HGH_TRACE) {
-          Rprintf("%8x ",  (parent -> splitValueFactPtr)[i]);
-        }
-      }
-      parent -> splitValueCont = NA_REAL;
-    }
-    else {
-      parent -> splitValueCont = contPT[*offset];
-      parent -> splitValueFactSize = 0;
-      parent -> splitValueFactPtr = NULL;
-    }
-  }
-  else {
-    parent -> splitValueCont     = NA_REAL;
-    parent -> splitValueFactSize = 0;
-    parent -> splitValueFactPtr  = NULL;
-  }
-  (*offset) ++;
-  if ((parent -> splitParameter) != 0) {
-    if (getTraceFlag() & SUMM_HGH_TRACE) {
-      getNodeInfo(parent);
-    }
-    splitResult = TRUE;
-    (*leafCount)++;
-    parent -> left  = makeNode();
-    ((parent -> left) -> leafCount) = (parent -> leafCount);
-    restoreTree(b, 
-                parent -> left, 
-                leafCount, 
-                offset, 
-                treeID, 
-                nodeID, 
-                parmID,
-                contPT,
-                mwcpSZ,
-                mwcpPtr);
-    parent -> right = makeNode();
-    ((parent -> right) -> leafCount) = *leafCount;
-    restoreTree(b, 
-                parent -> right, 
-                leafCount, 
-                offset, 
-                treeID, 
-                nodeID, 
-                parmID,
-                contPT,
-                mwcpSZ,
-                mwcpPtr);
-  }
-  else {
-    splitResult = FALSE;
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nrestoreTree() EXIT ...\n");
-  }
-  return splitResult;
-}
-void saveTree(uint    b,
-              Node   *parent,
-              uint   *offset,
-              uint   *treeID,
-              uint   *nodeID,
-              uint   *parmID,
-              double *contPT,
-              uint   *mwcpSZ,
-              uint  **mwcpPtr) {
-  uint i;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nsaveTree() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    getNodeInfo(parent);
-  }
-  treeID[*offset] = b;
-  nodeID[*offset] = parent -> leafCount;
-  parmID[*offset] = parent -> splitParameter;
-  if ((parent -> splitParameter) != 0) {
-    if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-      if (getTraceFlag() & SUMM_HGH_TRACE) {
-        Rprintf("  mwcpPT (reversed):  [%16x] 0x ", (*mwcpPtr) + 1);
-      }
-      mwcpSZ[*offset] = parent -> splitValueFactSize;
-      for (i = 1; i <= mwcpSZ[*offset]; i++) {
-        (*mwcpPtr) ++;
-        **mwcpPtr = (parent -> splitValueFactPtr)[i];
-        if (getTraceFlag() & SUMM_HGH_TRACE) {
-          Rprintf("%8x ",  (parent -> splitValueFactPtr)[i]);
-        }
-      }
-      contPT[*offset] = NA_REAL;
-    }
-    else {
-      contPT[*offset] = parent -> splitValueCont;
-      mwcpSZ[*offset] = 0;
-    }
-  }  
-  else {
-    contPT[*offset] = NA_REAL;
-    mwcpSZ[*offset] = 0;
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\n     index     treeID     nodeID     parmID       contPT     mwcpSZ \n");
-    Rprintf("%10d %10d %10d %10d %12.4f %10d \n", *offset, treeID[*offset], nodeID[*offset], parmID[*offset], contPT[*offset], mwcpSZ[*offset]);
-  }
-  (*offset) ++;
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    saveTree(b, parent ->  left, offset, treeID, nodeID, parmID, contPT, mwcpSZ, mwcpPtr);
-    saveTree(b, parent -> right, offset, treeID, nodeID, parmID, contPT, mwcpSZ, mwcpPtr);
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nsaveTree() EXIT ...\n");
-  }
-}
-char testNodeSize(Node *parent) {
-  uint localDeathTimeSize;
-  char result;
-  uint i;
-  uint *localDeathTimeCount = uivector(1, _masterTimeSize);
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\ntestNodeSize() ENTRY ...\n");
-  }
-  localDeathTimeSize = 0;
-  for (i=1; i <= _masterTimeSize; i++) {
-    localDeathTimeCount[i] = 0;
-  }
-  for (i=1; i <= _observationSize; i++) {
-    if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
-      if (_status[_bootMembershipIndex[i]] == 1) {
-        if (_mRecordMap[_bootMembershipIndex[i]] == 0) {
-          localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
-        }
-        else if (_mvSign[abs(CENS_IDX)][_mRecordMap[_bootMembershipIndex[i]]] == 0) {
-          localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
-        }
-      }
-    }
-  }
-  for (i=1; i <= _masterTimeSize; i++) {
-    if (localDeathTimeCount[i] > 0) {
-      ++localDeathTimeSize;
-    }
-  }
-  free_uivector(localDeathTimeCount, 1, _masterTimeSize);
-  if (localDeathTimeSize >= _minimumDeathCount) {
-    result = TRUE;
-  }
-  else {
-    result = FALSE;
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\ntestNodeSize(%1d) EXIT ...\n", result);
-  }
-    return result;
-}
-Node* getMembership(Node    *parent, 
-                    double **predictor, 
-                    uint     index) {
-  char daughterFlag;
-  uint i;
-  Node *result = parent;
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\ngetMembershipEntry():  idx= %10d: ", index, ", val= ");
-  }
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    daughterFlag = RIGHT;
-    if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-      if (getTraceFlag() & TURN_OFF_TRACE) {
-        for (i = parent -> splitValueFactSize; i >= 1; i--) {
-          Rprintf("%8x ", (parent -> splitValueFactPtr)[i]);
-        }
-      }
-      daughterFlag = splitOnFactor((uint) _observation[parent -> splitParameter][index], parent -> splitValueFactPtr);
-    }
-    else {
-      if (getTraceFlag() & TURN_OFF_TRACE) {
-        Rprintf("%12.4f ", parent -> splitValueCont);
-      }
-      if (predictor[parent -> splitParameter][index] <= (parent -> splitValueCont)) {
-        daughterFlag = LEFT;
-      }
-    }
-    if (daughterFlag == LEFT) {
-      result = getMembership(parent ->  left, predictor, index);
-    }
-    else {
-      result = getMembership(parent -> right, predictor, index);
-    }
-  }
-  return result;
-}
-Node *getTerminalNode(uint leaf) {
-  uint i, j;
-  Node *parent;
-  parent = NULL;
-  for (j = 1; j <= _observationSize; j++) {
-    if ((_nodeMembership[j] -> leafCount) == leaf) {
-      parent = _nodeMembership[j];
-      j = _observationSize;
-    }
-  }
-  if (parent == NULL) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Proxy member for node %12d not found.", leaf);
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    Rprintf("\nDiagnostic Trace of (individual, boot, node, leaf) vectors in data set:  ");
-    Rprintf("\n        index         boot         node         leaf \n");
-    for (i = 1; i <= _observationSize; i++) {
-      Rprintf(" %12d %12d %12x %12d \n", i, _bootMembershipFlag[i], _nodeMembership[i], _nodeMembership[i] -> leafCount);
-    }
-    exit(TRUE);
-  }
-  return parent;
-}
-Node* randomizeMembership(Node    *parent, 
-                          double **predictor, 
-                          uint     individual, 
-                          uint     splitParameter) {
-  char daughterFlag;
-  char randomSplitFlag;
-  Node *result;
-  result = parent;
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    randomSplitFlag = FALSE;
-    if (splitParameter > 0) {
-      if ((parent -> splitParameter) == splitParameter) {
-        randomSplitFlag = TRUE;
-      }
-    }
-    else {
-      if(_importanceFlag[parent -> splitParameter] == TRUE) {
-        randomSplitFlag = TRUE;
-      }
-    }
-    if(randomSplitFlag == TRUE) {
-      if (ran2(_seed2Ptr) <= 0.5) {
-        result = randomizeMembership(parent ->  left, predictor, individual, splitParameter);
-      }
-      else {
-        result = randomizeMembership(parent -> right, predictor, individual, splitParameter);
-      }
-    }
-    else {
-      daughterFlag = RIGHT;
-      if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-        daughterFlag = splitOnFactor((uint) predictor[parent -> splitParameter][individual], parent -> splitValueFactPtr);
-      }
-      else {
-        if (predictor[parent -> splitParameter][individual] <= (parent -> splitValueCont)) {
-          daughterFlag = LEFT;
-        }
-      }
-      if (daughterFlag == LEFT) {
-        result = randomizeMembership(parent ->  left, predictor, individual, splitParameter);
-      }
-      else {
-        result = randomizeMembership(parent -> right, predictor, individual, splitParameter);
-      }
-    }
-  }
-  return result;
-}
+#include        "global.h"
+#include        "extern.h"
+#include         "trace.h"
+#include        "nrutil.h"
+#include       "rsfTree.h"
+#include     "rsfImpute.h"
+#include "rsfImportance.h"
+#include       "rsfUtil.h"
 double getConcordanceIndex(int     polarity,
                            uint    size, 
                            double *statusPtr, 
@@ -395,36 +103,28 @@ double getConcordanceIndex(int     polarity,
   ulong concordancePairSize;
   ulong concordanceWorseCount;
   double result;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\ngetConcordanceIndex() ENTRY ...\n");
   }
   if (getTraceFlag() & TIME_DEF_TRACE) {
     _benchTime = clock();
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nStatus and Time used in Concordance Index Calculations:  ");
-    Rprintf("\n       Status         Time");
-    for (i=1; i <= size; i++) {
-      Rprintf("\n %12d %12.4f", (uint) statusPtr[i], timePtr[i]);
-    }
-    Rprintf("\n");
-  }
   concordancePairSize = concordanceWorseCount = 0;
   for (i=1; i < size; i++) {
     for (j=i+1; j <= size; j++) {
       if (oobCount[i] != 0  && oobCount[j] != 0) {
-        if ( (timePtr[i] > timePtr[j] && statusPtr[j] == 1) ||
-             (timePtr[i] == timePtr[j] && statusPtr[j] == 1 && statusPtr[i] == 0) ) {
+        if ( (timePtr[i] > timePtr[j] && statusPtr[j] > 0) ||
+             (timePtr[i] == timePtr[j] && statusPtr[j] > 0 && statusPtr[i] == 0) ) {
           concordancePairSize += 2;
-          if ((polarity * predictedOutcome[j]) > (polarity * predictedOutcome[i])) {              
+          if ((polarity * predictedOutcome[j]) > (polarity * predictedOutcome[i])) { 
             concordanceWorseCount += 2;
           }
           else if (fabs(predictedOutcome[j] - predictedOutcome[i]) < EPSILON) {
             concordanceWorseCount += 1;
           }  
         }
-        else if ( (timePtr[j] > timePtr[i] && statusPtr[i] == 1) ||
-                  (timePtr[j] == timePtr[i] && statusPtr[i] == 1 && statusPtr[j] == 0) ) {
+        else if ( (timePtr[j] > timePtr[i] && statusPtr[i] > 0) ||
+                  (timePtr[j] == timePtr[i] && statusPtr[i] > 0 && statusPtr[j] == 0) ) {
           concordancePairSize += 2;
           if ((polarity * predictedOutcome[i]) > (polarity * predictedOutcome[j])) {
             concordanceWorseCount += 2;
@@ -433,26 +133,29 @@ double getConcordanceIndex(int     polarity,
             concordanceWorseCount += 1;
           }  
         }
-        else if ( timePtr[i] == timePtr[j] && statusPtr[i] == 1 && statusPtr[j] == 1) {
+        else if ( timePtr[i] == timePtr[j] && statusPtr[i] > 0 && statusPtr[j] > 0) {
           concordancePairSize += 2;
           if (fabs(predictedOutcome[i] - predictedOutcome[j]) < EPSILON) {
-           concordanceWorseCount += 1;
+            concordanceWorseCount += 2;
           }
           else {
-            concordanceWorseCount += 2;
+            concordanceWorseCount += 1;
           }
         }
       }  
     }  
   }  
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & ENSB_LOW_TRACE) {
+    Rprintf("\nPredicted Outcome used in Concordance Index Calculations:  ");
+    Rprintf("\n        count     OOBcount       Status         Time    Mortality");
+    for (i=1; i <= size; i++) {
+      Rprintf("\n %12d %12d %12d %12.4f, %12.4f", i, oobCount[i], (uint) statusPtr[i], timePtr[i], predictedOutcome[i]);
+    }
+    Rprintf("\n");
     Rprintf("\nConcordance pair and error update complete:");  
     Rprintf("\nCount of concordance pairs:         %20d", concordancePairSize);
     Rprintf("\nCount of pairs with worse outcome:  %20d", concordanceWorseCount);
     Rprintf("\n");
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\ngetConcordanceIndex() EXIT() ...\n");
   }
   if (concordancePairSize == 0) {
     result = NA_REAL;
@@ -463,16 +166,17 @@ double getConcordanceIndex(int     polarity,
   if (getTraceFlag() & TIME_DEF_TRACE) {
     _cindxTime = _cindxTime + (clock() - _benchTime);
   }
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\ngetConcordanceIndex() EXIT() ...\n");
+  }
   return result;
 }
-void getNelsonAalenEstimate(double **nelsonAalen,
-                            uint treeID,
-                            uint sortedTimeInterestSize) {
+void getNelsonAalenEstimate(uint mode, double **nelsonAalen, uint treeID) {
   uint leaf, i, j;
   Node *parent;
   uint priorTimePointIndex, currentTimePointIndex;
   double estimate;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  getNelsonAalenEstimate() ENTRY ...\n");  
   }
   if (getTraceFlag() & TIME_DEF_TRACE) {
@@ -481,65 +185,69 @@ void getNelsonAalenEstimate(double **nelsonAalen,
   uint *nodeParentDeath  = uivector(1, _masterTimeSize);
   uint *nodeParentAtRisk = uivector(1, _masterTimeSize);
   for (leaf=1; leaf <= _leafCount_[treeID]; leaf++) {
-    for (i=1; i <= _masterTimeSize; i++) {
-      nodeParentAtRisk[i] = nodeParentDeath[i] = 0;
-    }
-    parent = getTerminalNode(leaf);
-    for (i=1; i <= _observationSize; i++) {
-      if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
-        for (j=1; j <= _masterTimeIndex[_bootMembershipIndex[i]]; j++) {
-          nodeParentAtRisk[j] ++;
-        }
-        if (_status[_bootMembershipIndex[i]] == 1) {
-          nodeParentDeath[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
-        }
+    parent = getTerminalNode(mode, leaf);
+    if (parent != NULL) { 
+      for (i=1; i <= _masterTimeSize; i++) {
+        nodeParentAtRisk[i] = nodeParentDeath[i] = 0;
       }
-    }
-    priorTimePointIndex = 0;
-    currentTimePointIndex = 1;
-    for (j=1; j <= sortedTimeInterestSize; j++) {
-      for (i = priorTimePointIndex + 1; i <= _masterTimeSize; i++) {
-        if (_masterTime[i] <= _timeInterest[j]) {
-          currentTimePointIndex = i;
-        }
-        else {
-          i = _masterTimeSize;
-        }
-      }
-      if (getTraceFlag() & TURN_OFF_TRACE) {
-        Rprintf("\nNelson-Aalen at risk and death counts for node:  %10d \n", leaf);
-        Rprintf("  with time point index:  %10d \n", currentTimePointIndex);
-        for (i=1; i <= _masterTimeSize; i++) {
-          Rprintf("%10d", i);
-        }
-        Rprintf("\n");
-        for (i=1; i <= _masterTimeSize; i++) {
-          Rprintf("%10d", nodeParentAtRisk[i]);
-        }
-        Rprintf("\n");
-        for (i=1; i <= _masterTimeSize; i++) {
-          Rprintf("%10d", nodeParentDeath[i]);
-        }
-        Rprintf("\n");
-      }
-      estimate = 0.0;
-      for (i = priorTimePointIndex + 1; i <= currentTimePointIndex; i++) {
-        if (nodeParentDeath[i] > 0) {
-          if (nodeParentAtRisk[i] >= 1) {
-            estimate = estimate + ((double) nodeParentDeath[i] / nodeParentAtRisk[i]);
+      parent -> mortality = 0.0;
+      for (i=1; i <= _observationSize; i++) {
+        if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
+          for (j=1; j <= _masterTimeIndex[_bootMembershipIndex[i]]; j++) {
+            nodeParentAtRisk[j] ++;
+          }
+          if (_status[_bootMembershipIndex[i]] > 0) {
+            nodeParentDeath[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
           }
         }
       }
-      nelsonAalen[j][leaf] = estimate;
-      priorTimePointIndex = currentTimePointIndex;
-    }  
-    for (j=2; j <= sortedTimeInterestSize; j++) {
-      nelsonAalen[j][leaf] += nelsonAalen[j-1][leaf];
+      priorTimePointIndex = 0;
+      currentTimePointIndex = 1;
+      for (j=1; j <= _sortedTimeInterestSize; j++) {
+        for (i = priorTimePointIndex + 1; i <= _masterTimeSize; i++) {
+          if (_masterTime[i] <= _timeInterest[j]) {
+            currentTimePointIndex = i;
+          }
+          else {
+            i = _masterTimeSize;
+          }
+        }
+        if (getTraceFlag() & TURN_OFF_TRACE) {
+          Rprintf("\nNelson-Aalen at risk and death counts for node:  %10d \n", leaf);
+          Rprintf("  with time point index:  %10d \n", currentTimePointIndex);
+          for (i=1; i <= _masterTimeSize; i++) {
+            Rprintf("%10d", i);
+          }
+          Rprintf("\n");
+          for (i=1; i <= _masterTimeSize; i++) {
+            Rprintf("%10d", nodeParentAtRisk[i]);
+          }
+          Rprintf("\n");
+          for (i=1; i <= _masterTimeSize; i++) {
+            Rprintf("%10d", nodeParentDeath[i]);
+          }
+          Rprintf("\n");
+        }
+        estimate = 0.0;
+        for (i = priorTimePointIndex + 1; i <= currentTimePointIndex; i++) {
+          if (nodeParentDeath[i] > 0) {
+            if (nodeParentAtRisk[i] >= 1) {
+              estimate = estimate + ((double) nodeParentDeath[i] / nodeParentAtRisk[i]);
+            }
+          }
+        }
+        nelsonAalen[j][leaf] = estimate;
+        priorTimePointIndex = currentTimePointIndex;
+      }  
+      for (j=2; j <= _sortedTimeInterestSize; j++) {
+        nelsonAalen[j][leaf] += nelsonAalen[j-1][leaf];
+      }
+      for (j = 1; j <= _sortedTimeInterestSize; j++) {
+        parent -> mortality += nelsonAalen[j][leaf];
+      }
     }
-    parent -> mortality = 0;
-    for (j = 1; j <= sortedTimeInterestSize; j++) {
-      parent -> mortality += nelsonAalen[j][leaf];
-    }
+    else {
+    }      
   }  
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
   free_uivector(nodeParentAtRisk, 1, _masterTimeSize);
@@ -550,7 +258,7 @@ void getNelsonAalenEstimate(double **nelsonAalen,
       Rprintf("%10d", i);
     }
     Rprintf("\n");
-    for (j=1; j <= sortedTimeInterestSize; j++) {
+    for (j=1; j <= _sortedTimeInterestSize; j++) {
       Rprintf("%10d", j);
       for (i=1; i <= _leafCount_[treeID]; i++) {
         Rprintf("%10.4f", nelsonAalen[j][i]);
@@ -561,18 +269,21 @@ void getNelsonAalenEstimate(double **nelsonAalen,
   if (getTraceFlag() & TIME_DEF_TRACE) {
     _hazrdTime = _hazrdTime + (clock() - _benchTime);
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  getNelsonAalenEstimate() EXIT ...\n");  
   }
 }
-void updateEnsembleCHF(uint mode, 
-                       uint sortedTimeInterestSize,
-                       uint treeID,
-                       double **cumulativeHazard) {
-  uint i, j, k;
+void updateEnsembleCHF(uint      mode, 
+                       uint      treeID,
+                       double  **cumulativeHazard,
+                       double   *mortality) {
   uint obsSize;
-  uint *genericEnsembleDenPtr;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  unsigned char oobFlag, fullFlag, selectionFlag, mortalityFlag;
+  double ***ensemblePtr;
+  uint     *ensembleDenPtr;  
+  Node    **nodeMembershipPtr;
+  uint i, j, k, p, n;
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  updateEnsembleCHF() ENTRY ...\n");  
   }
   if (getTraceFlag() & TIME_DEF_TRACE) {
@@ -580,60 +291,35 @@ void updateEnsembleCHF(uint mode,
   }
   switch (mode) {
   case RSF_GROW:
-    for (i=1; i <= _observationSize; i++) {
-      k = _nodeMembership[i] -> leafCount;
-      if (_oobSampleSize[treeID] > 0) {
-        if ( _bootMembershipFlag[i] == FALSE ) {
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            _oobEnsemblePtr[j][i] += cumulativeHazard[j][k];
-          }
-          _oobEnsembleDen[i] ++;
-        }
-      }
-      _ensembleRun[i] = 0.0;
-      for (j=1; j <= sortedTimeInterestSize; j++) {
-        _fullEnsemblePtr[j][i] += cumulativeHazard[j][k];
-        _ensembleRun[i] += _oobEnsemblePtr[j][i];
-      }
-      _fullEnsembleDen[i] ++;
-      if (_oobEnsembleDen[i] != 0) {
-        _ensembleRun[i] = _ensembleRun[i] / _oobEnsembleDen[i];
-      }
+    obsSize = _observationSize;
+    if (_oobSampleSize[treeID] > 0) {
+      oobFlag = TRUE;
     }
-    break;
+    else {
+      oobFlag = FALSE;
+    }
+    fullFlag = TRUE;
+    mortalityFlag = TRUE;
+    nodeMembershipPtr = _nodeMembership;
+   break;
   case RSF_PRED:
-    for (i=1; i <= _fobservationSize; i++) {
-      k = _fnodeMembership[i] -> leafCount;
-      _ensembleRun[i] = 0.0;
-      for (j=1; j <= sortedTimeInterestSize; j++) {
-        _fullEnsemblePtr[j][i] += cumulativeHazard[j][k];
-        _ensembleRun[i] += _fullEnsemblePtr[j][i];
-      }
-      _fullEnsembleDen[i] ++;
-      if (_fullEnsembleDen[i] != 0) {
-        _ensembleRun[i] = _ensembleRun[i] / _fullEnsembleDen[i];
-      }
-    }
+    obsSize = _fobservationSize;
+    oobFlag = FALSE;
+    fullFlag = TRUE;
+    mortalityFlag = TRUE;
+    nodeMembershipPtr = _fnodeMembership;
     break;
   case RSF_INTR:
-    for (i=1; i <= _fobservationSize; i++) {
-      k = _nodeMembership[_intrObservation[i]] -> leafCount;
-      if (_foobSampleSize[treeID] > 0) {
-        if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            _oobEnsemblePtr[j][i] += cumulativeHazard[j][k];
-          }
-          _oobEnsembleDen[i] ++;
-        }
-      }
-      _ensembleRun[i] = 0.0;
-      for (j=1; j <= sortedTimeInterestSize; j++) {
-        _ensembleRun[i] += _oobEnsemblePtr[j][i];
-      }
-      if (_oobEnsembleDen[i] != 0) {
-        _ensembleRun[i] = _ensembleRun[i] / _oobEnsembleDen[i];
-      }
+    obsSize = _fobservationSize;
+    if (_foobSampleSize[treeID] > 0) {
+      oobFlag = TRUE;
     }
+    else {
+      oobFlag = FALSE;
+    }
+    fullFlag = FALSE;
+    mortalityFlag = TRUE;
+    nodeMembershipPtr = _nodeMembership;
     break;
   default:
     Rprintf("\nRSF:  *** ERROR *** ");
@@ -643,69 +329,70 @@ void updateEnsembleCHF(uint mode,
     exit(TRUE);
     break;
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    switch (mode) {
-    case RSF_GROW:
-      obsSize = _observationSize;
-      genericEnsembleDenPtr = _oobEnsembleDen;
-      break;
-    case RSF_PRED:
-      obsSize = _fobservationSize;
-      genericEnsembleDenPtr = _fullEnsembleDen;
-      break;
-    case RSF_INTR:
-      obsSize = _fobservationSize;
-      genericEnsembleDenPtr = _oobEnsembleDen;
-      break;
-    default:
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Unknown case in switch encountered. ");
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-      break;
+  while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
+    if (oobFlag == TRUE) {
+      ensemblePtr = _oobEnsemblePtr;
+      ensembleDenPtr = _oobEnsembleDen;
+      selectionFlag = FALSE;
     }
-    if (_opt & OPT_OENS) {
-      Rprintf("\nOOB Ensemble Estimator Numerator calculation: \n");
+    else {
+      if (fullFlag == TRUE) {
+        ensemblePtr = _fullEnsemblePtr;
+        ensembleDenPtr = _fullEnsembleDen;
+        selectionFlag = ACTIVE;
+      }
+      else {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Unknown case in switch encountered. ");
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+      }
+    }
+    if (mortalityFlag == TRUE) {
+      for (i=1; i <= obsSize; i++) {
+        mortality[i]  = 0.0;
+      }
+    }
+    for (i=1; i <= obsSize; i++) {
+      p = nodeMembershipPtr[_individualIndex[i]] -> leafCount;
+      if ((_genericMembershipFlag[_individualIndex[i]] == selectionFlag) || (selectionFlag == ACTIVE)) {
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          ensemblePtr[1][k][i] += cumulativeHazard[k][p];
+        }
+        ensembleDenPtr[i] ++;
+      }
+      if (mortalityFlag == TRUE) {
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          mortality[i] += ensemblePtr[1][k][i];
+        }
+        if (ensembleDenPtr[i] != 0) {
+          mortality[i] = mortality[i] / ensembleDenPtr[i];
+        }
+      }
+    }  
+    if (getTraceFlag() & ENSB_LOW_TRACE) {
+      if (oobFlag == TRUE) {
+        Rprintf("\nOOB Ensemble calculations follow: \n");        
+      }
+      else {
+        if (fullFlag == TRUE) {
+          Rprintf("\nFULL Ensemble calculations follow: \n");        
+        }
+      }
+      Rprintf("\nEnsemble Estimator Numerator calculation: \n");
       Rprintf("          ");
       for (i=1; i <= obsSize; i++) {
         Rprintf("%10d", i);
       }
       Rprintf("\n");
-      for (j=1; j <= sortedTimeInterestSize; j++) {
-        Rprintf("%10d", j);
+      for (k=1; k <= _sortedTimeInterestSize; k++) {
+        Rprintf("%10d", k);
         for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", _oobEnsemblePtr[j][i]);
+          Rprintf("%10.4f", ensemblePtr[1][k][i]);
         }
         Rprintf("\n");
       }
-    }
-    if (_opt & OPT_FENS) {
-      Rprintf("\nFull Ensemble Estimator Numerator calculation: \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n");
-      for (j=1; j <= sortedTimeInterestSize; j++) {
-        Rprintf("%10d", j);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", _fullEnsemblePtr[j][i]);
-        }
-        Rprintf("\n");
-      }
-    }
-    if ((_opt & OPT_OENS) || (_opt & OPT_FENS)) {
-      Rprintf("\nRunning Ensemble Estimator:  \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10.4f", _ensembleRun[i]);
-      }
-      Rprintf("\n");
       Rprintf("\nEnsemble Estimator Denominator calculation: \n");
       Rprintf("          ");  
       for (i=1; i <= obsSize; i++) {
@@ -713,42 +400,593 @@ void updateEnsembleCHF(uint mode,
       }
       Rprintf("\n          ");
       for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", genericEnsembleDenPtr[i]);
+        Rprintf("%10d", ensembleDenPtr[i]);
       }
       Rprintf("\n");
-    }
-    if (mode == RSF_GROW) {
-      Rprintf("\nClassification of OOB elements:  ");
-      Rprintf("\n       Leaf     Indiv            EE      predictors ->  ");
-      for (i=1; i <= _leafCount_[treeID]; i++) {
-        for (j = 1; j <= _observationSize; j++) {
-          if (_bootMembershipFlag[j] == FALSE) {
-            if ((_nodeMembership[j] -> leafCount) == i) {
-              Rprintf("\n %10d %10d %12.4f", i, j, _ensembleRun[j]);
-              for (k = 1; k <= _xSize; k++) {
-                Rprintf("%12.4f", _observation[k][j]);
+      if (mortalityFlag == TRUE) {
+        Rprintf("\nMortality:  \n");
+        Rprintf("          ");
+        for (n=1; n <= obsSize; n++) {
+          Rprintf("%10d", n);
+        }
+        Rprintf("\n          ");
+        for (n=1; n <= obsSize; n++) {
+          Rprintf("%10.4f", mortality[n]);
+        }
+        Rprintf("\n");
+      }
+      if (oobFlag == TRUE) {
+        Rprintf("\nClassification of OOB elements:  ");
+        Rprintf("\n       Leaf     Indiv            EE      predictors ->  ");
+        for (p=1; p <= _leafCount_[treeID]; p++) {
+          for (i = 1; i <= obsSize; i++) {
+            if ( _bootMembershipFlag[_individualIndex[i]] == FALSE) {
+              if ((nodeMembershipPtr[i] -> leafCount) == p) {
+                Rprintf("\n %10d %10d %12.4f", p, i, mortality[i]);
+                for (j = 1; j <= _xSize; j++) {
+                  Rprintf("%12.4f", _observation[j][_individualIndex[i]]);
+                }
               }
             }
           }
         }
+        Rprintf("\n");
       }
-      Rprintf("\n");
     }
-  }
+    if (mortalityFlag == TRUE) {
+      mortalityFlag = FALSE;
+    }
+    if (oobFlag == TRUE) {
+      oobFlag = FALSE;
+    }
+    else {
+      if (fullFlag == TRUE) {
+        fullFlag = FALSE;
+      }
+    }
+  }  
   if (getTraceFlag() & TIME_DEF_TRACE) {
     _ensblTime = _ensblTime + (clock() - _benchTime);
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  updateEnsembleCHF() EXIT ...\n");  
   }
 }
-void getMeanSurvivalTime(double *meanSurvivalTime,
-                         uint treeID) {
+void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
+  uint leaf, i, j, k, q, m;
+  uint nodeEventTimeSize;
+  Node *parent;
+  double estimate, headValue;
+  uint priorTimePointIndex, currentTimePointIndex;
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nRSF:  getTreeSpecificSubSurvivalAndDistribution() ENTRY ...\n");  
+  }
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    _benchTime = clock();
+  }
+  if (_eventTypeSize == 1) {
+      Rprintf("\nRSF:  *** ERROR *** ");
+      Rprintf("\nRSF:  Illegal sub-survival function call.");
+      Rprintf("\nRSF:  Please Contact Technical Support.");
+      Rprintf("\nRSF:  The application will now exit.\n");
+      exit(TRUE);
+  }
+  uint *nodeParentDeath  = uivector(1, _masterTimeSize);
+  uint *nodeParentAtRisk = uivector(1, _masterTimeSize);
+  uint **nodeParentEvent  = uimatrix(1, _eventTypeSize, 1, _masterTimeSize);
+  uint *nodeEventTimeIndex = uivector(1, _masterTimeSize);
+  for (leaf=1; leaf <= _leafCount_[treeID]; leaf++) {
+    parent = getTerminalNode(mode, leaf);
+    if (parent != NULL) { 
+      for (i=1; i <= _masterTimeSize; i++) {
+        nodeParentAtRisk[i] = nodeParentDeath[i] = 0;
+        for (j = 1; j <= _eventTypeSize; j++) {
+          nodeParentEvent[j][i] = 0;
+        }
+        nodeEventTimeIndex[i] = 0;
+      }
+      for (j = 1; j <= _eventTypeSize; j++) {
+        parent -> poe[j] = 0;
+      }
+      parent -> eventCount = 0;
+      for (i=1; i <= _observationSize; i++) {
+        if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
+          for (k=1; k <= _masterTimeIndex[_bootMembershipIndex[i]]; k++) {
+            nodeParentAtRisk[k] ++;
+          }
+          if (_status[_bootMembershipIndex[i]] > 0) {
+            nodeParentDeath[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
+            nodeParentEvent[_eventTypeIndex[(uint) _status[_bootMembershipIndex[i]]]][_masterTimeIndex[_bootMembershipIndex[i]]] ++;
+            (parent -> poe)[_eventTypeIndex[(uint) _status[_bootMembershipIndex[i]]]] ++;
+            parent -> eventCount += 1;
+          }
+        }
+      }
+      nodeEventTimeSize = 0;
+      for (k=1; k <= _masterTimeSize; k++) {
+        if (nodeParentDeath[k] > 0) {
+          nodeEventTimeIndex[++nodeEventTimeSize] = k;
+        }
+      }
+      if (getTraceFlag() & ENSB_HGH_TRACE) {
+        Rprintf("\nSurvival at risk, death and event counts for node:  %10d  \n", leaf);
+        Rprintf("mstTimIdx ");
+        for (k=1; k <= _masterTimeSize; k++) {
+          Rprintf("%10d", k);
+        }
+        Rprintf("\n");
+        Rprintf("At Risk   ");
+        for (k=1; k <= _masterTimeSize; k++) {
+          Rprintf("%10d", nodeParentAtRisk[k]);
+        }
+        Rprintf("\n");
+        Rprintf("Deaths    ");
+        for (k=1; k <= _masterTimeSize; k++) {
+          Rprintf("%10d", nodeParentDeath[k]);
+        }
+        Rprintf("\n");
+        for (j=1; j <= _eventTypeSize; j++) {
+          Rprintf("Ev %7d", j);
+          for (k=1; k <= _masterTimeSize; k++) {
+            Rprintf("%10d", nodeParentEvent[j][k]);
+          }
+          Rprintf("\n");
+        }
+        Rprintf("\n");
+        Rprintf("\nNode specific POE counts of length [_eventTypeSize] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
+        Rprintf("Event Types:  ");
+        for (j=1; j <= _eventTypeSize; j++) {
+          Rprintf("%10d ", _eventType[j]);
+        }
+        Rprintf("\n");
+        Rprintf("              ");
+        for (j=1; j <= _eventTypeSize; j++) {
+          Rprintf("%10d ", (parent -> poe)[j]);
+        }
+        Rprintf("\n");
+      }  
+      double **subDensity = dmatrix(1, _eventTypeSize, 1, nodeEventTimeSize);
+      double **survival = dmatrix(1, nodeEventTimeSize, 1, _leafCount_[treeID]);
+      for (q=1; q <= nodeEventTimeSize; q++) {
+        estimate = 1.0;
+        if (nodeParentDeath[nodeEventTimeIndex[q]] > 0) {
+          if (nodeParentAtRisk[nodeEventTimeIndex[q]] >= 1) {
+            estimate = 1.0 - ((double) nodeParentDeath[nodeEventTimeIndex[q]] / nodeParentAtRisk[nodeEventTimeIndex[q]]);
+          }
+        }
+        survival[q][leaf] = estimate;
+      }  
+      for (q=2; q <= nodeEventTimeSize; q++) {
+        survival[q][leaf] *= survival[q-1][leaf];
+      }
+      for (j=1; j <= _eventTypeSize; j++) {      
+        subDensity[j][1] = 0.0;
+        if (nodeParentEvent[j][nodeEventTimeIndex[1]] > 0) {
+          if (nodeParentAtRisk[nodeEventTimeIndex[1]] >= 1) {
+            subDensity[j][1] = 1.0 * ((double) nodeParentEvent[j][nodeEventTimeIndex[1]] / nodeParentAtRisk[nodeEventTimeIndex[1]]);
+          }
+        }
+        for (q=2; q <= nodeEventTimeSize; q++) {
+          subDensity[j][q] = 0.0;
+          if (nodeParentEvent[j][nodeEventTimeIndex[q]] > 0) {
+            if (nodeParentAtRisk[nodeEventTimeIndex[q]] >= 1) {
+              subDensity[j][q] = survival[q-1][leaf] * ((double) nodeParentEvent[j][nodeEventTimeIndex[q]] / nodeParentAtRisk[nodeEventTimeIndex[q]]);
+            }
+          }
+        }
+      }
+      for (j = 1; j <= _eventTypeSize; j++) {
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          (parent -> subSurvival)[j][k] = 0.0;
+        }
+      }
+      priorTimePointIndex = 0;
+      currentTimePointIndex = 1;
+      for (i = 1; i <= nodeEventTimeSize; i++) {
+        for (k = priorTimePointIndex + 1; k <= _sortedTimeInterestSize; k++) {
+          if (_timeInterest[k] <= _masterTime[nodeEventTimeIndex[i]] ) {
+            currentTimePointIndex = k;
+          }
+          else {
+            k = _sortedTimeInterestSize;
+          }
+        }
+        for (j = 1; j <= _eventTypeSize; j++) {
+          for (q = 1; q <= i; q++) {
+            (parent -> subSurvival)[j][currentTimePointIndex] += subDensity[j][q];
+          }
+          if (i > 1) {
+            for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
+              (parent -> subSurvival)[j][k] = (parent -> subSurvival)[j][priorTimePointIndex];
+            }
+            if (i == nodeEventTimeSize) {
+              for(k = currentTimePointIndex + 1; k <= _sortedTimeInterestSize; k++) {
+                (parent -> subSurvival)[j][k] = (parent -> subSurvival)[j][currentTimePointIndex];
+              }
+            }
+          }
+        }
+        priorTimePointIndex = currentTimePointIndex;
+      }
+      if (getTraceFlag() & ENSB_HGH_TRACE) {
+        Rprintf("\nNode specific survival function of length [nodeEventTimeSize] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
+        Rprintf("              mTimIdx       time   survival \n");
+        for (q=1; q <= nodeEventTimeSize; q++) {
+          Rprintf("%10d %10d %10.4f %10.4f \n", q, nodeEventTimeIndex[q], _masterTime[nodeEventTimeIndex[q]], survival[q][leaf]);
+        }
+        Rprintf("\nNode specific sub-density function [_eventTypeSize] x [nodeEventTimeSize] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
+        Rprintf("             mTimIdx       time ");
+        for (j=1; j <= _eventTypeSize; j++) {
+          Rprintf("%10d ", j);
+        }
+        Rprintf("\n");
+        for (q=1; q <= nodeEventTimeSize; q++) {
+          Rprintf("%10d %10d %10.4f ", q, nodeEventTimeIndex[q], _masterTime[nodeEventTimeIndex[q]]);
+          for (j=1; j <= _eventTypeSize; j++) {
+            Rprintf("%10.4f ", subDensity[j][q]);
+          }
+          Rprintf("\n");
+        }
+        Rprintf("\nNode specific pre sub-survival function (before head adjsutment) [_eventTypeSize] x [_sortedTimeInterestSize] x [_leafCount_[treeID]] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
+        Rprintf("                 time ");
+        for (j=1; j <= _eventTypeSize; j++) {
+          Rprintf("%10d ", j);
+        }
+        Rprintf("\n");
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          Rprintf("%10d %10.4f ", k, _timeInterest[k]);
+          for (j=1; j <= _eventTypeSize; j++) {
+            Rprintf("%10.4f ", (parent -> subSurvival)[j][k]);
+          }
+          Rprintf("\n");
+        }
+      }
+      for (j=1; j <= _eventTypeSize; j++) {
+        headValue = (double) (parent -> poe)[j] / parent -> eventCount;
+        headValue = (headValue > (parent -> subSurvival)[j][_sortedTimeInterestSize]) ? headValue : (parent -> subSurvival)[j][_sortedTimeInterestSize];
+        if (headValue > 0) {
+          for (k=1; k <= _sortedTimeInterestSize; k++) {
+            (parent -> subSurvival)[j][k] = headValue - (parent -> subSurvival)[j][k];
+            if ((parent -> subSurvival)[j][k] < - EPSILON) {
+              Rprintf("\nRSF:  *** ERROR *** ");
+              Rprintf("\nRSF:  Negative sub-survival value at (event, time, leaf, subSurvival) = (%4d, %12.4f, %4d, %12.4f).", j, _timeInterest[k], leaf, (parent -> subSurvival)[j][k]);
+              Rprintf("\nRSF:  Please Contact Technical Support.");
+              Rprintf("\nRSF:  The application will now exit.\n");
+              exit(TRUE);
+            }
+          }
+        }
+        else {
+          for (k=1; k <= _sortedTimeInterestSize; k++) {
+            (parent -> subSurvival)[j][k] = 0.0;
+          }
+        }
+      }
+      if (getTraceFlag() & ENSB_HGH_TRACE) {
+        Rprintf("\nNode specific sub-survival function (after head adjustment) [_eventTypeSize] x [_sortedTimeInterestSize] x [_leafCount_[treeID]] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
+        Rprintf("                 time ");
+        for (j=1; j <= _eventTypeSize; j++) {
+          Rprintf("%10d ", j);
+        }
+        Rprintf("\n");
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          Rprintf("%10d %10.4f ", k, _timeInterest[k]);
+          for (j=1; j <= _eventTypeSize; j++) {
+            Rprintf("%10.4f ", (parent -> subSurvival)[j][k]);
+          }
+          Rprintf("\n");
+        }
+      }
+      for (j = 1; j <= _eventTypeSize; j++) {
+        if ((parent -> poe)[j] == 0) {
+          for (k=1; k <= _sortedTimeInterestSize; k++) {
+            for (m = 1; m <= _eventTypeSize; m++) {        
+              (parent -> subSurvival)[j][k] = 0.0;
+            }
+          }
+        }
+      }
+      free_dmatrix(subDensity, 1, _eventTypeSize, 1, nodeEventTimeSize);
+      free_dmatrix(survival, 1, nodeEventTimeSize, 1, _leafCount_[treeID]);
+    }
+    else {
+    }      
+  }  
+  free_uivector(nodeEventTimeIndex, 1, _masterTimeSize);
+  free_uivector(nodeParentDeath, 1, _masterTimeSize);
+  free_uivector(nodeParentAtRisk, 1, _masterTimeSize);
+  free_uimatrix(nodeParentEvent, 1, _eventTypeSize, 1, _masterTimeSize);
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    _chazrdTime = _chazrdTime + (clock() - _benchTime);
+  }
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nRSF:  getTreeSpecificSubSurvivalAndDistribution() EXIT ...\n");  
+  }
+}
+void updateEnsembleSubSurvivalAndDistribution(uint      mode, 
+                                              uint      treeID,
+                                              double  **conditionalMortality) {
+  uint obsSize;
+  unsigned char oobFlag, fullFlag, selectionFlag, mortalityFlag;
+  double  **poePtr;
+  double ***ensSubSurvivalPtr;
+  double ***ensemblePtr;
+  Node    **nodeMembershipPtr;
+  double  value;
+  uint i, j, k, n, p;
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nRSF:  updateEnsembleSubSurvivalAndDistribution() ENTRY ...\n");  
+  }
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    _benchTime = clock();
+  }
+  if (_eventTypeSize == 1) {
+      Rprintf("\nRSF:  *** ERROR *** ");
+      Rprintf("\nRSF:  Illegal ensemble sub-survival call.");
+      Rprintf("\nRSF:  Please Contact Technical Support.");
+      Rprintf("\nRSF:  The application will now exit.\n");
+      exit(TRUE);
+  }
+  poePtr            = NULL;  
+  ensSubSurvivalPtr = NULL;  
+  ensemblePtr       = NULL;  
+  switch (mode) {
+  case RSF_GROW:
+    obsSize = _observationSize;
+    if (_oobSampleSize[treeID] > 0) {
+      oobFlag = TRUE;
+    }
+    else {
+      oobFlag = FALSE;
+    }
+    fullFlag = TRUE;
+    mortalityFlag = TRUE;
+    nodeMembershipPtr = _nodeMembership;
+    break;
+  case RSF_PRED:
+    obsSize = _fobservationSize;
+    oobFlag = FALSE;
+    fullFlag = TRUE;
+    mortalityFlag = TRUE;
+    nodeMembershipPtr = _fnodeMembership;
+    break;
+  case RSF_INTR:
+    obsSize = _fobservationSize;
+    if (_foobSampleSize[treeID] > 0) {
+      oobFlag = TRUE;
+    }
+    else {
+      oobFlag = FALSE;
+    }
+    fullFlag = FALSE;
+    mortalityFlag = TRUE;
+    nodeMembershipPtr = _nodeMembership;
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
+  }
+  while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
+    if (oobFlag == TRUE) {
+      poePtr = _oobPOEPtr;
+      ensSubSurvivalPtr = _oobSubSurvivalPtr;
+      ensemblePtr = _oobEnsemblePtr;
+    }
+    else {
+      if (fullFlag == TRUE) {
+        poePtr = _fullPOEPtr;
+        ensSubSurvivalPtr = _fullSubSurvivalPtr;
+        ensemblePtr = _fullEnsemblePtr;
+      }
+    }
+    if (mortalityFlag == TRUE) {
+      for (i=1; i <= obsSize; i++) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          conditionalMortality[j][i] = 0.0;
+        }
+      }
+    }
+    for (i=1; i <= obsSize; i++) {
+      for (j = 1; j <= _eventTypeSize; j++) {
+        for (k = 1; k <= _sortedTimeInterestSize; k++) {      
+          ensemblePtr[j+1][k][i] = 0.0;
+        }
+      }
+    }
+    for (i=1; i <= obsSize; i++) {
+      p = nodeMembershipPtr[_individualIndex[i]] -> leafCount;
+      selectionFlag = TRUE;
+      if (oobFlag == TRUE) {
+        if (_bootMembershipFlag[_individualIndex[i]] == FALSE) {
+          selectionFlag = TRUE;
+        }
+        else {
+          selectionFlag = FALSE;
+        }
+      }
+      if (selectionFlag) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          poePtr[j][i] += (double) (nodeMembershipPtr[_individualIndex[i]] -> poe)[j] / nodeMembershipPtr[_individualIndex[i]] -> eventCount;
+        }
+        for (j = 1; j <= _eventTypeSize; j++) {
+          for (k=1; k <= _sortedTimeInterestSize; k++) {
+            ensSubSurvivalPtr[j][k][i] += nodeMembershipPtr[_individualIndex[i]] -> subSurvival[j][k];
+          }
+        }
+      }  
+      for (j = 1; j <= _eventTypeSize; j++) {
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          if(ensSubSurvivalPtr[j][k][i] > 0) {
+            if (getTraceFlag() & TIME_DEF_TRACE) {
+            }
+            if (poePtr[j][i] > 0) {
+              value = ensSubSurvivalPtr[j][k][i] / poePtr[j][i];
+              value = (value <= 1.0) ? value : 1.0;
+              ensemblePtr[j+1][k][i] = - log (value);
+            }
+            else {
+              value = ensSubSurvivalPtr[j][k][i] / 1.0;
+              value = (value <= 1.0) ? value : 1.0;
+              ensemblePtr[j+1][k][i] = - log (value);
+            }
+            if (getTraceFlag() & TIME_DEF_TRACE) {
+            }
+          }
+          else {
+            if (poePtr[j][i] > 0) {
+              if (k > 1) {
+                ensemblePtr[j+1][k][i] = ensemblePtr[j+1][k-1][i];
+              }
+              else {
+                ensemblePtr[j+1][k][i] = 0.0;
+              }
+            }
+            else {
+              ensemblePtr[j+1][k][i] = 0.0;  
+            }
+          }
+        }
+      }
+      if (mortalityFlag == TRUE) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          for (k=1; k <= _sortedTimeInterestSize; k++) {            
+            conditionalMortality[j][i] += ensemblePtr[j + 1][k][i];
+          }
+        }
+      }
+    }  
+    if (getTraceFlag() & ENSB_LOW_TRACE) {
+      if (oobFlag == TRUE) {
+        Rprintf("\nOOB Conditional Ensemble calculations follow: \n");        
+      }
+      else {
+        if (fullFlag == TRUE) {
+          Rprintf("\nFULL Conditional Ensemble calculations follow: \n");        
+        }
+      }
+      for (j = 1; j <= _eventTypeSize; j++) {
+        Rprintf("\nSub-SRV Numerator calculation:  Event %10d \n", j);
+        Rprintf("          ");
+        for (n=1; n <= obsSize; n++) {
+          Rprintf("%10d", n);
+        }
+        Rprintf("\n");
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          Rprintf("%10d", k);
+          for (n=1; n <= obsSize; n++) {
+            Rprintf("%10.4f", ensSubSurvivalPtr[j][k][n]);
+          }
+          Rprintf("\n");
+        }
+      }
+      Rprintf("\nProbability of Event:  \n");
+      Rprintf("          ");
+      for (n=1; n <= obsSize; n++) {
+        Rprintf("%10d", n);
+      }
+      Rprintf("\n");
+      for (j=1; j <= _eventTypeSize; j++) {
+        Rprintf("%10d", j);
+        for (n=1; n <= obsSize; n++) {
+          Rprintf("%10.4f", poePtr[j][n]);
+        }
+        Rprintf("\n");
+      }
+      for (j = 1; j <= _eventTypeSize; j++) {
+        Rprintf("\nEnsemble Conditional CHF:  Event %10d \n", j);
+        Rprintf("          ");
+        for (n=1; n <= obsSize; n++) {
+          Rprintf("%10d", n);
+        }
+        Rprintf("\n");
+        for (k=1; k <= _sortedTimeInterestSize; k++) {
+          Rprintf("%10d", k);
+          for (n=1; n <= obsSize; n++) {
+            Rprintf("%10.4f", ensemblePtr[j+1][k][n]);
+          }
+          Rprintf("\n");
+        }
+      }
+      if (mortalityFlag == TRUE) {
+        Rprintf("\nConditional Mortality:  \n");
+        Rprintf("          ");
+        for (n=1; n <= obsSize; n++) {
+          Rprintf("%10d", n);
+        }
+        Rprintf("\n");
+        for (j = 1; j <= _eventTypeSize; j++) {       
+          Rprintf("%10d", _eventType[j]);
+          for (n=1; n <= obsSize; n++) {
+            Rprintf("%10.4f", conditionalMortality[j][n]);
+          }
+          Rprintf("\n");
+        }
+      }
+    }  
+    if (mortalityFlag == TRUE) {
+      mortalityFlag = FALSE;
+    }
+    if (oobFlag == TRUE) {
+      oobFlag = FALSE;
+    }
+    else {
+      if (fullFlag == TRUE) {
+        fullFlag = FALSE;
+      }
+    }
+  }  
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    _censblTime = _censblTime + (clock() - _benchTime);
+  }
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nRSF:  updateEnsembleSubSurvivalAndDistribution() EXIT ...\n");  
+  }
+}
+void getConditionalConcordanceArrays(uint     j, 
+                                     double  *statusPtr, 
+                                     double  *timePtr, 
+                                     double  *mortalityPtr, 
+                                     uint    *genericEnsembleDenPtr,
+                                     double  *subsettedStatus,
+                                     double  *subsettedTime,
+                                     double  *subsettedMortality,
+                                     uint    *subsettedEnsembleDen) {
+  uint i;
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nRSF:  getConditionalConcordanceArrays() ENTRY ...\n");  
+  }
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    _benchTime = clock();
+  }
+  if (_eventTypeSize == 1) {
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Attempt to update event type subsets in a non-CR analysis.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+  }
+  for (i = 1; i <= _meIndividualSize[j]; i++) {
+    subsettedStatus[i]      = statusPtr[_eIndividual[j][i]];
+    subsettedTime[i]        = timePtr[_eIndividual[j][i]];
+    subsettedMortality[i]   = mortalityPtr[_eIndividual[j][i]];
+    subsettedEnsembleDen[i] = genericEnsembleDenPtr[_eIndividual[j][i]];
+  }
+  if (getTraceFlag() & TIME_DEF_TRACE) {
+    _censblTime = _censblTime + (clock() - _benchTime);
+  }
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\nRSF:  getConditionalConcordanceArrays() EXIT ...\n");  
+  }
+}
+void getMeanSurvivalTime(uint mode, double *meanSurvivalTime, uint treeID) {
   uint leaf, i;
   double totalDeathTime;
   uint deathCount;
   Node *parent;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  getMeanSurvivalTime() ENTRY ...\n");  
   }
   if (getTraceFlag() & TIME_DEF_TRACE) {
@@ -757,26 +995,30 @@ void getMeanSurvivalTime(double *meanSurvivalTime,
   for (leaf=1; leaf <= _leafCount_[treeID]; leaf++) {
     totalDeathTime = 0;
     deathCount = 0;
-    parent = getTerminalNode(leaf);
-    for (i=1; i <= _observationSize; i++) {
-      if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
-        if (_status[_bootMembershipIndex[i]] == 1) {
-          totalDeathTime += _masterTime[_masterTimeIndex[_bootMembershipIndex[i]]];
-          deathCount ++;
+    parent = getTerminalNode(mode, leaf);
+    if (parent != NULL) { 
+      for (i=1; i <= _observationSize; i++) {
+        if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
+          if (_status[_bootMembershipIndex[i]] > 0) {
+            totalDeathTime += _masterTime[_masterTimeIndex[_bootMembershipIndex[i]]];
+            deathCount ++;
+          }
         }
       }
-    }
-    if (deathCount > 0) {
-      meanSurvivalTime[leaf] = totalDeathTime / deathCount;
-      parent -> mortality = meanSurvivalTime[leaf];
+      if (deathCount > 0) {
+        meanSurvivalTime[leaf] = totalDeathTime / deathCount;
+        parent -> mortality = meanSurvivalTime[leaf];
+      }
+      else {
+        Rprintf("\nRSF:  *** ERROR *** ");
+        Rprintf("\nRSF:  Zero death count encountered in node:  %10d", leaf);
+        Rprintf("\nRSF:  Please Contact Technical Support.");
+        Rprintf("\nRSF:  The application will now exit.\n");
+        exit(TRUE);
+      }
     }
     else {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Zero death count encountered in node:  %10d", leaf);
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-    }
+    }      
   }  
   if (getTraceFlag() & SUMM_HGH_TRACE) {
     Rprintf("\nTree specific mean survival time vector:  %10d \n", treeID);
@@ -794,17 +1036,18 @@ void getMeanSurvivalTime(double *meanSurvivalTime,
   if (getTraceFlag() & TIME_DEF_TRACE) {
     _hazrdTime = _hazrdTime + (clock() - _benchTime);
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  getMeanSurvivalTime() EXIT ...\n");  
   }
 }
-void updateEnsembleSurvivalTime(uint mode, 
-                                uint treeID, 
-                                double *meanSurvivalTime) {
-  uint i, j, k;
+void updateEnsembleSurvivalTime(uint     mode, 
+                                uint     treeID, 
+                                double  *meanSurvivalTime,
+                                double *mortality) {
+  uint i, j, k, p;
   uint obsSize;
   uint *genericEnsembleDenPtr;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  updateEnsembleSurvivalTime() ENTRY ...\n");  
   }
   if (getTraceFlag() & TIME_DEF_TRACE) {
@@ -813,53 +1056,53 @@ void updateEnsembleSurvivalTime(uint mode,
   switch (mode) {
   case RSF_GROW:
     for (i=1; i <= _observationSize; i++) {
-      k = _nodeMembership[i] -> leafCount;
+      p = _nodeMembership[i] -> leafCount;
       if (_oobSampleSize[treeID] > 0) {
         if ( _bootMembershipFlag[i] == FALSE ) {
-          _oobEnsemblePtr[1][i] += meanSurvivalTime[k];
+          _oobEnsemblePtr[1][1][i] += meanSurvivalTime[p];
           _oobEnsembleDen[i] ++;
         }
       }
-      _fullEnsemblePtr[1][i] += meanSurvivalTime[k];
+      _fullEnsemblePtr[1][1][i] += meanSurvivalTime[p];
       _fullEnsembleDen[i] ++;
       if (_oobEnsembleDen[i] != 0) {
-        _ensembleRun[i] = _oobEnsemblePtr[1][i];
-        _ensembleRun[i] = _ensembleRun[i] / _oobEnsembleDen[i];
+        mortality[i] = _oobEnsemblePtr[1][1][i];
+        mortality[i] = mortality[i] / _oobEnsembleDen[i];
       }
       else {
-        _ensembleRun[i] = 0;
+        mortality[i] = 0;
       }
     }
     break;
   case RSF_PRED:
     for (i=1; i <= _fobservationSize; i++) {
-      k = _fnodeMembership[i] -> leafCount;
-      _fullEnsemblePtr[1][i] += meanSurvivalTime[k];
+      p = _fnodeMembership[i] -> leafCount;
+      _fullEnsemblePtr[1][1][i] += meanSurvivalTime[p];
       _fullEnsembleDen[i] ++;
       if (_fullEnsembleDen[i] != 0) {
-        _ensembleRun[i] = _fullEnsemblePtr[1][i];
-        _ensembleRun[i] = _ensembleRun[i] / _fullEnsembleDen[i];
+        mortality[i] = _fullEnsemblePtr[1][1][i];
+        mortality[i] = mortality[i] / _fullEnsembleDen[i];
       }
       else {
-        _ensembleRun[i] = 0;
+        mortality[i] = 0;
       }
     }
     break;
   case RSF_INTR:
     for (i=1; i <= _fobservationSize; i++) {
-      k = _nodeMembership[_intrObservation[i]] -> leafCount;
+      p = _nodeMembership[_intrIndividual[i]] -> leafCount;
       if (_foobSampleSize[treeID] > 0) {
-        if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-          _oobEnsemblePtr[1][i] += meanSurvivalTime[k];
+        if ( _bootMembershipFlag[_intrIndividual[i]] == FALSE ) {
+          _oobEnsemblePtr[1][1][i] += meanSurvivalTime[p];
           _oobEnsembleDen[i] ++;
         }
       }
       if (_oobEnsembleDen[i] != 0) {
-        _ensembleRun[i] = _oobEnsemblePtr[1][i];
-        _ensembleRun[i] = _ensembleRun[i] / _oobEnsembleDen[i];
+        mortality[i] = _oobEnsemblePtr[1][1][i];
+        mortality[i] = mortality[i] / _oobEnsembleDen[i];
       }
       else {
-        _ensembleRun[i] = 0;
+        mortality[i] = 0;
       }
     }
     break;
@@ -900,10 +1143,10 @@ void updateEnsembleSurvivalTime(uint mode,
         Rprintf("%10d", i);
       }
       Rprintf("\n");
-      for (j=1; j <= 1; j++) {
-        Rprintf("%10d", j);
-        for (i=1; i <= _observationSize; i++) {
-          Rprintf("%10.4f", _oobEnsemblePtr[j][i]);
+      for (k=1; k <= 1; k++) {
+        Rprintf("%10d", k);
+        for (i=1; i <= obsSize; i++) {
+          Rprintf("%10.4f", _oobEnsemblePtr[1][k][i]);
         }
         Rprintf("\n");
       }
@@ -915,10 +1158,10 @@ void updateEnsembleSurvivalTime(uint mode,
         Rprintf("%10d", i);
       }
       Rprintf("\n");
-      for (j=1; j <= 1; j++) {
-        Rprintf("%10d", j);
+      for (k=1; k <= 1; k++) {
+        Rprintf("%10d", k);
         for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", _fullEnsemblePtr[j][i]);
+          Rprintf("%10.4f", _fullEnsemblePtr[1][k][i]);
         }
         Rprintf("\n");
       }
@@ -931,7 +1174,7 @@ void updateEnsembleSurvivalTime(uint mode,
       }
       Rprintf("\n          ");
       for (i=1; i <= obsSize; i++) {
-        Rprintf("%10.4f", _ensembleRun[i]);
+        Rprintf("%10.4f", mortality[i]);
       }
       Rprintf("\n");
       Rprintf("\nEnsemble Estimator Denominator calculation: \n");
@@ -948,13 +1191,13 @@ void updateEnsembleSurvivalTime(uint mode,
     if (mode == RSF_GROW) {
       Rprintf("\nClassification of OOB elements:  ");
       Rprintf("\n       Leaf     Indiv            EE      predictors ->  ");
-      for (i=1; i <= _leafCount_[treeID]; i++) {
-        for (j = 1; j <= _observationSize; j++) {
-          if (_bootMembershipFlag[j] == FALSE) {
-            if ((_nodeMembership[j] -> leafCount) == i) {
-              Rprintf("\n %10d %10d %12.4f", i, j, _ensembleRun[j]);
+      for (j=1; j <= _leafCount_[treeID]; j++) {
+        for (i = 1; i <= _observationSize; i++) {
+          if (_bootMembershipFlag[i] == FALSE) {
+            if ((_nodeMembership[i] -> leafCount) == j) {
+              Rprintf("\n %10d %10d %12.4f", j, i, mortality[i]);
               for (k = 1; k <= _xSize; k++) {
-                Rprintf("%12.4f", _observation[k][j]);
+                Rprintf("%12.4f", _observation[k][i]);
               }
             }
           }
@@ -966,348 +1209,8 @@ void updateEnsembleSurvivalTime(uint mode,
   if (getTraceFlag() & TIME_DEF_TRACE) {
     _ensblTime = _ensblTime + (clock() - _benchTime);
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
+  if (getTraceFlag() & SUMM_MED_TRACE) {
     Rprintf("\nRSF:  updateEnsembleSurvivalTime() EXIT ...\n");  
-  }
-}
-void getVariableImportance (uint     mode,
-                            uint     sortedTimeInterestSize,
-                            uint     leafCount,
-                            double **cumulativeHazard,
-                            double  *meanSurvivalTime,
-                            Node    *rootPtr,
-                            uint     b) {
-  uint i,k,p;
-  uint obsSize;
-  uint varSize;
-  uint permuteObsSize;
-  uint permuteVarSize;
-  uint   *indexVIMP;
-  uint   *permuteVIMP;
-  double **originalVIMP;
-  double **predictorPtr;
-  ulong  **factorPredictorPtr;
-  char result;
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\nRSF:  getVariableImportance() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
-  if (!(_opt & OPT_VIMP)) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Attempt to compute variable importance though not requested.");
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
-  }
-  obsSize = 0;          
-  varSize = 0;          
-  permuteObsSize = 0;   
-  permuteVarSize = 0;   
-  predictorPtr       = NULL;  
-  factorPredictorPtr = NULL;  
-  result = TRUE;
-  switch (mode) {
-  case RSF_GROW:
-    predictorPtr = _observation;
-    if (_oobSampleSize[b] == 0) {
-      result = FALSE;
-    }
-    break;
-  case RSF_PRED:
-    predictorPtr = _fobservation;
-    break;
-  case RSF_INTR:
-    predictorPtr = _fobservation;
-    if (_foobSampleSize[b] == 0) {
-      result = FALSE;
-    }
-    break;
-  default:
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Unknown case in switch encountered. ");
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
-    break;
-  }
-  if (result == TRUE) {    
-    if (_opt & (~OPT_VIMP) & (~OPT_VIMP_JOIN) & OPT_VIMP_TYPE) {
-      if (getTraceFlag() & OUTP_DEF_TRACE) {
-        Rprintf("\nType is VIMP_RAND.");  
-        Rprintf("\nRandom seed for ran2():  %20d", *_seed2Ptr);
-      }
-      switch (mode) {
-      case RSF_GROW:
-        for (p=1; p <= _xSize; p++) {
-          for (i=1; i <= _observationSize; i++) {
-            if ( _bootMembershipFlag[i] == FALSE ) {
-              _vimpEnsembleRun[p][i] += randomizeMembership(rootPtr, predictorPtr, i, p) -> mortality;
-            }
-          }
-        }
-        break;
-      case RSF_PRED:
-        for (p=1; p <= _xSize; p++) {
-          for (i=1; i <= _fobservationSize; i++) {
-            _vimpEnsembleRun[p][i] += randomizeMembership(rootPtr, predictorPtr, i, p) -> mortality;
-          }
-        }
-        break;
-      case RSF_INTR:
-        if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
-          for (i=1; i <= _fobservationSize; i++) {
-            if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-              _vimpEnsembleRun[1][i] += randomizeMembership(rootPtr, predictorPtr, i, 0) -> mortality;
-            }
-          }
-        }  
-        else {
-          for (p=1; p <= _intrPredictorSize; p++) {
-            for (i=1; i <= _fobservationSize; i++) {
-              if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-                _vimpEnsembleRun[p][i] += randomizeMembership(rootPtr, predictorPtr, i, _intrPredictor[p]) -> mortality;
-              }
-            }
-          }
-        }
-        break;
-      default:
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  Unknown case in switch encountered. ");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-        break;
-      }  
-      if (getTraceFlag() & SUMM_USR_TRACE) {
-        Rprintf("\nRSF:  VIMP random split calculation complete.");  
-      }
-    }  
-    else if (!(_opt & (~OPT_VIMP) & (~OPT_VIMP_JOIN) & OPT_VIMP_TYPE)) {
-      if (getTraceFlag() & OUTP_DEF_TRACE) {
-        Rprintf("\nType is VIMP_PERM.");  
-        Rprintf("\nRandom seed for ran2():  %20d", *_seed2Ptr);
-      }
-      switch (mode) {
-      case RSF_GROW:
-        permuteObsSize = _oobSampleSize[b];
-        permuteVarSize = 1;
-        break;
-      case RSF_PRED:
-        permuteObsSize = _fobservationSize;
-        permuteVarSize = 1;
-        break;
-      case RSF_INTR:
-        permuteObsSize = _foobSampleSize[b];
-        if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
-          permuteVarSize = _intrPredictorSize;
-        }
-        else {
-          permuteVarSize = 1;
-        }
-        break;
-      default:
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  Unknown case in switch encountered. ");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-        break;
-      }
-      indexVIMP = uivector(1, permuteObsSize);
-      permuteVIMP = uivector(1, permuteObsSize);
-      originalVIMP = dmatrix(1, permuteVarSize, 1, permuteObsSize);
-      k = 0;
-      switch (mode) {
-      case RSF_GROW:
-        for (i=1; i <= _observationSize; i++) {
-          if ( _bootMembershipFlag[i] == FALSE ) {
-            k++;
-            indexVIMP[k] = i;
-          }
-        }
-        break;
-      case RSF_PRED:
-        for (i=1; i <= _fobservationSize; i++) {
-          k++;
-          indexVIMP[k] = i;
-        }
-        break;
-      case RSF_INTR:
-        for (i=1; i <= _fobservationSize; i++) {
-          if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-            k++;
-            indexVIMP[k] = i;
-          }
-        }
-        break;
-      default:
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  Unknown case in switch encountered. ");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-        break;
-      }
-      if (k != permuteObsSize) {
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  VIMP candidate selection failed.");
-        Rprintf("\nRSF:  %10d available, %10d selected.", permuteObsSize, k);
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-      }
-      switch (mode) {
-      case RSF_GROW:
-        for (p=1; p <= _xSize; p++) {
-          for (k=1; k<= permuteObsSize; k++) {
-            originalVIMP[1][k] = predictorPtr[p][indexVIMP[k]];
-          }
-          permute(permuteObsSize, permuteVIMP);
-          for (k=1; k <= permuteObsSize; k++) {
-            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][permuteVIMP[k]];
-          }
-          for (i=1; i <= _observationSize; i++) {
-            if ( _bootMembershipFlag[i] == FALSE ) {
-              _vimpEnsembleRun[p][i] += getMembership(rootPtr, predictorPtr, i) -> mortality;
-            }
-          }
-          for (k=1; k <= permuteObsSize; k++) {
-            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][k];
-          }
-        }
-        break;
-      case RSF_PRED:
-        for (p=1; p <= _xSize; p++) {
-          for (k=1; k<= permuteObsSize; k++) {
-            originalVIMP[1][k] = predictorPtr[p][indexVIMP[k]];
-          }
-          permute(permuteObsSize, permuteVIMP);
-          for (k=1; k <= permuteObsSize; k++) {
-            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][permuteVIMP[k]];
-          }
-          for (i=1; i <= _fobservationSize; i++) {
-            _vimpEnsembleRun[p][i] += getMembership(rootPtr, predictorPtr, i) -> mortality;
-          }
-          for (k=1; k <= permuteObsSize; k++) {
-            predictorPtr[p][indexVIMP[k]] = originalVIMP[1][k];
-          }
-        }
-        break;
-      case RSF_INTR:
-        if (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN) {
-          for (p=1; p <= permuteVarSize; p++) {
-            for (k=1; k<= permuteObsSize; k++) {
-              originalVIMP[p][k] = predictorPtr[_intrPredictor[p]][indexVIMP[k]];
-            }
-            permute(permuteObsSize, permuteVIMP);
-            for (k=1; k <= permuteObsSize; k++) {
-              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[p][permuteVIMP[k]];
-            }
-          }
-          for (i=1; i <= _fobservationSize; i++) {
-            if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-              _vimpEnsembleRun[1][i] += getMembership(rootPtr, predictorPtr, i) -> mortality;
-            }
-          }
-          for (p=1; p <= permuteVarSize; p++) {
-            for (k=1; k <= permuteObsSize; k++) {
-              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[p][k];
-            }
-          }
-        }  
-        else {
-          for (p=1; p <= _intrPredictorSize; p++) {
-            for (k=1; k<= permuteObsSize; k++) {
-              originalVIMP[1][k] = predictorPtr[_intrPredictor[p]][indexVIMP[k]];
-            }
-            permute(permuteObsSize, permuteVIMP);
-            for (k=1; k <= permuteObsSize; k++) {
-              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[1][permuteVIMP[k]];
-            }
-            for (i=1; i <= _fobservationSize; i++) {
-              if ( _bootMembershipFlag[_intrObservation[i]] == FALSE ) {
-                _vimpEnsembleRun[p][i] += getMembership(rootPtr, predictorPtr, i) -> mortality;
-              }
-            }
-            for (k=1; k <= permuteObsSize; k++) {
-              predictorPtr[_intrPredictor[p]][indexVIMP[k]] = originalVIMP[1][k];
-            }
-          }
-        }  
-        break;
-      default:
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  Unknown case in switch encountered. ");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-        break;
-      }
-      free_uivector(indexVIMP, 1, permuteObsSize);
-      free_uivector(permuteVIMP, 1, permuteObsSize);
-      free_dmatrix(originalVIMP, 1, permuteVarSize, 1, permuteObsSize);
-      if (getTraceFlag() & SUMM_USR_TRACE) {
-        Rprintf("\nRSF:  VIMP permutation calculation complete.");  
-      }
-    }  
-    else {
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Unknown VIMP perturbation type encountered. ");
-      Rprintf("\nRSF:  Option flag is:  %10x", _opt);
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-    } 
-    if (getTraceFlag() & OUTP_DEF_TRACE) {
-      switch (mode) {
-      case RSF_GROW:
-        obsSize = _observationSize;
-        varSize = _xSize;
-        break;
-      case RSF_PRED:
-        obsSize = _fobservationSize;
-        varSize = _xSize;
-        break;
-      case RSF_INTR:
-        obsSize = _fobservationSize;
-        varSize = 1;
-        break;
-      default:
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  Unknown case in switch encountered. ");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-        break;
-      }
-      Rprintf("\nTree specific variable importance calculation:  %10d \n", b);
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n");
-      for (p=1; p <= varSize; p++) {
-        Rprintf("%10d", p);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", _vimpEnsembleRun[p][i]);
-        }
-        Rprintf("\n");
-      }
-    }
-  }  
-  else {
-    if (getTraceFlag() & OUTP_DEF_TRACE) {
-      Rprintf("\nVIMP omitted since OOB sample size is zero. \n");      
-    }
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _vimprTime = _vimprTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\nRSF:  getVariableImportance() EXIT ...\n");  
   }
 }
 void getVariablesUsed(Node *parent, uint *varUsedPtr) {
@@ -1324,29 +1227,32 @@ void getVariablesUsed(Node *parent, uint *varUsedPtr) {
   }
   return;
 }
-void updateEnsembleEvents (char      multipleImputeFlag,
-                           uint      mode,
-                           uint      sortedTimeInterestSize,
-                           Node     *rootPtr,
-                           uint      b,
-                           char    **dmRecordBootFlag,
-                           double ***dmvImputation) {
-  uint i;
+void updateEnsembleCalculations (char      multipleImputeFlag,
+                                 uint      mode,
+                                 Node     *rootPtr,
+                                 uint      b,
+                                 char    **dmRecordBootFlag,
+                                 double ***dmvImputation) {
+  uint i, j;
   uint obsSize;
-  double **cumulativeHazard;
-  double  *meanSurvivalTime;
-  uint    *genericEnsembleDenPtr;
+  double  **cumulativeHazard;
+  double   *meanSurvivalTime;
+  double   *mortality;
+  double  **conditionalMortality;
+  uint     *genericEnsembleDenPtr;
   double *statusPtr, *orgStatusPtr, *mStatusPtr;
   double *timePtr, *orgTimePtr, *mTimePtr;
   uint *varUsedRow;
   char concordanceImputeFlag;
   int concordancePolarity;
   double concordanceIndex;
+  double *crPerformanceVector;
   if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nupdateEnsembleEvents() ENTRY ...\n");
+    Rprintf("\nupdateEnsembleCalculations() ENTRY ...\n");
   }
-  cumulativeHazard = NULL;  
-  meanSurvivalTime = NULL;  
+  cumulativeHazard     = NULL;  
+  meanSurvivalTime     = NULL;  
+  conditionalMortality = NULL;  
   statusPtr   = NULL;  
   timePtr     = NULL;  
   mStatusPtr  = NULL;  
@@ -1360,27 +1266,51 @@ void updateEnsembleEvents (char      multipleImputeFlag,
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
   }
+  switch (mode) {
+  case RSF_GROW:
+    obsSize = _observationSize;
+    genericEnsembleDenPtr = _oobEnsembleDen;
+    break;
+  case RSF_PRED:
+    obsSize = _fobservationSize;
+    genericEnsembleDenPtr = _fullEnsembleDen;
+    break;
+  case RSF_INTR:
+    obsSize = _fobservationSize;
+    genericEnsembleDenPtr = _oobEnsembleDen;
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
+  }
+  mortality = dvector(1, obsSize);
   if (_opt & (OPT_POUT_TYPE)) {
     meanSurvivalTime = dvector(1, _leafCount_[b]);
     concordancePolarity = -1;
-    getMeanSurvivalTime(meanSurvivalTime, b);
-    updateEnsembleSurvivalTime(mode, b, meanSurvivalTime);
+    getMeanSurvivalTime(mode, meanSurvivalTime, b);
+    updateEnsembleSurvivalTime(mode, b, meanSurvivalTime, mortality);
   }
   else {
-    cumulativeHazard = dmatrix(1, sortedTimeInterestSize, 1, _leafCount_[b]);
+    cumulativeHazard = dmatrix(1, _sortedTimeInterestSize, 1, _leafCount_[b]);
     concordancePolarity = 1;
-    getNelsonAalenEstimate(cumulativeHazard, b, sortedTimeInterestSize);
-    updateEnsembleCHF(mode, sortedTimeInterestSize, b, cumulativeHazard);
-  }
+    getNelsonAalenEstimate(mode, cumulativeHazard, b);
+    updateEnsembleCHF(mode, b, cumulativeHazard, mortality);
+    if (_eventTypeSize > 1) {
+      conditionalMortality = dmatrix(1, _eventTypeSize, 1, obsSize);
+      getTreeSpecificSubSurvivalAndDistribution(mode, b);
+      updateEnsembleSubSurvivalAndDistribution(mode, b, conditionalMortality);
+    }
+  }  
   if (getTraceFlag() & SUMM_LOW_TRACE) {
     Rprintf("\nRSF:  Predicted outcome calculation complete.");  
   }
   if (_opt & OPT_VIMP) {
     getVariableImportance(mode,
-                          sortedTimeInterestSize,
                           _leafCount_[b],
-                          cumulativeHazard,
-                          meanSurvivalTime,
                           rootPtr,
                           b);
   }
@@ -1388,50 +1318,9 @@ void updateEnsembleEvents (char      multipleImputeFlag,
     free_dvector(meanSurvivalTime, 1, _leafCount_[b]);
   }
   else {
-    free_dmatrix(cumulativeHazard, 1, sortedTimeInterestSize, 1, _leafCount_[b]);
-  }
-  if (_opt & OPT_VUSE) {
-    if (_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
-      varUsedRow = _varUsedPtr[b];
-    }
-    else {
-      varUsedRow = _varUsedPtr[1];
-    }
-    getVariablesUsed(rootPtr, varUsedRow);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nVariables Used Counts by Parameter:  \n");
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12d", i);
-      }
-      Rprintf("\n");
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12d", varUsedRow[i]);
-      }
-      Rprintf("\n");
-    }
+    free_dmatrix(cumulativeHazard, 1, _sortedTimeInterestSize, 1, _leafCount_[b]);
   }
   if (_opt & OPT_PERF) {
-    switch (mode) {
-    case RSF_GROW:
-      obsSize = _observationSize;
-      genericEnsembleDenPtr = _oobEnsembleDen;
-      break;
-    case RSF_PRED:
-      obsSize = _fobservationSize;
-      genericEnsembleDenPtr = _fullEnsembleDen;
-      break;
-    case RSF_INTR:
-      obsSize = _fobservationSize;
-      genericEnsembleDenPtr = _oobEnsembleDen;
-      break;
-    default:
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Unknown case in switch encountered. ");
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-      break;
-    }
     concordanceImputeFlag = FALSE;
     if (mode == RSF_GROW) {
       statusPtr = orgStatusPtr = _status;
@@ -1467,18 +1356,45 @@ void updateEnsembleEvents (char      multipleImputeFlag,
     }  
     concordanceIndex = getConcordanceIndex(concordancePolarity,
                                            obsSize, 
-                                           statusPtr, 
-                                           timePtr, 
-                                           _ensembleRun, 
+                                           statusPtr,
+                                           timePtr,
+                                           mortality, 
                                            genericEnsembleDenPtr);
     if (ISNA(concordanceIndex)) {
-      _performance_[b] = NA_REAL;
+      _performancePtr[1][b] = NA_REAL;
     }
     else {
-      _performance_[b] = 1.0 - concordanceIndex;
+      _performancePtr[1][b] = 1.0 - concordanceIndex;
+    }
+    if (_eventTypeSize > 1) {
+      crPerformanceVector = dvector(1, _eventTypeSize);
+      getConditionalPerformance(mode,
+                                concordancePolarity, 
+                                obsSize,
+                                statusPtr, 
+                                timePtr,
+                                conditionalMortality,
+                                genericEnsembleDenPtr,
+                                crPerformanceVector);
+      for (j=1; j <=_eventTypeSize; j++) {
+        _performancePtr[1+j][b] = crPerformanceVector[j];
+      }
+      free_dvector(crPerformanceVector, 1, _eventTypeSize);
     }
     if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Error Rate:      %20.4f", _performance_[b]);
+      Rprintf("\nRSF:  Error Rate for treeID:  %10d", b);
+      if (_eventTypeSize > 1) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          Rprintf("                [%2d]", j);
+        }
+      }
+      Rprintf("\n                   ");
+      Rprintf("%20.4f", _performancePtr[1][b]);
+      if (_eventTypeSize > 1) {
+        for (j = 1; j <= _eventTypeSize; j++) {
+          Rprintf("%20.4f", _performancePtr[1+j][b]);
+        }
+      }
       Rprintf("\n");
     }
     if (concordanceImputeFlag > 0) {
@@ -1486,7 +1402,104 @@ void updateEnsembleEvents (char      multipleImputeFlag,
       free_dvector(mTimePtr, 1, obsSize);
     }  
   }  
+  free_dvector(mortality, 1, obsSize);
+  if (!(_opt & (OPT_POUT_TYPE))) {
+    if (_eventTypeSize > 1) {
+      free_dmatrix(conditionalMortality, 1, _eventTypeSize, 1, obsSize);
+    }
+  }
+  if (_opt & OPT_VUSE) {
+    if (_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
+      varUsedRow = _varUsedPtr[b];
+    }
+    else {
+      varUsedRow = _varUsedPtr[1];
+    }
+    getVariablesUsed(rootPtr, varUsedRow);
+    if (getTraceFlag() & SUMM_LOW_TRACE) {
+      Rprintf("\nVariables Used Counts by Parameter:  \n");
+      for (i=1; i <= _xSize; i++) {
+        Rprintf(" %12d", i);
+      }
+      Rprintf("\n");
+      for (i=1; i <= _xSize; i++) {
+        Rprintf(" %12d", varUsedRow[i]);
+      }
+      Rprintf("\n");
+    }
+  }
   if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nupdateEnsembleEvents() EXIT ...\n");
+    Rprintf("\nupdateEnsembleCalculations() EXIT ...\n");
+  }
+}
+void getConditionalPerformance (uint     mode,
+                                uint     concordancePolarity, 
+                                uint     obsSize,
+                                double  *statusPtr, 
+                                double  *timePtr,
+                                double **conditionalMortality,
+                                uint    *ensembleDenPtr,
+                                double  *performanceVector) {
+  uint   mRecordSize;
+  int  **mvSign;
+  uint  *mRecordIndex;
+  double concordanceIndex;
+  uint j;
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\ngetConditionalPerformance() ENTRY() ...\n");
+  }
+  if (_eventTypeSize == 1) { 
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Attempt at conditional performance updates in a non-CR analysis.");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+  }
+  if (_mStatusSize > 0) {
+    if (mode == RSF_GROW) {
+      mRecordSize = _mRecordSize;
+      mvSign = _mvSign;
+      mRecordIndex = _mRecordIndex;
+    }
+    else {
+      mRecordSize = _fmRecordSize;
+      mvSign = _fmvSign;
+      mRecordIndex = _fmRecordIndex;
+    }
+    updateEventTypeSubsets(statusPtr, mRecordSize, mvSign, mRecordIndex);
+  }
+  double *subsettedStatus    = dvector(1, obsSize);
+  double *subsettedTime      = dvector(1, obsSize);
+  double *subsettedMortality = dvector(1, obsSize);
+  uint *subsettedEnsembleDen = uivector(1, obsSize);
+  for (j = 1; j <= _eventTypeSize; j++) {
+    getConditionalConcordanceArrays(j, 
+                                    statusPtr, 
+                                    timePtr, 
+                                    conditionalMortality[j],
+                                    ensembleDenPtr,
+                                    subsettedStatus,
+                                    subsettedTime,
+                                    subsettedMortality,
+                                    subsettedEnsembleDen);
+    concordanceIndex = getConcordanceIndex(concordancePolarity,
+                                           _meIndividualSize[j], 
+                                           subsettedStatus,
+                                           subsettedTime,
+                                           subsettedMortality,
+                                           subsettedEnsembleDen);
+    if (ISNA(concordanceIndex)) {
+      performanceVector[j] = NA_REAL;
+    }
+    else {
+      performanceVector[j] = 1.0 - concordanceIndex;
+    }
+  }
+  free_dvector(subsettedStatus, 1, obsSize);
+  free_dvector(subsettedTime, 1, obsSize);
+  free_dvector(subsettedMortality, 1, obsSize);
+  free_uivector(subsettedEnsembleDen, 1, obsSize);
+  if (getTraceFlag() & SUMM_MED_TRACE) {
+    Rprintf("\ngetConditionalPerformance() EXIT() ...\n");
   }
 }

@@ -1,63 +1,95 @@
-//**********************************************************************
-//**********************************************************************
-//
-//  RANDOM SURVIVAL FOREST 3.5.1
-//
-//  Copyright 2008, Cleveland Clinic Foundation
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public
-//  License along with this program; if not, write to the Free
-//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-//  Boston, MA  02110-1301, USA.
-//
-//  Project funded by:
-//    National Institutes of Health, HL072771-01
-//
-//    Michael S Lauer, MD, FACC, FAHA
-//    Cleveland Clinic Lerner College of Medicine of CWRU
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  lauerm@ccf.org
-//    phone:   216-444-6798
-//
-//  Written by:
-//    Hemant Ishwaran, Ph.D.
-//    Dept of Quantitative Health Sciences/Wb4
-//    Cleveland Clinic Foundation
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  hemant.ishwaran@gmail.com
-//    phone:  216-444-9932
-//    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-//    --------------------------------------------------------------
-//    Udaya B. Kogalur, Ph.D.
-//    Kogalur Shear Corporation
-//    5425 Nestleway Drive, Suite L1
-//    Clemmons, NC 27012
-//
-//    email:  ubk2101@columbia.edu
-//    phone:  919-824-9825
-//    URL:    www.kogalur-shear.com
-//
-//**********************************************************************
-//**********************************************************************
+////**********************************************************************
+////**********************************************************************
+////
+////  RANDOM SURVIVAL FOREST 3.6.0
+////
+////  Copyright 2009, Cleveland Clinic Foundation
+////
+////  This program is free software; you can redistribute it and/or
+////  modify it under the terms of the GNU General Public License
+////  as published by the Free Software Foundation; either version 2
+////  of the License, or (at your option) any later version.
+////
+////  This program is distributed in the hope that it will be useful,
+////  but WITHOUT ANY WARRANTY; without even the implied warranty of
+////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+////  GNU General Public License for more details.
+////
+////  You should have received a copy of the GNU General Public
+////  License along with this program; if not, write to the Free
+////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+////  Boston, MA  02110-1301, USA.
+////
+////  ----------------------------------------------------------------
+////  Project Partially Funded By:
+////    --------------------------------------------------------------
+////    National Institutes of Health,  Grant HHSN268200800026C/0001
+////
+////    Michael S. Lauer, M.D., FACC, FAHA 
+////    National Heart, Lung, and Blood Institute
+////    6701 Rockledge Dr, Room 10122
+////    Bethesda, MD 20892
+////
+////    email:  lauerm@nhlbi.nih.gov
+////
+////    --------------------------------------------------------------
+////    Case Western Reserve University/Cleveland Clinic  
+////    CTSA Grant:  UL1 RR024989, National Center for
+////    Research Resources (NCRR), NIH
+////
+////    --------------------------------------------------------------
+////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+////    Andy Minn, M.D., Ph.D.
+////    Department of Radiation and Cellular Oncology, and
+////    Ludwig Center for Metastasis Research
+////    The University of Chicago, Jules F. Knapp Center, 
+////    924 East 57th Street, Room R318
+////    Chicago, IL 60637
+//// 
+////    email:  aminn@radonc.uchicago.edu
+////
+////    --------------------------------------------------------------
+////    Bryan Lau, Ph.D.
+////    Department of Medicine, Johns Hopkins School of Medicine,
+////    Baltimore, Maryland 21287
+////
+////    email:  blau1@jhmi.edu
+////
+////  ----------------------------------------------------------------
+////  Written by:
+////    --------------------------------------------------------------
+////    Hemant Ishwaran, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    9500 Euclid Avenue
+////    Cleveland, OH 44195
+////
+////    email:  hemant.ishwaran@gmail.com
+////    phone:  216-444-9932
+////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+////
+////    --------------------------------------------------------------
+////    Udaya B. Kogalur, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    
+////    Kogalur Shear Corporation
+////    5425 Nestleway Drive, Suite L1
+////    Clemmons, NC 27012
+////
+////    email:  ubk2101@columbia.edu
+////    phone:  919-824-9825
+////    URL:    www.kogalur-shear.com
+////    --------------------------------------------------------------
+////
+////**********************************************************************
+////**********************************************************************
 
-#include   "global.h"
-#include   "nrutil.h"
-#include   "rsfFactorOps.h"
-extern uint  getTraceFlag();
+#include        "global.h"
+#include        "extern.h"
+#include         "trace.h"
+#include        "nrutil.h"
+#include  "rsfFactorOps.h"
 #define FREE_ARG char*
 #define NR_END 1
 Factor **factorPtrVector(ulong nl, ulong nh) {
@@ -76,48 +108,46 @@ Factor *makeFactor(uint r, char bookFlag) {
   if (getTraceFlag() & FACT_HGH_TRACE) {
     Rprintf("\nmakeFactor(%2x) ENTRY ...\n", bookFlag);
   }
-  if (r < 2) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Minimum number of factor levels violated. ");
-    Rprintf("\nRSF:  Requested %10d, Minimum Allowed %10d. ", r, 2);
-    Rprintf("\nRSF:  The application will now exit. \n");
-    exit(FALSE);
-  }
   Factor *f = (Factor*) malloc((size_t)sizeof(Factor));
   f -> r = r;
   f -> cardinalGroupCount = (uint) floor(r/2);
   f -> mwcpSize = (r >> (3 + ulog2(SIZE_OF_INTEGER))) + ((r & (MAX_EXACT_LEVEL - 1)) ? 1 : 0);
   if (r <= MAX_EXACT_LEVEL) {
-    f -> cardinalGroupSize = uivector(1, (f -> cardinalGroupCount) + 1);
-    f -> complementaryPairCount =  ((uint*) (f -> cardinalGroupSize)) + (f -> cardinalGroupCount) + 1;
   }
   else {
-    f -> cardinalGroupSize = dvector(1, (f -> cardinalGroupCount) + 1);
-    f -> complementaryPairCount =  ((double*) (f -> cardinalGroupSize)) + (f -> cardinalGroupCount) + 1;
   }
-  if (r <= MAX_EXACT_LEVEL) {
-    *((uint*) f -> complementaryPairCount) = upower2(r-1) - 1;
-  }
-  else {
-    *((double*) f -> complementaryPairCount) = pow(2, r-1) - 1;
-  }
-  for (i=1; i <= f -> cardinalGroupCount; i++) {
+  if (r > 1) {
     if (r <= MAX_EXACT_LEVEL) {
-      nChooseK(r, i, EXACT, ((uint*) f -> cardinalGroupSize) + i);
+      f -> cardinalGroupSize = uivector(1, (f -> cardinalGroupCount) + 1);
+      f -> complementaryPairCount =  ((uint*) (f -> cardinalGroupSize)) + (f -> cardinalGroupCount) + 1;
+      *((uint*) f -> complementaryPairCount) = upower2(r-1) - 1;
     }
     else {
-      nChooseK(r, i, APROX, ((double*) f -> cardinalGroupSize) + i);
+      f -> cardinalGroupSize = dvector(1, (f -> cardinalGroupCount) + 1);
+      f -> complementaryPairCount =  ((double*) (f -> cardinalGroupSize)) + (f -> cardinalGroupCount) + 1;
+      *((double*) f -> complementaryPairCount) = pow(2, r-1) - 1;
     }
-    f -> cardinalGroupBinary = NULL;
-  }
-  if (!((f -> r) & 0x01)) {
-    if (r <= MAX_EXACT_LEVEL) {
-      ((uint*) f -> cardinalGroupSize)[f -> cardinalGroupCount] = ((uint*) f -> cardinalGroupSize)[f -> cardinalGroupCount] >> 1;
+    for (i=1; i <= f -> cardinalGroupCount; i++) {
+      if (r <= MAX_EXACT_LEVEL) {
+        nChooseK(r, i, EXACT, ((uint*) f -> cardinalGroupSize) + i);
+      }
+      else {
+        nChooseK(r, i, APROX, ((double*) f -> cardinalGroupSize) + i);
+      }
+      f -> cardinalGroupBinary = NULL;
     }
-    else {
-      ((double*) f -> cardinalGroupSize)[f -> cardinalGroupCount] = ((double*) f -> cardinalGroupSize)[f -> cardinalGroupCount] / 2;
+    if (!((f -> r) & 0x01)) {
+      if (r <= MAX_EXACT_LEVEL) {
+        ((uint*) f -> cardinalGroupSize)[f -> cardinalGroupCount] = ((uint*) f -> cardinalGroupSize)[f -> cardinalGroupCount] >> 1;
+      }
+      else {
+        ((double*) f -> cardinalGroupSize)[f -> cardinalGroupCount] = ((double*) f -> cardinalGroupSize)[f -> cardinalGroupCount] / 2;
+      }
     }
-  }
+    if (bookFlag && (r <= MAX_EXACT_LEVEL)) {
+      bookFactor(f);
+    }
+  }  
   if (getTraceFlag() & FACT_HGH_TRACE) {
     if (r <= MAX_EXACT_LEVEL) {
       Rprintf("\n    Levels   GrpCount  PairCount\n");
@@ -136,9 +166,6 @@ Factor *makeFactor(uint r, char bookFlag) {
       }
     }
   }
-  if (bookFlag && (r <= MAX_EXACT_LEVEL)) {
-    bookFactor(f);
-  }
   if (getTraceFlag() & FACT_HGH_TRACE) {
     Rprintf("\nmakeFactor() EXIT ...\n");
   }
@@ -148,12 +175,14 @@ void free_Factor(Factor *f) {
   if (getTraceFlag() & FACT_HGH_TRACE) {
     Rprintf("\nfree_Factor(%4d) ENTRY ...\n", f -> r);
   }
-  unBookFactor(f);
-  if (f -> r <= MAX_EXACT_LEVEL) {
-    free_uivector(f -> cardinalGroupSize, 1, (f -> cardinalGroupCount) + 1);
-  }
-  else {
-    free_dvector(f -> cardinalGroupSize, 1, (f -> cardinalGroupCount) + 1);
+  if (f -> r > 1) {
+    unBookFactor(f);
+    if (f -> r <= MAX_EXACT_LEVEL) {
+      free_uivector(f -> cardinalGroupSize, 1, (f -> cardinalGroupCount) + 1);
+    }
+    else {
+      free_dvector(f -> cardinalGroupSize, 1, (f -> cardinalGroupCount) + 1);
+    }
   }
   free((FREE_ARG) f);
   if (getTraceFlag() & FACT_HGH_TRACE) {
@@ -167,12 +196,12 @@ char bookFactor(Factor *f) {
   if (getTraceFlag() & FACT_HGH_TRACE) {
     Rprintf("\nbookFactor(%4d) ENTRY ...\n", f -> r);
   }
-  if (f -> r > MAX_EXACT_LEVEL) {
+  if (((f -> r) < 2) || ((f -> r) > MAX_EXACT_LEVEL)) {
     Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Maximum number of factor levels violated in bookFactor(). ");
-    Rprintf("\nRSF:  Requested %10d, Maximum Allowed %10d. ", f -> r, MAX_EXACT_LEVEL);
+    Rprintf("\nRSF:  Minimum or Maximum number of factor levels violated in bookFactor(). ");
+    Rprintf("\nRSF:  Requested %10d, Minimum Allowed %10d, Maximum Allowed %10d. ", f -> r, 2, MAX_EXACT_LEVEL);
     Rprintf("\nRSF:  The application will now exit. \n");
-    exit(FALSE);
+    exit(TRUE);
   }
   if (f -> cardinalGroupBinary == NULL) {
     uint *leftLevel = uivector(1, f -> r);
@@ -286,7 +315,7 @@ void nChooseK (uint n, uint r, char type, void *result) {
         Rprintf("\nRSF:  Arithmetic Overflow Encountered in nChooseK(n, k). ");
         Rprintf("\nRSF:  Incoming parameters are (%10d, %10d). ", n, r);
         Rprintf("\nRSF:  The application will now exit. \n");
-        exit(FALSE);
+        exit(TRUE);
       }
       total = (total * newMultiplier) / newDivisor;
       multiplier--;

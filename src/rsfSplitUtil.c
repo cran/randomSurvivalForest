@@ -1,64 +1,96 @@
-//**********************************************************************
-//**********************************************************************
-//
-//  RANDOM SURVIVAL FOREST 3.5.1
-//
-//  Copyright 2008, Cleveland Clinic Foundation
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public
-//  License along with this program; if not, write to the Free
-//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-//  Boston, MA  02110-1301, USA.
-//
-//  Project funded by:
-//    National Institutes of Health, HL072771-01
-//
-//    Michael S Lauer, MD, FACC, FAHA
-//    Cleveland Clinic Lerner College of Medicine of CWRU
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  lauerm@ccf.org
-//    phone:   216-444-6798
-//
-//  Written by:
-//    Hemant Ishwaran, Ph.D.
-//    Dept of Quantitative Health Sciences/Wb4
-//    Cleveland Clinic Foundation
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  hemant.ishwaran@gmail.com
-//    phone:  216-444-9932
-//    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-//    --------------------------------------------------------------
-//    Udaya B. Kogalur, Ph.D.
-//    Kogalur Shear Corporation
-//    5425 Nestleway Drive, Suite L1
-//    Clemmons, NC 27012
-//
-//    email:  ubk2101@columbia.edu
-//    phone:  919-824-9825
-//    URL:    www.kogalur-shear.com
-//
-//**********************************************************************
-//**********************************************************************
+////**********************************************************************
+////**********************************************************************
+////
+////  RANDOM SURVIVAL FOREST 3.6.0
+////
+////  Copyright 2009, Cleveland Clinic Foundation
+////
+////  This program is free software; you can redistribute it and/or
+////  modify it under the terms of the GNU General Public License
+////  as published by the Free Software Foundation; either version 2
+////  of the License, or (at your option) any later version.
+////
+////  This program is distributed in the hope that it will be useful,
+////  but WITHOUT ANY WARRANTY; without even the implied warranty of
+////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+////  GNU General Public License for more details.
+////
+////  You should have received a copy of the GNU General Public
+////  License along with this program; if not, write to the Free
+////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+////  Boston, MA  02110-1301, USA.
+////
+////  ----------------------------------------------------------------
+////  Project Partially Funded By:
+////    --------------------------------------------------------------
+////    National Institutes of Health,  Grant HHSN268200800026C/0001
+////
+////    Michael S. Lauer, M.D., FACC, FAHA 
+////    National Heart, Lung, and Blood Institute
+////    6701 Rockledge Dr, Room 10122
+////    Bethesda, MD 20892
+////
+////    email:  lauerm@nhlbi.nih.gov
+////
+////    --------------------------------------------------------------
+////    Case Western Reserve University/Cleveland Clinic  
+////    CTSA Grant:  UL1 RR024989, National Center for
+////    Research Resources (NCRR), NIH
+////
+////    --------------------------------------------------------------
+////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+////    Andy Minn, M.D., Ph.D.
+////    Department of Radiation and Cellular Oncology, and
+////    Ludwig Center for Metastasis Research
+////    The University of Chicago, Jules F. Knapp Center, 
+////    924 East 57th Street, Room R318
+////    Chicago, IL 60637
+//// 
+////    email:  aminn@radonc.uchicago.edu
+////
+////    --------------------------------------------------------------
+////    Bryan Lau, Ph.D.
+////    Department of Medicine, Johns Hopkins School of Medicine,
+////    Baltimore, Maryland 21287
+////
+////    email:  blau1@jhmi.edu
+////
+////  ----------------------------------------------------------------
+////  Written by:
+////    --------------------------------------------------------------
+////    Hemant Ishwaran, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    9500 Euclid Avenue
+////    Cleveland, OH 44195
+////
+////    email:  hemant.ishwaran@gmail.com
+////    phone:  216-444-9932
+////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+////
+////    --------------------------------------------------------------
+////    Udaya B. Kogalur, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    
+////    Kogalur Shear Corporation
+////    5425 Nestleway Drive, Suite L1
+////    Clemmons, NC 27012
+////
+////    email:  ubk2101@columbia.edu
+////    phone:  919-824-9825
+////    URL:    www.kogalur-shear.com
+////    --------------------------------------------------------------
+////
+////**********************************************************************
+////**********************************************************************
 
-#include       "global.h"
-#include       "nrutil.h"
-#include "rsfFactorOps.h"
-#include "rsfSplitUtil.h"
-extern uint getTraceFlag();
+#include        "global.h"
+#include        "extern.h"
+#include         "trace.h"
+#include        "nrutil.h"
+#include  "rsfFactorOps.h"
+#include  "rsfSplitUtil.h"
 void updateMaximumSplit(double  delta, 
                         uint    randomCovariate,
                         uint    index,
@@ -68,11 +100,14 @@ void updateMaximumSplit(double  delta,
                         uint   *splitParameterMax,
                         void   *permissibleSplitPtr) {
   uint k;
+  if (getTraceFlag() & SPLT_HGH_TRACE) {
+    Rprintf("\nupdateMaximumSplit() ENTRY ...\n");
+  }
   if (delta > *deltaMax) {
     *deltaMax = delta;
     *splitParameterMax = randomCovariate;
     if (getTraceFlag() & SPLT_MED_TRACE) {
-      Rprintf("\n\nRunning Split Statistics: \n");
+      Rprintf("\n\nUpdated Running Split Statistics: \n");
       Rprintf("  SplitParm  SplitValIdx        Delta \n");
       Rprintf(" %10d %12d %12.4f \n", randomCovariate, index, *deltaMax);
     }
@@ -94,7 +129,7 @@ void updateMaximumSplit(double  delta,
           ((uint*) permissibleSplitPtr + ((index - 1) * _splitValueMaxFactSize))[k];
       }
       if (getTraceFlag() & SPLT_MED_TRACE) {
-        Rprintf("MWCPsize= %2d, mwcp= ", _splitValueMaxFactSize);
+        Rprintf(" at MWCPsize= %2d, mwcp= ", _splitValueMaxFactSize);
         for (k = _splitValueMaxFactSize; k >= 1; k--) {
           Rprintf("%8x ", _splitValueMaxFactPtr[k]);
         }
@@ -111,9 +146,12 @@ void updateMaximumSplit(double  delta,
       }
       _splitValueMaxCont = ((double*) permissibleSplitPtr)[index];
       if (getTraceFlag() & SPLT_MED_TRACE) {
-        Rprintf("%12.4f \n", _splitValueMaxCont);
+        Rprintf(" at %12.4f \n", _splitValueMaxCont);
       }
     }
+  }
+  if (getTraceFlag() & SPLT_HGH_TRACE) {
+    Rprintf("\nupdateMaximumSplit() EXIT ...\n");
   }
 }
 uint stackAndSelectRandomCovariates(Node     *parent,
@@ -334,7 +372,7 @@ char getDeathCount(Node *parent,
   for (i=1; i <= _observationSize; i++) {
     if (_nodeMembership[_bootMembershipIndex[i]] == parent) {
       localMembershipIndex[++(*localMembershipSize)] = _bootMembershipIndex[i];
-      if (_status[_bootMembershipIndex[i]] == 1) {
+      if (_status[_bootMembershipIndex[i]] > 0) {
         localDeathTimeCount[_masterTimeIndex[_bootMembershipIndex[i]]] ++;
         parentDeathCount ++;
       }
@@ -344,11 +382,11 @@ char getDeathCount(Node *parent,
     Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
     Rprintf("\nLocal Membership Index for Parent Node: \n");
     for (i=1; i <= (*localMembershipSize); i++) {
-      Rprintf("%10d %10d \n", i, localMembershipIndex[i]);
+      Rprintf("%10d %10d %10d %10d %12.4f \n", i, localMembershipIndex[i], _masterTimeIndex[localMembershipIndex[i]], (uint) _status[localMembershipIndex[i]], _time[localMembershipIndex[i]]);
     }
     Rprintf("\nLocal Death Time Counts:  \n");
     for (i=1; i <= _masterTimeSize; i++) {
-      Rprintf("%10d %10d \n", i, localDeathTimeCount[i]);
+      Rprintf("%10d %10d %12.4f \n", i, localDeathTimeCount[i], _masterTime[i]);
     }
   }
   if (parentDeathCount >= (2 * (_minimumDeathCount))) {
@@ -410,42 +448,52 @@ void unstackSplit(uint *localMembershipIndex,
     Rprintf("\nunstackSplit() EXIT ...\n");
   }
 }
-void stackSplitCompact(uint size,
+void stackSplitCompact(uint   deathTimeSize,
                        uint **nodeParentDeath,
                        uint **nodeParentAtRisk,
                        uint **nodeLeftDeath,
                        uint **nodeLeftAtRisk,
                        uint **nodeRightDeath,
-                       uint **nodeRightAtRisk) {
+                       uint **nodeRightAtRisk,
+                       uint   nodeSize,
+                       char **localSplitIndicator) {
   if (getTraceFlag() & TURN_OFF_TRACE) {
     Rprintf("\nstackSplitCompact() ENTRY ...\n");
   }
-  *nodeParentDeath  = uivector(1, size);
-  *nodeParentAtRisk = uivector(1, size);
-  *nodeLeftDeath  = uivector(1, size);
-  *nodeLeftAtRisk = uivector(1, size);
-  *nodeRightDeath  = uivector(1, size);
-  *nodeRightAtRisk = uivector(1, size);
+  *nodeParentDeath  = uivector(1, deathTimeSize);
+  *nodeParentAtRisk = uivector(1, deathTimeSize);
+  *nodeLeftDeath  = uivector(1, deathTimeSize);
+  *nodeLeftAtRisk = uivector(1, deathTimeSize);
+  *nodeRightDeath  = uivector(1, deathTimeSize);
+  *nodeRightAtRisk = uivector(1, deathTimeSize);
+  if ((nodeSize > 0) && (localSplitIndicator != NULL)) {
+    *localSplitIndicator = cvector(1, nodeSize);
+  } 
   if (getTraceFlag() & TURN_OFF_TRACE) {
     Rprintf("\nstackSplitCompact() EXIT ...\n");
   }
 }
-void unstackSplitCompact(uint size,
+void unstackSplitCompact(uint  deathTimeSize,
                          uint *nodeParentDeath,
                          uint *nodeParentAtRisk,
                          uint *nodeLeftDeath,
                          uint *nodeLeftAtRisk,
                          uint *nodeRightDeath,
-                         uint *nodeRightAtRisk) {
+                         uint *nodeRightAtRisk,
+                         uint  nodeSize,
+                         char *localSplitIndicator) {
   if (getTraceFlag() & TURN_OFF_TRACE) {
     Rprintf("\nunstackSplitCompact() ENTRY ...\n");
   }
-  free_uivector(nodeParentDeath, 1, size);
-  free_uivector(nodeParentAtRisk, 1, size);
-  free_uivector(nodeLeftDeath, 1, size);
-  free_uivector(nodeLeftAtRisk, 1, size);
-  free_uivector(nodeRightDeath, 1, size);
-  free_uivector(nodeRightAtRisk, 1, size);
+  free_uivector(nodeParentDeath, 1, deathTimeSize);
+  free_uivector(nodeParentAtRisk, 1, deathTimeSize);
+  free_uivector(nodeLeftDeath, 1, deathTimeSize);
+  free_uivector(nodeLeftAtRisk, 1, deathTimeSize);
+  free_uivector(nodeRightDeath, 1, deathTimeSize);
+  free_uivector(nodeRightAtRisk, 1, deathTimeSize);
+  if ((nodeSize > 0) && (localSplitIndicator != NULL)) {
+    free_cvector(localSplitIndicator, 1, nodeSize);
+  } 
   if (getTraceFlag() & TURN_OFF_TRACE) {
     Rprintf("\nunstackSplitCompact() EXIT ...\n");
   }
@@ -462,7 +510,7 @@ void getAtRisk(uint *localMembershipIndex,
     Rprintf("\ngetAtRisk() ENTRY ...\n");
   }
   if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nLocal Death Counts (i, deaths): \n");
+    Rprintf("\nLocal Death Counts (timIdx, deaths): \n");
   }
   for (i=1; i <= localDeathTimeSize; i++) {
     nodeParentAtRisk[i] = 0;
@@ -477,9 +525,9 @@ void getAtRisk(uint *localMembershipIndex,
     }
   }
   if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nLocal At Risk Counts (i, at risk): \n");
-    for (j=1; j <= localDeathTimeSize; j++) {
-      Rprintf("%10d %10d \n", j, nodeParentAtRisk[j]);
+    Rprintf("\nLocal At Risk Counts (timIdx, at risk): \n");
+    for (i=1; i <= localDeathTimeSize; i++) {
+      Rprintf("%10d %10d \n", i, nodeParentAtRisk[i]);
     }
   }
   if (getTraceFlag() & SPLT_HGH_TRACE) {
@@ -505,7 +553,7 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
   splitLength = 0;  
   (*permissibleSplitPtr) = NULL;  
   if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nSplitting on (parameter, size):  %10d %10d \n", randomCovariateIndex, permissibleSplitSize);
+    Rprintf("\nSplitting on (parameter, of size):  %10d %10d \n", randomCovariateIndex, permissibleSplitSize);
   }
   if (strcmp(_xType[randomCovariateIndex], "C") == 0) {
     *factorFlag = TRUE;
@@ -517,55 +565,61 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
     if (getTraceFlag() & SPLT_MED_TRACE) {
       Rprintf("\n(Absolute Factor Size, Absolute MWCP Size):  (%10d, %10d)", factorSizeAbsolute, *mwcpSizeAbsolute);
     }
-    if(_splitRandomRule == 0) {
-      *deterministicSplitFlag = TRUE;
-      if ((_factorList[permissibleSplitSize] -> r) > MAX_EXACT_LEVEL) {
-        *deterministicSplitFlag = FALSE;
-      }
-      else {
-        if ( *((uint *) _factorList[permissibleSplitSize] -> complementaryPairCount) >= localMembershipSize ) {
-          *deterministicSplitFlag = FALSE;
-        }
-      }
-      if (*deterministicSplitFlag == FALSE) {
-        splitLength = localMembershipSize + 1;
-        if (getTraceFlag() & SPLT_MED_TRACE) {
-          if (permissibleSplitSize <= MAX_EXACT_LEVEL) {
-            Rprintf("\nFactor override to random (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
-                    *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
-                    _splitRandomRule,
-                    localMembershipSize);
-          }
-          else {
-            Rprintf("\nFactor override to random (pSplit, nSplit, ndSize):  (%24.0f, %10d, %10d) \n", 
-                    *((double*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
-                    _splitRandomRule,
-                    localMembershipSize);
-          }
-        }
-      }
-      else {
-        splitLength = *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) + 1;
-      }
+    if (_splitRule == RANDOM_SPLIT) {
+      splitLength = 1 + ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize);
+      *deterministicSplitFlag = FALSE;
     }
     else {
-      *deterministicSplitFlag = FALSE;
-      if ((_factorList[permissibleSplitSize] -> r) <= MAX_EXACT_LEVEL) {
-        if (*((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) <= ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize)) {
-          splitLength = *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) + 1;
-          *deterministicSplitFlag = TRUE;
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            Rprintf("\nFactor override to determ (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
-                    *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
-                    _splitRandomRule,
-                    localMembershipSize);
+      if(_splitRandomRule == 0) {
+        *deterministicSplitFlag = TRUE;
+        if ((_factorList[permissibleSplitSize] -> r) > MAX_EXACT_LEVEL) {
+          *deterministicSplitFlag = FALSE;
+        }
+        else {
+          if ( *((uint *) _factorList[permissibleSplitSize] -> complementaryPairCount) >= localMembershipSize ) {
+            *deterministicSplitFlag = FALSE;
           }
         }
+        if (*deterministicSplitFlag == FALSE) {
+          splitLength = localMembershipSize + 1;
+          if (getTraceFlag() & SPLT_MED_TRACE) {
+            if (permissibleSplitSize <= MAX_EXACT_LEVEL) {
+              Rprintf("\nFactor override to random (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
+                      *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
+                      _splitRandomRule,
+                      localMembershipSize);
+            }
+            else {
+              Rprintf("\nFactor override to random (pSplit, nSplit, ndSize):  (%24.0f, %10d, %10d) \n", 
+                      *((double*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
+                      _splitRandomRule,
+                      localMembershipSize);
+            }
+          }
+        }
+        else {
+          splitLength = *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) + 1;
+        }
       }
-      if (*deterministicSplitFlag == FALSE) {
-        splitLength = 1 + ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize);
-      }
-    }
+      else {
+        *deterministicSplitFlag = FALSE;
+        if ((_factorList[permissibleSplitSize] -> r) <= MAX_EXACT_LEVEL) {
+          if (*((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) <= ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize)) {
+            splitLength = *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) + 1;
+            *deterministicSplitFlag = TRUE;
+            if (getTraceFlag() & SPLT_MED_TRACE) {
+              Rprintf("\nFactor override to determ (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
+                      *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
+                      _splitRandomRule,
+                      localMembershipSize);
+            }
+          }
+        }
+        if (*deterministicSplitFlag == FALSE) {
+          splitLength = 1 + ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize);
+        }
+      }  
+    }  
     (*permissibleSplitPtr) = uivector(1, splitLength * (*mwcpSizeAbsolute));
     for (offset = 1; offset <= *mwcpSizeAbsolute; offset++) {
       ((uint*) (*permissibleSplitPtr) + ((splitLength - 1) * (*mwcpSizeAbsolute)))[offset] = 0;
@@ -593,33 +647,41 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
   }  
   else {
     *factorFlag = FALSE;
-    if(_splitRandomRule == 0) {
-      splitLength = permissibleSplitSize;
-      (*permissibleSplitPtr) = permissibleSplit;
-      *deterministicSplitFlag = TRUE;
+    if (_splitRule == RANDOM_SPLIT) {
+      splitLength = 1 + ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize);
+      *deterministicSplitFlag = FALSE;
     }
     else {
-      if (permissibleSplitSize <= _splitRandomRule) {
+      if(_splitRandomRule == 0) {
         splitLength = permissibleSplitSize;
         (*permissibleSplitPtr) = permissibleSplit;
         *deterministicSplitFlag = TRUE;
-        if (getTraceFlag() & SPLT_MED_TRACE) {
-          Rprintf("\nContinuous override to determ (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
-                  permissibleSplitSize,
-                  _splitRandomRule,
-                  localMembershipSize);
-        }
       }
       else {
-        splitLength = _splitRandomRule + 1;
-        *deterministicSplitFlag = FALSE;
-        (*permissibleSplitPtr) = dvector(1, splitLength);
-        ((double*) (*permissibleSplitPtr))[splitLength] = 0;
-        for (j = 1; j <= _splitRandomRule; j++) {
-          k = permissibleSplitSize - 1;
-          ((double*) (*permissibleSplitPtr))[j]  = permissibleSplit[(uint) ceil(ran2(_seed2Ptr)*(k*1.0))];
+        if (permissibleSplitSize <= _splitRandomRule) {
+          splitLength = permissibleSplitSize;
+          (*permissibleSplitPtr) = permissibleSplit;
+          *deterministicSplitFlag = TRUE;
+          if (getTraceFlag() & SPLT_MED_TRACE) {
+            Rprintf("\nContinuous override to determ (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
+                    permissibleSplitSize,
+                    _splitRandomRule,
+                    localMembershipSize);
+          }
+        }
+        else {
+          splitLength = _splitRandomRule + 1;
+          *deterministicSplitFlag = FALSE;
         }
       }  
+    }  
+    if (*deterministicSplitFlag == FALSE) {
+      (*permissibleSplitPtr) = dvector(1, splitLength);
+      ((double*) (*permissibleSplitPtr))[splitLength] = 0;
+      for (j = 1; j < splitLength; j++) {
+        k = permissibleSplitSize - 1;
+        ((double*) (*permissibleSplitPtr))[j]  = permissibleSplit[(uint) ceil(ran2(_seed2Ptr)*(k*1.0))];
+      }
     }  
   }  
   if (getTraceFlag() & SPLT_MED_TRACE) {
@@ -662,18 +724,22 @@ void virtuallySplitNode (uint  localMembershipSize,
                          uint *leftDeathTimeSize,
                          uint *nodeRightAtRisk,
                          uint *nodeRightDeath,
-                         uint *rightDeathTimeSize) {
+                         uint *rightDeathTimeSize,
+                         char *localSplitIndicator) {
   char daughterFlag;
   uint k, m, index;
   if (getTraceFlag() & SPLT_MED_TRACE) {
+    Rprintf("\nvirtuallySplitNode() ENTRY ...\n");
+  }
+  if (getTraceFlag() & SPLT_MED_TRACE) {
     if (factorFlag == TRUE) {
-      Rprintf("\nSplitting on factor (mwcp):  ");
+      Rprintf("\nSplitting on (index, factor (mwcp)):  ");
       for (k = mwcpSizeAbsolute; k >= 1; k--) {
-        Rprintf("%8x ", ((uint*) permissibleSplitPtr + ((offset - 1) * mwcpSizeAbsolute))[k]);
+        Rprintf("( %10d, %8x)", offset, ((uint*) permissibleSplitPtr + ((offset - 1) * mwcpSizeAbsolute))[k]);
       }
     }
     else {
-      Rprintf("\nSplitting on value:  %12.4f \n", ((double*) permissibleSplitPtr)[offset]);
+      Rprintf("\nSplitting on (index, value):  ( %10d, %12.4f) \n", offset, ((double*) permissibleSplitPtr)[offset]);
     }
   }
   *leftDeathTimeSize = *rightDeathTimeSize = 0;
@@ -689,6 +755,9 @@ void virtuallySplitNode (uint  localMembershipSize,
       if (_observation[randomCovariate][localMembershipIndex[k]] <= ((double*) permissibleSplitPtr)[offset]) {
         daughterFlag = LEFT;
       }
+    }
+    if (localSplitIndicator != NULL) {
+      localSplitIndicator[k] = daughterFlag;
     }
     if (daughterFlag == LEFT) {
       if (getTraceFlag() & SPLT_HGH_TRACE) {
@@ -707,12 +776,12 @@ void virtuallySplitNode (uint  localMembershipSize,
           m = localDeathTimeSize;
         }
       }
-      if (_status[localMembershipIndex[k]] == 1) {
+      if (_status[localMembershipIndex[k]] > 0) {
         nodeLeftDeath[index] ++;
       }
     }  
     else {
-      if (getTraceFlag() & TURN_OFF_TRACE) {
+      if (getTraceFlag() & SPLT_HGH_TRACE) {
         Rprintf("\nMember of RGHT Daughter (index):  %10d %10d \n", k, localMembershipIndex[k]);
       }
     }
@@ -729,15 +798,28 @@ void virtuallySplitNode (uint  localMembershipSize,
   }
   if (getTraceFlag() & SPLT_HGH_TRACE) {
     Rprintf("\nRunning Split Risk Counts: \n");
-    Rprintf("     index    PARrisk    LFTrisk    RGTrisk    PARdeath   LFTdeath   RGTdeath\n");
+    Rprintf("     timIdx    PARrisk    LFTrisk    RGTrisk    PARdeath   LFTdeath   RGTdeath\n");
     for (k=1; k <=  localDeathTimeSize; k++) {
-      Rprintf("%10d %10d %10d %10d %10d %10d %10d\n", k,
+      Rprintf(" %10d %10d %10d %10d %10d %10d %10d\n", k,
               nodeParentAtRisk[k], nodeLeftAtRisk[k], nodeRightAtRisk[k],
               nodeParentDeath[k], nodeLeftDeath[k], nodeRightDeath[k]);
     }
+    uint totalDeathCount = 0;
+    uint leftDeathCount  = 0;
+    uint rightDeathCount = 0;
+    for (k=1; k <=  localDeathTimeSize; k++) {
+      totalDeathCount += nodeParentDeath[k];
+      leftDeathCount  += nodeLeftDeath[k];
+      rightDeathCount += nodeRightDeath[k];
+    }
+    Rprintf("\nRunning Split Total LFT & RGT Deaths: \n");
+    Rprintf("                                             %10d %10d %10d \n", totalDeathCount, leftDeathCount, rightDeathCount);
     Rprintf("\nRunning Split Total LFT & RGT Unique Death Times: \n");
-    Rprintf("%10d %10d \n", *leftDeathTimeSize, *rightDeathTimeSize);
+    Rprintf(" %10d %10d \n", *leftDeathTimeSize, *rightDeathTimeSize);
   }          
+  if (getTraceFlag() & SPLT_MED_TRACE) {
+    Rprintf("\nvirtuallySplitNode() EXIT ...\n");
+  }
 }
 void getReweightedRandomPair (uint relativeFactorSize, uint absoluteFactorSize, double *absoluteLevel, uint *result) {
   uint randomGroupIndex;
@@ -930,6 +1012,9 @@ void convertRelToAbsBinaryPair(uint    relativeFactorSize,
 char summarizeSplitResult(uint splitParameterMax, double deltaMax) {
   char result;
   uint k;
+  if (getTraceFlag() & SPLT_HGH_TRACE) {
+    Rprintf("\nsummarizeSplitResult() ENTRY ...\n");
+  }
   if (splitParameterMax > 0) {
     result = TRUE;
     if (getTraceFlag() & SPLT_LOW_TRACE) {
@@ -937,19 +1022,22 @@ char summarizeSplitResult(uint splitParameterMax, double deltaMax) {
       Rprintf("  SplitParm        Delta \n");
       Rprintf(" %10d %12.4f \n", splitParameterMax, deltaMax);
       if (strcmp(_xType[splitParameterMax], "C") == 0) {
-        Rprintf("MWCPsize= %2d, mwcp= ", _splitValueMaxFactSize);
+        Rprintf(" at MWCPsize= %2d, mwcp= ", _splitValueMaxFactSize);
         for (k = _splitValueMaxFactSize; k >= 1; k--) {
           Rprintf("%8x ", _splitValueMaxFactPtr[k]);
         }
         Rprintf("\n");
       }
       else {
-        Rprintf(" %12.4f \n", _splitValueMaxCont);
+        Rprintf(" at %12.4f \n", _splitValueMaxCont);
       }
     }
   }
   else {
     result = FALSE;
+  }
+  if (getTraceFlag() & SPLT_HGH_TRACE) {
+    Rprintf("\nsummarizeSplitResult(%1d) EXIT ...\n", result);
   }
   return result;
 }

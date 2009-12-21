@@ -84,7 +84,11 @@
   veteran.pmml <- rsf2pmml(veteran.forest)
 
   # Save the document to disk.
-  saveXML(veteran.pmml, "veteran.forest.xml")
+  userFile = file("veteran.forest.xml")
+  saveXML(veteran.pmml, userFile)
+  close(userFile)
+
+  # Read the just written document.
   veteran.pmml <- xmlRoot(xmlTreeParse("veteran.forest.xml"))
 
   partial.forest <- pmml2rsf(veteran.pmml)

@@ -9,24 +9,31 @@
               test = NULL,
               importance = c("randomsplit", "permute", "none")[1],
               na.action = c("na.omit", "na.impute")[1],
+              outcome = c("train", "test")[1],
               proximity = FALSE,
+              split.depth = FALSE,
               seed = NULL,
               do.trace = FALSE,
               ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
-	forest)}. Note that \code{forest}=TRUE must be used in the
-        original \code{rsf} call for prediction to work.}
+	forest)}. Requires \code{forest}=TRUE in the original \code{rsf}
+        call.}
     \item{test}{Data frame containing test data. Missing values allowed.}
     \item{importance}{Method used to compute variable importance (VIMP).  Only
-        applies when test data contains outcomes.}
-    \item{na.action}{Action to be taken if the data contain NA's.  Possible
+        applies when test data contains survival outcomes.}
+    \item{na.action}{Action to be taken if the data contains NA's.  Possible
         values are \code{na.omit}, which removes the entire record if
         even one of its entries is NA, and \code{na.impute}, which
         imputes the test data.  See details below.}
+    \item{outcome}{Data frame used in calculating the ensemble.  By
+      default this is always the training data, but see details below.}
     \item{proximity}{Logical. Should proximity measure between
-        test observations be calculated? Can be large. Default is FALSE.}
+        test observations be calculated? Can be large. Default is
+	FALSE.}
+    \item{split.depth}{Return minimal depth for each variable for each
+        test set individual? Default is FALSE. See details below.}
     \item{seed}{Seed for random number generator.  Must be a negative
         integer (the R wrapper handles incorrectly set seed values).}
     \item{do.trace}{Logical. Should trace output be enabled? Default is
@@ -36,15 +43,29 @@
 }
 \details{
   \code{predict.rsf} takes a test data set, drops it down the forest
-   grown from the training data, and computes an ensemble cumulative
+   grown from the training data, and using the grow-forest (i.e., the
+   forest grown from the training data), computes an ensemble cumulative
    hazard function (CHF).  CHF's are calculated for each individual in
    the test data for all unique death time points from the original grow
-   (training) data.  Overall error rate and the VIMP for each variable
-   are computed for the test data if outcome information is available.
+   data.  If survival outcome information is present in the test data,
+   the overall error rate and VIMP for each variable is also returned.
    Setting \code{na.action}=\code{na.impute} imputes missing test data
-   (x-variables or outcomes) using the forest grown from the training
-   data (Ishwaran et al. 2008).  Only training data is used in imputing
-   test data to avoid biasing error rates.
+   (x-variables or outcomes).  Imputation uses the grow-forest such that
+   only training data is used when imputing test data to avoid biasing
+   error rates and VIMP (Ishwaran et al. 2008).
+
+  For competing risks, the ensemble conditional CHF (CCHF) is computed
+  for each event type in addition to the ensemble CHF.
+
+  If \code{outcome}=\code{test}, the ensemble is calculated by
+  specifically using survival information from the test data (survival
+  information must be present).  In this case, the terminal nodes from
+  the grow-forest are recalculated using survival data from the test
+  set.  This yields a modified predictor in which the topology of the
+  forest is based solely on the training data, but where the predicted
+  value is based on the test data.  Error rates and VIMP are calculated
+  by bootstrapping the test data and using out-of-bagging to ensure
+  unbiased estimates.  See Examples 2 and 3 below for illustration.
 }    
 \value{
      An object of class \code{(rsf, predict)}, which is a list with the
@@ -61,27 +82,40 @@
      \item{time}{Vector of survival times from test data (can be NULL).}
      \item{cens}{Vector of censoring indicators from test data (can be NULL).}
      \item{predictorNames}{Character vector of variable names.}
-     \item{predictors}{Data frame comprising x-variables used for prediction.}
-     \item{ensemble}{Matrix containing the ensemble CHF for the test data. Each
-         row corresponds to a test data individual's CHF evaluated at
-	 each of the time points in \code{timeInterest}.}
+     \item{predictors}{Data frame comprising x-variables used for
+         prediction.}
+     \item{ensemble}{Matrix containing the ensemble CHF for the test
+         data. Each row corresponds to a test data individual's CHF
+         evaluated at each of the time points in \code{timeInterest}.
+         For competing risks, a 3-D array where the 3rd dimension is for
+         the ensemble CHF and each of the CCHFs, respectively.}
      \item{mortality}{Vector containing ensemble mortality for each
-         individual in the test data.  Ensemble mortality values should
-         be interpreted in terms of total number of training deaths.}
+         individual in the test data.  Ensemble mortality should
+         be interpreted in terms of total number of training deaths if
+         \code{outcome}=\code{train}.}
      \item{err.rate}{Vector of length \code{ntree} containing error
-         rate of the test data.  Can be NULL.}
-     \item{importance}{VIMP of each variable in the test data. Can be NULL.}
+         rate of the test data.  For competing risks, a matrix with
+         rows corresponding to the ensemble CHF and each of the CCHFs,
+         respectively. Can be NULL.  If \code{outcome}=\code{test} only the
+	 error rate for the combined forest is returned.}
+     \item{importance}{VIMP of each variable in the test data.  For
+         competing risks, a matrix with rows corresponding to the
+         ensemble CHF and each of the CCHFs, respectively.  Can be
+         NULL.}
      \item{proximity}{If \code{proximity}=TRUE, a matrix recording
 	 proximity of the inputs from test data is computed.  Value
 	 returned is a vector of the lower diagonal of the matrix.  Use
 	 \code{plot.proximity()} to extract this information.}
      \item{imputedIndv}{Vector of indices of records in test data with
-       missing values.  Can be NULL.}
+         missing values.  Can be NULL.}
      \item{imputedData}{Data frame comprising imputed test data.  First
-        two columns are censoring and survival time, respectively. The
-        remaining columns are the x-variables.  Row i contains imputed
-        outcomes and x-variables for row \code{imputedIndv}[i] of
+         two columns are censoring and survival time, respectively. The
+         remaining columns are the x-variables.  Row i contains imputed
+         outcomes and x-variables for row \code{imputedIndv}[i] of
         \code{predictors}.  Can be NULL.}
+      \item{splitDepth}{Matrix where entry [i][j] is the mean minimal
+	  depth for variable [j] for case [i] in the test data. Used for
+	 variable selection (see \code{max.subtree}).  Can be NULL.}
 }
 \note{
     The key deliverable is the matrix \code{ensemble} which contains the
@@ -96,28 +130,81 @@
     L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
 
     H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2008).  Random survival forests, \emph{To appear in Ann. App.
-    Statist.}.
+    (2008).  Random survival forests, \emph{Ann. App.
+    Statist.}, 2:841-860.
 
     H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
     \emph{Rnews}, 7/2:25-31.
 }	
 \seealso{
-  \code{rsf},
-  \code{print.rsf},
+  \code{competing.risk},
   \code{plot.ensemble},
   \code{plot.variable},
   \code{plot.error},
-  \code{plot.proximity},
   \code{pmml2rsf},
+  \code{print.rsf},
+  \code{rsf},
+  \code{rsf2rfz},
   \code{rsf2pmml}.
 }
 \examples{
+#------------------------------------------------------------
+# Example 1:  Veteran's Administration lung cancer data
+
 data(veteran, package = "randomSurvivalForest")
-train.pt <- sample(1:nrow(veteran), round(nrow(veteran)*0.80))
-veteran.out <- rsf(Survrsf(time, status) ~ ., forest = TRUE,
-                   data = veteran[train.pt , ])
-veteran.pred <- predict.rsf(veteran.out, veteran[-train.pt , ])
+pt.train <- sample(1:nrow(veteran), round(nrow(veteran)*0.80))
+veteran.out <- rsf(Surv(time, status) ~ ., forest = TRUE,
+                   data = veteran[pt.train , ])
+veteran.pred <- predict(veteran.out, veteran[-pt.train , ])
+
+\dontrun{
+#------------------------------------------------------------
+# Example 2:  Get out-of-bag error rate using the training
+# data as test data (pbc example)
+
+data(pbc, package = "randomSurvivalForest")
+pbc.grow <- rsf(Surv(days, status) ~ ., pbc, nsplit = 3, forest = TRUE)
+pbc.pred <- predict(pbc.grow, pbc, outcome = "test")
+cat("GROW error rate  :", round(pbc.grow$err.rate[1000], 3))
+cat("PRED error rate  :", round(pbc.pred$err.rate, 3))
+
+#------------------------------------------------------------
+# Example 3:  Verify reproducibility of forest (pbc data)
+
+#primary call
+data(pbc, package = "randomSurvivalForest")
+pt.train <- sample(1:nrow(pbc), round(nrow(pbc)*0.50))
+pbc.out <- rsf(Surv(days, status) ~ ., nsplit = 3, forest = TRUE,
+               data = pbc[pt.train, ])
+
+#make separate predict calls using the outcome option
+pbc.train <- predict(pbc.out, pbc[-pt.train, ], outcome = "train")
+pbc.test <- predict(pbc.out, pbc[-pt.train, ], outcome = "test")
+
+#check forest reproducibilility by comparing predicted survival curves
+timeInterest <- pbc.out$timeInterest
+surv.train <- exp(-pbc.train$ensemble)
+surv.test <- exp(-pbc.test$ensemble)
+matplot(timeInterest, t(surv.train - surv.test), type = "l")
+
+#test reproducibility by repeating B times
+#compute l1-difference in predicted survival
+B <- 25
+l1.valid <- rep(NA, B)
+for (b in 1:B) {
+ cat("Replication:", b, "\n")
+ pt.train <- sample(1:nrow(pbc), round(nrow(pbc)*0.50))
+ pbc.out <- rsf(Surv(days, status) ~ ., nsplit = 3, forest = TRUE,
+                 data = pbc[pt.train, ])
+ surv.train <- exp(-predict(pbc.out, pbc[-pt.train, ], outcome = "train")$ensemble)
+ surv.test <- exp(-predict(pbc.out, pbc[-pt.train, ], outcome = "test")$ensemble)
+ l1.valid <-
+   mean(apply(abs(surv.train - surv.test), 1, mean, na.rm = TRUE), na.rm = TRUE)
+}
+cat("l1-reproducibility:", round(mean(l1.valid, na.rm = TRUE), 3), "\n")
+
+
+}
 }
 
 \keyword{survival}

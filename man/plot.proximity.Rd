@@ -9,8 +9,7 @@
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
-	predict)}. Note that \code{proximity}=TRUE must be used in
-        the original \code{rsf} call.}
+	predict)}. }
     \item{plot}{Logical.  If TRUE, proximity is plotted.}
     \item{...}{Further arguments passed to or from other methods.}
 }

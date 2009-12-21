@@ -1,72 +1,104 @@
-//**********************************************************************
-//**********************************************************************
-//
-//  RANDOM SURVIVAL FOREST 3.5.1
-//
-//  Copyright 2008, Cleveland Clinic Foundation
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public
-//  License along with this program; if not, write to the Free
-//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-//  Boston, MA  02110-1301, USA.
-//
-//  Project funded by:
-//    National Institutes of Health, HL072771-01
-//
-//    Michael S Lauer, MD, FACC, FAHA
-//    Cleveland Clinic Lerner College of Medicine of CWRU
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  lauerm@ccf.org
-//    phone:   216-444-6798
-//
-//  Written by:
-//    Hemant Ishwaran, Ph.D.
-//    Dept of Quantitative Health Sciences/Wb4
-//    Cleveland Clinic Foundation
-//    9500 Euclid Avenue
-//    Cleveland, OH 44195
-//
-//    email:  hemant.ishwaran@gmail.com
-//    phone:  216-444-9932
-//    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-//    --------------------------------------------------------------
-//    Udaya B. Kogalur, Ph.D.
-//    Kogalur Shear Corporation
-//    5425 Nestleway Drive, Suite L1
-//    Clemmons, NC 27012
-//
-//    email:  ubk2101@columbia.edu
-//    phone:  919-824-9825
-//    URL:    www.kogalur-shear.com
-//
-//**********************************************************************
-//**********************************************************************
+////**********************************************************************
+////**********************************************************************
+////
+////  RANDOM SURVIVAL FOREST 3.6.0
+////
+////  Copyright 2009, Cleveland Clinic Foundation
+////
+////  This program is free software; you can redistribute it and/or
+////  modify it under the terms of the GNU General Public License
+////  as published by the Free Software Foundation; either version 2
+////  of the License, or (at your option) any later version.
+////
+////  This program is distributed in the hope that it will be useful,
+////  but WITHOUT ANY WARRANTY; without even the implied warranty of
+////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+////  GNU General Public License for more details.
+////
+////  You should have received a copy of the GNU General Public
+////  License along with this program; if not, write to the Free
+////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+////  Boston, MA  02110-1301, USA.
+////
+////  ----------------------------------------------------------------
+////  Project Partially Funded By:
+////    --------------------------------------------------------------
+////    National Institutes of Health,  Grant HHSN268200800026C/0001
+////
+////    Michael S. Lauer, M.D., FACC, FAHA 
+////    National Heart, Lung, and Blood Institute
+////    6701 Rockledge Dr, Room 10122
+////    Bethesda, MD 20892
+////
+////    email:  lauerm@nhlbi.nih.gov
+////
+////    --------------------------------------------------------------
+////    Case Western Reserve University/Cleveland Clinic  
+////    CTSA Grant:  UL1 RR024989, National Center for
+////    Research Resources (NCRR), NIH
+////
+////    --------------------------------------------------------------
+////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+////    Andy Minn, M.D., Ph.D.
+////    Department of Radiation and Cellular Oncology, and
+////    Ludwig Center for Metastasis Research
+////    The University of Chicago, Jules F. Knapp Center, 
+////    924 East 57th Street, Room R318
+////    Chicago, IL 60637
+//// 
+////    email:  aminn@radonc.uchicago.edu
+////
+////    --------------------------------------------------------------
+////    Bryan Lau, Ph.D.
+////    Department of Medicine, Johns Hopkins School of Medicine,
+////    Baltimore, Maryland 21287
+////
+////    email:  blau1@jhmi.edu
+////
+////  ----------------------------------------------------------------
+////  Written by:
+////    --------------------------------------------------------------
+////    Hemant Ishwaran, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    9500 Euclid Avenue
+////    Cleveland, OH 44195
+////
+////    email:  hemant.ishwaran@gmail.com
+////    phone:  216-444-9932
+////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+////
+////    --------------------------------------------------------------
+////    Udaya B. Kogalur, Ph.D.
+////    Dept of Quantitative Health Sciences/Wb4
+////    Cleveland Clinic Foundation
+////    
+////    Kogalur Shear Corporation
+////    5425 Nestleway Drive, Suite L1
+////    Clemmons, NC 27012
+////
+////    email:  ubk2101@columbia.edu
+////    phone:  919-824-9825
+////    URL:    www.kogalur-shear.com
+////    --------------------------------------------------------------
+////
+////**********************************************************************
+////**********************************************************************
 
-#include       "global.h"
-#include       "nrutil.h"
-#include     "node_ops.h"
-#include "rsfFactorOps.h"
-#include    "rsfImpute.h"
-#include     "rsfSplit.h"
-#include      "rsfUtil.h"
-#include "rsfBootstrap.h"
-#include     "rsfStack.h"
-#include     "rsfEntry.h"
-#include          "rsf.h"
+#include        "global.h"
+#include         "trace.h"
+#include        "nrutil.h"
+#include        "factor.h"
+#include      "rsfStack.h"
+#include       "nodeOps.h"
+#include       "rsfTree.h"
+#include  "rsfBootstrap.h"
+#include     "rsfImpute.h"
+#include "rsfImportance.h"
+#include       "rsfUtil.h"
+#include           "rsf.h"
 uint stackCount;
-char *sexpString[RSF_SEXP_CNT] = {
+char  *sexpString[RSF_SEXP_CNT] = {
   "",              
   "",              
   "fullEnsemble",  
@@ -84,7 +116,10 @@ char *sexpString[RSF_SEXP_CNT] = {
   "importance",    
   "imputation",    
   "oobImputation", 
-  "varUsed"        
+  "varUsed",       
+  "splitDepth",    
+  "fullPOE",       
+  "oobPOE"         
 };
 SEXP sexpVector[RSF_SEXP_CNT];
 int      *_seed_;
@@ -97,6 +132,9 @@ double   *_importance_;
 double   *_imputation_;
 double   *_oobImputation_;
 uint     *_varUsed_;
+double   *_splitDepth_;
+double   *_fullEnsemblePOE_;
+double   *_oobEnsemblePOE_;
 uint     *_treeID_;
 uint     *_nodeID_;
 uint     *_parmID_;
@@ -125,14 +163,21 @@ double   *_timeInterest;
 SEXP      _sexp_xType;
 uint      _intrPredictorSize;
 uint     *_intrPredictor;
-uint     *_intrObservation;
-char     **_xType;
+uint     *_intrIndividual;
+uint     *_individualIndex;
+uint     *_predictorIndex;
+char    **_xType;
 double  **_observation;
 double  **_fobservation;
+uint     *_eventType;
+uint      _eventTypeSize;
+uint     *_eventTypeIndex;
+uint     *_eventTypeIndexSize;
 double   *_masterTime;
 uint     *_masterTimeIndex;
 uint      _masterTimeSize;
 char     *_importanceFlag;
+uint      _sortedTimeInterestSize;
 uint      _factorCount;
 uint     *_factorMap;
 uint     *_factorIndex;
@@ -162,12 +207,26 @@ double   *_mStatus;
 double   *_fmStatus;
 double   *_mTime;
 double   *_fmTime;
-double **_oobEnsemblePtr;
-double **_fullEnsemblePtr;
-double  *_ensembleRun;
-double **_vimpEnsembleRun;  
-uint    *_oobEnsembleDen;
-uint    *_fullEnsembleDen;
+double **_performancePtr;
+double ***_oobEnsemblePtr;
+double ***_fullEnsemblePtr;
+uint     *_oobEnsembleDen;
+uint     *_fullEnsembleDen;
+uint    **_oobVimpInvalidDen;
+double   **_importancePtr;
+double   **_vimpMortality;
+double ****_crVimpEnsemble;
+double  ***_crVimpPOE;
+uint      _mStatusSize; 
+uint     *_eIndividualSize;
+uint     *_meIndividualSize;
+uint    **_eIndividual;
+double ***_oobSubSurvivalPtr;
+double ***_fullSubSurvivalPtr;
+double ***_oobSubDistributionPtr;
+double ***_fullSubDistributionPtr;
+double  **_oobPOEPtr;
+double  **_fullPOEPtr;
 double  *_sImputeStatusPtr;
 double  *_sImputeTimePtr;
 double **_sImputePredictorPtr;
@@ -175,15 +234,16 @@ double  *_sOOBImputeStatusPtr;
 double  *_sOOBImputeTimePtr;
 double **_sOOBImputePredictorPtr;
 uint   **_varUsedPtr;
-uint      _totalMWCPCount;
+double **_splitDepthPtr;
+uint     _totalMWCPCount;
 int      *_seed1Ptr;
 int      *_seed2Ptr;
 Node    **_nodeMembership;
 uint     *_bootMembershipIndex;
 char     *_bootMembershipFlag;
 uint     *_oobSampleSize;
+char     *_genericMembershipFlag;
 Node    **_fnodeMembership;
-char     *_fbootMembershipFlag;
 uint     *_foobSampleSize;
 double   _splitValueMaxCont;
 uint     _splitValueMaxFactSize;
@@ -191,314 +251,81 @@ uint    *_splitValueMaxFactPtr;
 clock_t _benchTime;
 clock_t _splitTime;
 clock_t _hazrdTime;
+clock_t _chazrdTime;
 clock_t _ensblTime;
+clock_t _censblTime;
+clock_t _censblTimeSub;
 clock_t _vimprTime;
 clock_t _cindxTime;
-uint      _traceFlagDiagLevel;
-uint      _traceFlagIterValue;
-uint      _traceFlagToggler;
-uint getTraceFlag() {
-  uint result;
-  if (_traceFlagToggler == 1) {
-    result = _traceFlagDiagLevel;
-  }
-  else {
-    result = 0;
-  }
-  return result;
-}
-void updateTraceFlag(char reset) {
-  if (reset == TRUE) {
-    _traceFlagToggler = 1;
-  }
-  else {
-    if (_traceFlagToggler == 1) {
-      _traceFlagToggler = _traceFlagIterValue;
-    }
-    else {
-      _traceFlagToggler --;
-    }
-  }
-}
-char getBestSplit(Node *parent, 
-                  uint *splitParameterMax) {
-  char  result;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\ngetBestSplit() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nAttempting to split node:  %10d", parent -> leafCount);
-  }
-  switch(_splitRule) {
-  case LOG_RANK:
-    result = logRank(parent, splitParameterMax);
-    break;
-  case CONSERVE_EVENTS:
-    result = conserveEvents(parent, splitParameterMax);
-    break;
-  case LOG_RANK_SCORE:
-    result = logRankScore(parent, splitParameterMax);
-    break;
-  case RANDOM_SPLIT:
-    result = randomSplit(parent, splitParameterMax);
-    break;
-default:
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Invalid split rule:  %10d", _splitRule);
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
-    break;
-  }
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\ngetBestSplit() EXIT ...\n");
-  }
-  return result;
-}
-char forkAndUpdate(uint  *leafCount,
-                   Node  *parent,
-                   uint   splitParameter) {
-  char factorFlag;
-  char daughterFlag;
-  uint i;
-  char result;
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nforkAndUpdate() ENTRY ...\n");
-  }
-  result = forkNode(parent, splitParameter);
-  if (result == TRUE) {
-    if (getTraceFlag() & FORK_DEF_TRACE) {
-      Rprintf("\nForking On:  ");
-      Rprintf("\n   LeafCnt   SpltParm  ");
-      Rprintf("\n%10d %10d ", parent -> leafCount, parent -> splitParameter);
-      if (parent -> splitValueFactSize > 0) {
-        for (i = parent -> splitValueFactSize; i >= 1; i--) {
-          Rprintf("%8x ", (parent -> splitValueFactPtr)[i]);
-        }
-        Rprintf("\n");
-      }
-      else {
-        Rprintf(" %20.4f \n", parent -> splitValueCont);
-      }
-    }
-    (*leafCount)++;
-    factorFlag = FALSE;
-    if (strcmp(_xType[splitParameter], "C") == 0) {
-      factorFlag = TRUE;
-      _totalMWCPCount += parent -> splitValueFactSize;
-    }
-    for (i = 1; i <= _observationSize; i++) {
-      if (_nodeMembership[i] == parent) {
-        daughterFlag = RIGHT;
-        if (factorFlag == TRUE) {
-          if (_observation[splitParameter][i] != 0) {
-            daughterFlag = splitOnFactor((uint) _observation[splitParameter][i], _splitValueMaxFactPtr);
-            if (getTraceFlag() & FORK_DEF_TRACE) {
-              Rprintf("\nNode Membership:  %10d %16d", i, (uint) _observation[splitParameter][i]);
-            }
-          }
-          else {
-            Rprintf("\nRSF:  *** ERROR *** ");
-            Rprintf("\nRSF:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", i, splitParameter);
-            Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
-            exit(TRUE);
-          }
-        }
-        else {
-          if (_observation[splitParameter][i] != NA_REAL) {
-            if (getTraceFlag() & FORK_DEF_TRACE) {
-              Rprintf("\nNode Membership:  %10d %16.4f, %16.4f", i, _observation[splitParameter][i], _splitValueMaxCont);
-            }
-            if (_observation[splitParameter][i] <= _splitValueMaxCont) {
-              daughterFlag = LEFT;
-            }
-          }
-          else {
-            Rprintf("\nRSF:  *** ERROR *** ");
-            Rprintf("\nRSF:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", i, splitParameter);
-            Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
-            exit(TRUE);
-          }
-        }
-        if (daughterFlag == LEFT) {
-          _nodeMembership[i] = parent -> left;
-          ((parent -> left) -> leafCount) = (parent -> leafCount);
-          if (getTraceFlag() & FORK_DEF_TRACE) {
-            Rprintf(" --> LEFT ");
-          }
-        }
-        else {
-          _nodeMembership[i] = parent -> right;
-          ((parent -> right) -> leafCount) = *leafCount;
-          if (getTraceFlag() & FORK_DEF_TRACE) {
-            Rprintf(" --> RGHT ");
-          }
-        }
-      }
-    }
-  }
-  else {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  forkNode() failed.");
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
-  }
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nforkAndUpdate() EXIT ...\n");
-  }
-  return result;
-}
-char makeTree (char     multipleImputeFlag,
-               uint     b,
-               Node    *parent) {
-  char result;
-  uint   splitParameterMax;
-  uint i;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nmakeTree() ENTRY ...\n");
-  }
-  result = TRUE;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nMake tree leaf:  %10d \n", parent -> leafCount);
-  }
-  if (multipleImputeFlag == FALSE) {
-    if (_mRecordSize > 0) {
-      result = (testNodeSize(parent) || (_leafCount_[b] == 1));
-      if (result) {
-        imputeNode(RSF_GROW,
-                   TRUE,
-                   b,
-                   parent);
-        if (_mTimeIndexFlag == TRUE) {
-          updateTimeIndexArray(parent);
-        }
-      }
-    }
-  }
-  if (result == TRUE) {
-    result = getBestSplit(parent, & splitParameterMax);
-    if (result == TRUE) {
-      result = forkAndUpdate(_leafCount_ + b,
-                             parent,
-                             splitParameterMax);
-      if (result == TRUE) {
-        if (getTraceFlag() & SUMM_HGH_TRACE) {
-          Rprintf("\nNode Membership:  \n");
-          for (i=1; i <=  _observationSize; i++) {
-            Rprintf("%10d %10d \n", i, _nodeMembership[i] -> leafCount);
-          }
-        }
-        if (getTraceFlag() & SUMM_HGH_TRACE) {
-          Rprintf("\nmakeTree() LEFT:  \n");
-        }
-        makeTree (multipleImputeFlag,
-                  b,
-                  parent -> left);
-        if (getTraceFlag() & SUMM_HGH_TRACE) {
-          Rprintf("\nmakeTree() RIGHT:  \n");
-        }
-        makeTree (multipleImputeFlag,
-                  b,
-                  parent -> right);
-      }
-      else {
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  forkAndUpdate() failed.");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-      }
-    }  
-    else {
-      parent -> splitFlag = FALSE;
-      if (getTraceFlag() & SUMM_HGH_TRACE) {
-        Rprintf("\ngetBestSplit() FAILED ...\n");
-      }
-    }
-  }  
-  else {
-    parent -> splitFlag = FALSE;
-    if (getTraceFlag() & SUMM_HGH_TRACE) {
-      Rprintf("\ntestMinimumDeath() FAILED ...\n");
-    }
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nmakeTree() EXIT ...\n");
-  }
-  return result;
-}
 SEXP rsf(char mode, uint traceFlag) {
   uint sexpIndex;
-  uint sortedTimeInterestSize;
-  char      multipleImputeFlag;     
-  char      concordanceImputeFlag;  
-  char      updateFlag;       
-  char    **dmRecordBootFlag;  
-  double ***dmvImputation;     
+  char       multipleImputeFlag;     
+  char       updateFlag;             
+  char     **dmRecordBootFlag;  
+  double  ***dmvImputation;     
   Node   **root;
   uint     forestNodeCounter;
-  uint     rejectedTreeCount;  
-  Node *rootPtr;
-  uint obsSize;
-  uint varSize;
+  double  *localSplitDepth;
+  uint *maximumDepthPtr;
+  uint maximumDepth;
+  Node  *rootPtr;
+  Node  *terminalNode;
+  uint   rejectedTreeCount;  
+  uint   obsSize;
   double  *statusPtr;
   double  *timePtr;
   double **predictorPtr;
-  uint    *ensembleDenPtr;
-  double concordanceIndex;
-  int concordancePolarity;
-  uint **mwcpPtr;
-  char result;
+  uint **mwcpPtrPtr;
+  uint  *mwcpPtr;
+  char  result;
   uint i, j, k, b, r;
   clock_t totalTime, startTime;
   statusPtr    = NULL;  
   timePtr      = NULL;  
   predictorPtr = NULL;  
+  mwcpPtrPtr   = NULL;  
   mwcpPtr      = NULL;  
   _benchTime  = 0;
-  _splitTime  = 0;
-  _hazrdTime  = 0;
-  _ensblTime  = 0;
-  _vimprTime  = 0;
-  _cindxTime  = 0;
-  _traceFlagDiagLevel = traceFlag & 0xFFFF;
-  _traceFlagIterValue = traceFlag >> 16;
+  _splitTime   = 0;
+  _hazrdTime   = 0;
+  _chazrdTime  = 0;
+  _ensblTime   = 0;
+  _censblTime  = 0;
+  _censblTimeSub  = 0;
+  _vimprTime   = 0;
+  _cindxTime   = 0;
+  setTraceFlag(traceFlag);
   updateTraceFlag(TRUE);
   if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Native code rsf() entry. \n");
+    Rprintf("\n\nRSF:  Native code rsf() entry:  bld20091221 \n");
   }
   startTime = clock();
   if (_imputeSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Number imputations must be greater than zero:  %10d \n", _forestSize);
+    Rprintf("\nRSF:  The application will now exit.\n");
     return R_NilValue;
   }
   if (_forestSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Number of bootstrap iterations must be greater than zero:  %10d \n", _forestSize);
+    Rprintf("\nRSF:  The application will now exit.\n");
     return R_NilValue;
   }
   if (_observationSize < 2) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Number of individuals must be greater than one:  %10d \n", _observationSize);
-    return R_NilValue;
-  }
-  if (_timeInterestSize < 1) {
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Parameter verification failed.");
-    Rprintf("\nRSF:  Number of time points of interest must be greater than zero:  %10d \n", _timeInterestSize);
+    Rprintf("\nRSF:  The application will now exit.\n");
     return R_NilValue;
   }
   if (_xSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Parameter verification failed.");
     Rprintf("\nRSF:  Number of parameters must be greater than zero:  %10d \n", _xSize);
+    Rprintf("\nRSF:  The application will now exit.\n");
     return R_NilValue;
   }
   if (getTraceFlag() & SUMM_USR_TRACE) {
@@ -529,6 +356,17 @@ SEXP rsf(char mode, uint traceFlag) {
     Rprintf("\nRSF:  Number of predictors:        %10d", _xSize);
     Rprintf("\nRSF:  Number of trees in forest:   %10d \n", _forestSize);
   }
+  if (getTraceFlag() & SUMM_USR_TRACE) {
+    int endian = 1;
+    if (*(char *) &endian == 1) {
+      Rprintf("\nRSF:  System is little-endian.  ");
+    }
+    else {
+      Rprintf("\nRSF:  System is big-endian.  ");
+    }
+    Rprintf("\nRSF:  Size of (int)    is:  %10d   ", sizeof(int));
+    Rprintf("\nRSF:  Size of (double) is:  %10d \n", sizeof(double));
+  }
   stackPreDefinedCommonArrays();
   switch (mode) {
   case RSF_GROW:
@@ -548,7 +386,7 @@ SEXP rsf(char mode, uint traceFlag) {
     exit(TRUE);
     break;
   }
-  initializeArrays(mode, &sortedTimeInterestSize);
+  initializeArrays(mode);
   stackFactorArrays(mode);
   result =  stackMissingArrays(mode,
                                & dmRecordBootFlag,
@@ -556,10 +394,18 @@ SEXP rsf(char mode, uint traceFlag) {
   if (result == FALSE) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Missingness Parameter verification failed.");
+    Rprintf("\nRSF:  The application will now exit.\n");
     return R_NilValue;
   }
+  result = stackCompetingArrays(mode);
+  if (result == FALSE) {
+    Rprintf("\nRSF:  The application will now exit.\n");
+    return R_NilValue;
+  }
+  if (_eventTypeSize > 1) {
+    _opt = _opt & (~OPT_POUT_TYPE);
+  }
   sexpIndex = stackDefinedOutputObjects(mode,
-                                        sortedTimeInterestSize,
                                         sexpString,
                                         & root,
                                         & _oobEnsemble_,
@@ -569,8 +415,8 @@ SEXP rsf(char mode, uint traceFlag) {
                                         & _proximity_,
                                         & _importance_,
                                         & _seed_,
-                                        & _imputation_,
                                         & _oobImputation_,
+                                        & _imputation_,
                                         & _sImputeStatusPtr,
                                         & _sImputeTimePtr,
                                         & _sImputePredictorPtr,
@@ -579,6 +425,11 @@ SEXP rsf(char mode, uint traceFlag) {
                                         & _sOOBImputePredictorPtr,
                                         & _varUsed_,
                                         & _varUsedPtr,
+                                        & _splitDepth_,
+                                        & _splitDepthPtr,
+                                        & localSplitDepth,
+                                        & _oobEnsemblePOE_,
+                                        & _fullEnsemblePOE_,
                                         & stackCount,
                                         sexpVector
                                         );
@@ -603,7 +454,8 @@ SEXP rsf(char mode, uint traceFlag) {
   }
   else {
     forestNodeCounter = 1;
-    mwcpPtr = & _mwcpPT_;
+    mwcpPtr = _mwcpPT_;
+    mwcpPtrPtr = & mwcpPtr;
   }
   multipleImputeFlag = FALSE;
   for (r = 1; r <= _imputeSize; r++) {
@@ -618,7 +470,7 @@ SEXP rsf(char mode, uint traceFlag) {
         *_seed_ = *_seed1Ptr;
       }
     }
-    if (mode == RSF_GROW) {
+      if (mode == RSF_GROW) {
       if (r > 1) {
         multipleImputeFlag = TRUE;
       } 
@@ -634,43 +486,40 @@ SEXP rsf(char mode, uint traceFlag) {
         Rprintf("\nTree random seed ran1():  %20d", *_seed1Ptr);
         Rprintf("\nTree random seed ran2():  %20d", *_seed2Ptr);
       }
-      if (FALSE) {
+      if (TRUE) {
         unImpute (mode);
       }
       if (mode == RSF_GROW) {
         if (_imputeSize > 1) {
-          if (r == 2) {
-            if (_mRecordSize > 0) {
-              imputeUpdateShadow(RSF_GROW, 
-                                 FALSE, 
-                                 dmvImputation, 
-                                 _status, 
-                                 _time, 
-                                 _observation);
+          if (r > 1) {
+            if (r == 2) {
+              if (_mRecordSize > 0) {
+                imputeUpdateShadow(RSF_GROW, 
+                                   FALSE, 
+                                   dmvImputation, 
+                                   _status, 
+                                   _time, 
+                                   _observation);
+              }
+            }  
+            else {
+              if (_mRecordSize > 0) {
+                imputeUpdateShadow(RSF_GROW, 
+                                   ACTIVE, 
+                                   dmvImputation, 
+                                   _status, 
+                                   _time, 
+                                   _observation);
+              }
+            }  
+            if (_mTimeIndexFlag == TRUE) {
+              updateTimeIndexArray(NULL);
             }
-          }  
-          else {
-            if (_mRecordSize > 0) {
-              imputeUpdateShadow(RSF_GROW, 
-                                 ACTIVE, 
-                                 dmvImputation, 
-                                 _status, 
-                                 _time, 
-                                 _observation);
-            }
-          }  
+          }
         }
       }
-      rootPtr = makeNode();  
-      rootPtr -> parent = rootPtr;
-      rootPtr -> left  = NULL;
-      rootPtr -> right = NULL;
-      rootPtr -> splitFlag          = TRUE;
-      rootPtr -> mortality          = NA_REAL;
-      rootPtr -> splitParameter     = 0;
-      rootPtr -> splitValueCont     = NA_REAL;
-      rootPtr -> splitValueFactSize = 0;
-      rootPtr -> splitValueFactPtr  = NULL;
+      rootPtr = makeNode(_xSize);  
+      rootPtr -> parent = NULL;
       rootPtr -> leafCount          = 1;
       for (i = 1; i <= _xSize; i++) {
         (rootPtr -> permissibleSplit)[i] = TRUE;
@@ -678,34 +527,37 @@ SEXP rsf(char mode, uint traceFlag) {
       if ((_opt & OPT_TREE) && (r == _imputeSize)) {
         root[b] = rootPtr;
       }
+      maximumDepth = 0;
+      maximumDepthPtr = &maximumDepth;
       if (mode == RSF_GROW) {
-        result = bootstrap (multipleImputeFlag,
-                            mode,
+        result = bootstrap (mode,
                             b,
                             rootPtr,
                             dmRecordBootFlag); 
         if (result) {
           _leafCount_[b] = 1;
           if (getTraceFlag() & SUMM_LOW_TRACE) {
-            Rprintf("\nStart of makeTree():  (%10d, %10d)", r, b);
+            Rprintf("\nStart of makeTree():  (MI iter %10d, tree %10d)", r, b);
           }
           if (getTraceFlag() & TIME_DEF_TRACE) {
             _benchTime = clock();
           }
-          makeTree (multipleImputeFlag, b, rootPtr);
+          makeTree (multipleImputeFlag, b, rootPtr, 0, maximumDepthPtr);
           if (getTraceFlag() & TIME_DEF_TRACE) {
             _splitTime = _splitTime + (clock() - _benchTime);
           }
           if (getTraceFlag() & SUMM_LOW_TRACE) {
-            Rprintf("\nEnd of makeTree():  (%10d, %10d)", r, b);
+            Rprintf("\nEnd of makeTree():  (MI iter %10d, tree %10d)", r, b);
           }
           if (getTraceFlag() & SUMM_USR_TRACE) {
-            Rprintf("\nRSF:  Tree construction complete:  (%10d, %10d)", r, b);  
+            Rprintf("\nRSF:  Tree construction complete:  (MI iter %10d, tree %10d)", r, b);  
             Rprintf("\nRSF:  Final leaf count:  %10d\n", _leafCount_[b]);
           }
-          if ((_mRecordSize > 0) && (r > 1)) {
-            for (j = 1; j <= _leafCount_[b]; j++) {
-              imputeNode(mode, FALSE, b, getTerminalNode(j));
+          if ((_imputeSize > 1) && (r > 1) && (r < _imputeSize) ) {
+            if (_mRecordSize > 0) {
+              for (j = 1; j <= _leafCount_[b]; j++) {
+                imputeNode(mode, FALSE, b, getTerminalNode(mode, j));
+              }  
             }  
           }  
         }  
@@ -716,8 +568,7 @@ SEXP rsf(char mode, uint traceFlag) {
         }
       }  
       else {
-        result = bootstrap (multipleImputeFlag,
-                            mode,
+        result = bootstrap (mode,
                             b,
                             rootPtr,
                             dmRecordBootFlag); 
@@ -739,7 +590,9 @@ SEXP rsf(char mode, uint traceFlag) {
                       _parmID_,
                       _contPT_,
                       _mwcpSZ_,
-                      mwcpPtr);
+                      mwcpPtrPtr,
+                      0,
+                      maximumDepthPtr);
           if (getTraceFlag() & SUMM_LOW_TRACE) {
             Rprintf("\nEnd of restore process:  (%10d, %10d)", r, b);
           }
@@ -749,7 +602,6 @@ SEXP rsf(char mode, uint traceFlag) {
           }
           imputeTree(mode, b, rootPtr, TRUE);
           if (_mTimeIndexFlag == TRUE) {
-            updateTimeIndexArray(NULL);
           }
         }  
         else {
@@ -761,30 +613,32 @@ SEXP rsf(char mode, uint traceFlag) {
       }  
       if (result) {
         if (getTraceFlag() & SUMM_MED_TRACE) {
-          Rprintf("\nFinal GROW Membership (all data):  %10d", b);
+          Rprintf("\nFinal TRAINING Membership (all data, in-bag and OOB):  %10d", b);
           Rprintf("\n     index       leaf  bootIndex\n");
           for (i=1; i <=  _observationSize; i++) {
             Rprintf("%10d %10d %10d \n", i, _nodeMembership[i] -> leafCount, _bootMembershipIndex[i]);
           }
-          uint *tnmCount = uivector(1, _leafCount_[b]);
-          uint *deathCount = uivector(1, _leafCount_[b]);
-          Rprintf("\nFinal GROW Diagnostics (in-bag data):  %10d", b);
-          Rprintf("\n      leaf   tnmCount deathCount\n");
+          uint  *tnmCount   = uivector(1, _leafCount_[b]);
+          uint **eventCount = uimatrix(1, _eventTypeSize + 1, 1, _leafCount_[b]);
+          Rprintf("\nFinal TRAINING Diagnostics (in-bag data):  %10d", b);
+          Rprintf("\n      leaf   tnmCount totEvCount");
           for (i=1; i <= _leafCount_[b]; i++) {
             tnmCount[i] = 0;
-            deathCount[i] = 0;
+            eventCount[1][i] = 0;
           }
+          Rprintf("\n");
           for (i=1; i <= _observationSize; i++) {
             tnmCount[_nodeMembership[_bootMembershipIndex[i]] -> leafCount] ++;
-            if (_status[_bootMembershipIndex[i]] == 1) {
-              deathCount[_nodeMembership[_bootMembershipIndex[i]] -> leafCount] ++;
+            if (_status[_bootMembershipIndex[i]] > 0) {
+              eventCount[1][_nodeMembership[_bootMembershipIndex[i]] -> leafCount] ++;
             }
           }
           for (i=1; i <= _leafCount_[b]; i++) {
-            Rprintf("%10d %10d %10d \n", i, tnmCount[i], deathCount[i]);
+            Rprintf("%10d %10d %10d", i, tnmCount[i], eventCount[1][i]);
+            Rprintf("\n");
           }
           free_uivector(tnmCount, 1, _leafCount_[b]);
-          free_uivector(deathCount, 1, _leafCount_[b]);
+          free_uimatrix(eventCount, 1, _eventTypeSize + 1, 1, _leafCount_[b]);
         }
         if ((mode == RSF_PRED) && (getTraceFlag() & SUMM_MED_TRACE)) {
           Rprintf("\nFinal PRED Membership (all data):  %10d", b);
@@ -828,19 +682,49 @@ SEXP rsf(char mode, uint traceFlag) {
               Rprintf("\nRSF:  Proximity calculation complete.");  
             }
           }  
+          if (_opt & OPT_SPLT_DPTH) {
+            if (getTraceFlag() & SUMM_MED_TRACE) {
+              Rprintf("\nTerminal Node Predictor Split Depths for Tree:  %10d", b);
+              Rprintf("\n      leaf      count     splits --> \n");
+              for (k=1; k <= _leafCount_[b]; k++) {
+                terminalNode = getTerminalNode(mode, k);
+                if (terminalNode != NULL) {
+                  Rprintf("%10d %10d ", k, terminalNode -> depth);
+                  for (j = 1; j <= terminalNode -> depth; j++) {
+                    Rprintf("%10d ", (terminalNode -> splitDepth)[j]);
+                  }
+                }
+                else {
+                  Rprintf("%10d ", k);
+                }
+                Rprintf("\n");
+              }
+            }
+            for (i = 1; i <= _observationSize; i++) {
+              if (TRUE) {
+                for (j = 1; j <= _xSize; j++) {
+                  localSplitDepth[j] = NA_REAL;
+                }
+                terminalNode = getProxyMember(rootPtr, _observation, i);
+                for (k = 1; k <= terminalNode -> depth; k++) {
+                  if (ISNA(localSplitDepth[(terminalNode -> splitDepth)[k]])) {
+                     localSplitDepth[(terminalNode -> splitDepth)[k]] = (double) k;
+                  }
+                }
+                for (j = 1; j <= _xSize; j++) {
+                  if (ISNA(localSplitDepth[j])) {
+                    localSplitDepth[j] = (double) *maximumDepthPtr + 1;
+                  }
+                }
+                for (j = 1; j <= _xSize; j++) {
+                  _splitDepthPtr[j][i] += localSplitDepth[j];
+                }
+              }
+            }
+          }
         }  
         updateFlag = FALSE;
         switch (mode) {
-        case RSF_GROW:
-          if ((r == 1) || (r < _imputeSize)) {
-            if (_mRecordSize > 0) {
-              updateFlag = TRUE;
-              statusPtr = _status;
-              timePtr = _time;
-              predictorPtr = _observation;
-            }
-          }
-          break;
         case RSF_PRED:
           if (_fmRecordSize > 0) {
             updateFlag = TRUE;
@@ -858,36 +742,43 @@ SEXP rsf(char mode, uint traceFlag) {
           }
           break;
         default:
-          Rprintf("\nRSF:  *** ERROR *** ");
-          Rprintf("\nRSF:  Unknown case in switch encountered. ");
-          Rprintf("\nRSF:  Please Contact Technical Support.");
-          Rprintf("\nRSF:  The application will now exit.\n");
-          exit(TRUE);
+          if ((r == 1) || (r < _imputeSize)) {
+            if (_mRecordSize > 0) {
+              updateFlag = TRUE;
+              statusPtr = _status;
+              timePtr = _time;
+              predictorPtr = _observation;
+            }
+          }
           break;
         }
         if (updateFlag == TRUE) {
           imputeUpdateSummary(mode, 
                               statusPtr, 
                               timePtr, 
-                              predictorPtr, 
-                              dmvImputation[b]);
+                              predictorPtr,
+                              b, 
+                              dmvImputation);
         }
-        if (r == _imputeSize) {
-          updateEnsembleEvents(multipleImputeFlag,
-                               mode,
-                               sortedTimeInterestSize,
-                               rootPtr,
-                               b,
-                               dmRecordBootFlag,
-                               dmvImputation);
+        if (!(_opt & OPT_IMPU_ONLY)) {
+          if (r == _imputeSize) {
+            updateEnsembleCalculations(multipleImputeFlag,
+                                       mode,
+                                       rootPtr,
+                                       b,
+                                       dmRecordBootFlag,
+                                       dmvImputation);
+          }
         }
       }  
       if (!(_opt & OPT_TREE) || !(r == _imputeSize)) {
+        if (getTraceFlag() & FORK_DEF_TRACE) {
+          Rprintf("\nDe-allocating treeID:  %10d", b);          
+        }
         freeTree(rootPtr);
       }
       if (getTraceFlag() & TIME_DEF_TRACE) {
         totalTime = clock() - startTime;
-        Rprintf("\n %20d %20d %20d %20d %20d %20d", _splitTime, _hazrdTime, _ensblTime, _vimprTime, _cindxTime, totalTime);
       }
       if (getTraceFlag() & SUMM_LOW_TRACE) {
         Rprintf("\nEnd of iteration:    (%10d, %10d)", r, b);
@@ -896,23 +787,25 @@ SEXP rsf(char mode, uint traceFlag) {
     }  
     updateTraceFlag(TRUE);
     if (mode == RSF_GROW) {
-      if (r < _imputeSize) {
-        if (r == 1) {
+      if (r == 1) {
+        if (_mRecordSize > 0) {
+          imputeSummary(mode,
+                        FALSE,
+                        dmRecordBootFlag,
+                        dmvImputation);
+          imputeMultipleTime(FALSE);
+        }
+      }  
+      else {
+        if (r < _imputeSize) {
           if (_mRecordSize > 0) {
-            imputeSummary(RSF_GROW,
-                          FALSE,
-                          dmRecordBootFlag,
-                          dmvImputation);
-          }  
-        }  
-        else {
-          if (_mRecordSize > 0) {
-            imputeSummary(RSF_GROW,
+            imputeSummary(mode,
                           ACTIVE,
                           dmRecordBootFlag,
                           dmvImputation);
+            imputeMultipleTime(ACTIVE);
           }
-        }  
+        }
       }  
     } 
     if (getTraceFlag() & SUMM_LOW_TRACE) {
@@ -944,11 +837,20 @@ SEXP rsf(char mode, uint traceFlag) {
     Rprintf("\nRSF:  Trees stumped:   %10d ", k);
     Rprintf("\nRSF:  Trees (total):   %10d \n", _forestSize);
   }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
+  if (getTraceFlag() & SUMM_HGH_TRACE) {
     if (_opt & OPT_PROX) {
+      switch (mode) {
+      case RSF_GROW:
+        obsSize = _observationSize;
+      case RSF_PRED:
+        obsSize = _fobservationSize;
+        break;
+      default:
+        obsSize = 0;
+      }
       Rprintf("\nProximity Matrix:  \n");
       k = 0;
-      for (i = 1; i <= _observationSize; i++) {
+      for (i = 1; i <= obsSize; i++) {
         k += i - 1;
         for (j = 1; j <= i; j++) {
           Rprintf("%10d ", _proximity_[k + j]);
@@ -958,28 +860,6 @@ SEXP rsf(char mode, uint traceFlag) {
     }
   }
   switch (mode) {
-  case RSF_GROW:
-    if (_imputeSize == 1) {
-      if (_mRecordSize > 0) {
-        imputeSummary(RSF_GROW,
-                      TRUE,
-                      dmRecordBootFlag,
-                      dmvImputation);
-        imputeSummary(RSF_GROW,
-                      FALSE,
-                      dmRecordBootFlag,
-                      dmvImputation);
-      }
-    }  
-    else {
-      if (_mRecordSize > 0) {
-        imputeSummary(RSF_GROW,
-                      ACTIVE,
-                      dmRecordBootFlag,
-                      dmvImputation);
-      }
-    }  
-    break;
   case RSF_PRED:
     if (_fmRecordSize > 0) {
       imputeSummary(RSF_PRED,
@@ -997,57 +877,101 @@ SEXP rsf(char mode, uint traceFlag) {
     }
     break;
   default:
-    Rprintf("\nRSF:  *** ERROR *** ");
-    Rprintf("\nRSF:  Unknown case in switch encountered. ");
-    Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    if (_imputeSize == 1) {
+      if (_mRecordSize > 0) {
+        imputeSummary(RSF_GROW,
+                      TRUE,
+                      dmRecordBootFlag,
+                      dmvImputation);
+      }
+    }  
+    else {
+    }  
     break;
   }
   if (rejectedTreeCount < _forestSize) {
     if (_opt & OPT_VIMP) {
-      if (_opt & (OPT_POUT_TYPE)) {
-        concordancePolarity = -1;
+      finalizeVariableImportance(mode,
+                                 rejectedTreeCount,
+                                 dmRecordBootFlag,
+                                 dmvImputation);
+    }
+    if (mode == RSF_GROW) {
+      if (_opt & OPT_OENS) {
+        for (i = 1; i <= _observationSize; i++) {
+          if (_opt & (OPT_POUT_TYPE)) {
+            if (_oobEnsembleDen[i] != 0) {
+              _oobEnsemblePtr[1][1][i] = _oobEnsemblePtr[1][1][i] / _oobEnsembleDen[i];
+            }
+          }
+          else {
+            for (k=1; k <= _sortedTimeInterestSize; k++) {
+              if (_oobEnsembleDen[i] != 0) {
+                _oobEnsemblePtr[1][k][i] = _oobEnsemblePtr[1][k][i] / _oobEnsembleDen[i];
+              }
+            }
+            if (_eventTypeSize > 1) {
+              if (_oobEnsembleDen[i] != 0) {
+                for (j = 1; j <= _eventTypeSize; j++) {
+                  _oobPOEPtr[j][i] = _oobPOEPtr[j][i] / _oobEnsembleDen[i];
+                }
+              }
+            }
+          }
+        }
+      }  
+      if (_opt & OPT_FENS) {
+        for (i = 1; i <= _observationSize; i++) {
+          if (_opt & (OPT_POUT_TYPE)) {
+            _fullEnsemblePtr[1][1][i] = _fullEnsemblePtr[1][1][i] / _fullEnsembleDen[i];
+          }
+          else {
+            for (k=1; k <= _sortedTimeInterestSize; k++) {
+              _fullEnsemblePtr[1][k][i] = _fullEnsemblePtr[1][k][i] / _fullEnsembleDen[i];
+            }
+            if (_eventTypeSize > 1) {
+              for (j = 1; j <= _eventTypeSize; j++) {
+                _fullPOEPtr[j][i] = _fullPOEPtr[j][i] / _fullEnsembleDen[i];
+              }
+            }
+          }
+        }
       }
-      else {
-        concordancePolarity = 1;
+    }  
+    if (mode == RSF_PRED) {
+      if (_opt & OPT_FENS) {
+        for (i = 1; i <= _fobservationSize; i++) {
+          if (_opt & (OPT_POUT_TYPE)) {
+            _fullEnsemblePtr[1][1][i] = _fullEnsemblePtr[1][1][i] / _fullEnsembleDen[i];
+          }
+          else {
+            for (k=1; k <= _sortedTimeInterestSize; k++) {
+              _fullEnsemblePtr[1][k][i] = _fullEnsemblePtr[1][k][i] / _fullEnsembleDen[i];
+            }
+            if (_eventTypeSize > 1) {
+              for (j = 1; j <= _eventTypeSize; j++) {
+                _fullPOEPtr[j][i] = _fullPOEPtr[j][i] / _fullEnsembleDen[i];
+              }
+            }
+          }
+        }
       }
-      concordanceImputeFlag = FALSE;
+    }
+    if (getTraceFlag() & SUMM_USR_TRACE) {
+      if ((_opt & OPT_OENS) || (_opt & OPT_FENS)) {
+        Rprintf("\nRSF:  Ensemble outputs finalized. \n");
+      }
+    }
+    if (getTraceFlag() & ENSB_LOW_TRACE) {
       switch (mode) {
       case RSF_GROW:
         obsSize = _observationSize;
-        varSize = _xSize;
-        statusPtr = _status;
-        timePtr = _time;
-        ensembleDenPtr = _oobEnsembleDen;
-        if (_mRecordSize > 0) {
-          concordanceImputeFlag = TRUE;
-        }
         break;
       case RSF_PRED:
         obsSize = _fobservationSize;
-        varSize = _xSize;
-        statusPtr = _fstatus;
-        timePtr = _ftime;
-        ensembleDenPtr = _fullEnsembleDen;
-        if (_fmRecordSize > 0) {
-          concordanceImputeFlag = TRUE;
-        }
         break;
       case RSF_INTR:
         obsSize = _fobservationSize;
-        if ((_opt & OPT_VIMP) && (_opt & (~OPT_VIMP) & OPT_VIMP_JOIN)) {
-          varSize = 1;
-        }
-        else {
-          varSize = _intrPredictorSize;
-        }
-        statusPtr = _fstatus;
-        timePtr = _ftime;
-        ensembleDenPtr = _oobEnsembleDen;
-        if (_fmRecordSize > 0) {
-          concordanceImputeFlag = TRUE;
-        }
         break;
       default:
         Rprintf("\nRSF:  *** ERROR *** ");
@@ -1057,81 +981,126 @@ SEXP rsf(char mode, uint traceFlag) {
         exit(TRUE);
         break;
       }
-      for (k=1; k <= varSize; k++) {
-        for (i = 1; i <= obsSize; i++) {
-          if (ensembleDenPtr[i] != 0) {
-            _vimpEnsembleRun[k][i] = _vimpEnsembleRun[k][i] / ensembleDenPtr[i];
+      if (_opt & OPT_OENS) {
+        for (j = 1; j <= 1; j++) {
+          Rprintf("\nOOB Ensemble CHF:  \n");
+          Rprintf("          ");
+          for (i=1; i <= obsSize; i++) {
+            Rprintf("%10d", i);
+          }
+          Rprintf("\n");
+          for (k=1; k <= _sortedTimeInterestSize; k++) {
+            Rprintf("%10d", k);
+            for (i=1; i <= obsSize; i++) {
+              Rprintf("%10.4f", _oobEnsemblePtr[1][k][i]);
+            }
+            Rprintf("\n");
           }
         }
-        if (getTraceFlag() & SUMM_LOW_TRACE) {
-          Rprintf("\nConcordance Calculation for VIMP (covariate):  %10d", k);  
+        if (_eventTypeSize > 1) {
+          for (j = 1; j <= _eventTypeSize; j++) {
+            Rprintf("\nOOB Ensemble Conditional CHF:  Event %10d \n", j);
+            Rprintf("          ");
+            for (i=1; i <= obsSize; i++) {
+              Rprintf("%10d", i);
+            }
+            Rprintf("\n");
+            for (k=1; k <= _sortedTimeInterestSize; k++) {
+              Rprintf("%10d", k);
+              for (i=1; i <= obsSize; i++) {
+                Rprintf("%10.4f", _oobEnsemblePtr[j+1][k][i]);
+              }
+              Rprintf("\n");
+            }
+          }
+          Rprintf("\nOOB Ensemble POE:  \n");
+          Rprintf("          ");
+          for (i=1; i <= obsSize; i++) {
+            Rprintf("%10d", i);
+          }
+          Rprintf("\n");
+          for (j = 1; j <= _eventTypeSize; j++) {
+            Rprintf("%10d", j);
+            for (i=1; i <= obsSize; i++) {
+              Rprintf("%10.4f", _oobPOEPtr[j][i]);
+            }
+            Rprintf("\n");
+          }
         }
-        if (concordanceImputeFlag == TRUE) {
-          imputeConcordance(mode,
-                            _forestSize,
-                            dmRecordBootFlag,
-                            dmvImputation,
-                            statusPtr,
-                            timePtr);
+      }
+      if (_opt & OPT_FENS) {
+        for (j = 1; j <= 1; j++) {
+          Rprintf("\nFULL Ensemble CHF:  \n");
+          Rprintf("          ");
+          for (i=1; i <= obsSize; i++) {
+            Rprintf("%10d", i);
+          }
+          Rprintf("\n");
+          for (k=1; k <= _sortedTimeInterestSize; k++) {
+            Rprintf("%10d", k);
+            for (i=1; i <= obsSize; i++) {
+              Rprintf("%10.4f", _fullEnsemblePtr[1][k][i]);
+            }
+            Rprintf("\n");
+          }
         }
-        concordanceIndex = getConcordanceIndex(concordancePolarity,
-                                               obsSize, 
-                                               statusPtr,
-                                               timePtr,
-                                               _vimpEnsembleRun[k], 
-                                               ensembleDenPtr);
-        if (ISNA(concordanceIndex)) {
-          _importance_[k] = NA_REAL;
+        if (_eventTypeSize > 1) {
+          for (j = 1; j <= _eventTypeSize; j++) {
+            Rprintf("\nFULL Ensemble Conditional CHF:  Event %10d \n", j);
+            Rprintf("          ");
+            for (i=1; i <= obsSize; i++) {
+              Rprintf("%10d", i);
+            }
+            Rprintf("\n");
+            for (k=1; k <= _sortedTimeInterestSize; k++) {
+              Rprintf("%10d", k);
+            for (i=1; i <= obsSize; i++) {
+                Rprintf("%10.4f", _fullEnsemblePtr[j+1][k][i]);
+              }
+              Rprintf("\n");
+            }
+          }
+          Rprintf("\nFULL Ensemble POE:  \n");
+          Rprintf("          ");
+          for (i=1; i <= obsSize; i++) {
+            Rprintf("%10d", i);
+          }
+          Rprintf("\n");
+          for (j = 1; j <= _eventTypeSize; j++) {
+            Rprintf("%10d", j);
+            for (i=1; i <= obsSize; i++) {
+              Rprintf("%10.4f", _fullPOEPtr[j][i]);
+            }
+            Rprintf("\n");
+          }
         }
-        else {
-          _importance_[k] = 1 - concordanceIndex;
+      }
+    }
+    if (_opt & OPT_SPLT_DPTH) {
+      for (j = 1; j <= _xSize; j++) {
+        for (i = 1; i <= _observationSize; i++) {
+          _splitDepthPtr[j][i] = _splitDepthPtr[j][i] / (_forestSize - rejectedTreeCount);
+        }
+      }
+      if (getTraceFlag() & SUMM_MED_TRACE) {
+        Rprintf("\nRSF:  Predictor Split Depths by Individual: \n");
+        Rprintf("\n   predictor   individual -->");
+        Rprintf("\n             ");
+        for (i = 1; i <= _observationSize; i++) {
+          Rprintf("%12d ", i);
+        }
+        Rprintf("\n");
+        for (j=1; j <= _xSize; j++) {
+          Rprintf("%12d ", j);
+          for (i = 1; i <= _observationSize; i++) {
+            Rprintf("%12.4f ", _splitDepthPtr[j][i]);
+          }
+          Rprintf("\n");
         }
       }
       if (getTraceFlag() & SUMM_USR_TRACE) {
-        Rprintf("\nRSF:  Variable Importance Measure: \n");
-        Rprintf("          ");  
-        for (k=1; k <= varSize; k++) {
-          Rprintf("%10d", k);
-        }
-        Rprintf("\n          ");
-        for (k=1; k <= varSize; k++) {
-          Rprintf("%10.4f", _importance_[k]);
-        }
-        Rprintf("\n");
+        Rprintf("\nRSF:  Predictor split depth output finalized. \n");
       }
-    }  
-    if (mode == RSF_GROW) {
-      for (i = 1; i <= _observationSize; i++) {
-        if (_opt & (OPT_POUT_TYPE)) {
-          if (_oobEnsembleDen[i] != 0) {
-            _oobEnsemblePtr[1][i] = _oobEnsemblePtr[1][i] / _oobEnsembleDen[i];
-          }
-          _fullEnsemblePtr[1][i] = _fullEnsemblePtr[1][i] / _fullEnsembleDen[i];
-        }
-        else {
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            if (_oobEnsembleDen[i] != 0) {
-              _oobEnsemblePtr[j][i] = _oobEnsemblePtr[j][i] / _oobEnsembleDen[i];
-            }
-            _fullEnsemblePtr[j][i] = _fullEnsemblePtr[j][i] / _fullEnsembleDen[i];
-          }
-        }
-      }
-    }
-    if (mode == RSF_PRED) {
-      for (i = 1; i <= _fobservationSize; i++) {
-        if (_opt & (OPT_POUT_TYPE)) {
-          _fullEnsemblePtr[1][i] = _fullEnsemblePtr[1][i] / _fullEnsembleDen[i];
-        }
-        else {
-          for (j=1; j <= sortedTimeInterestSize; j++) {
-            _fullEnsemblePtr[j][i] = _fullEnsemblePtr[j][i] / _fullEnsembleDen[i];
-          }
-        }
-      }
-    }
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Ensemble outputs finalized. \n");
     }
   }  
   else {
@@ -1165,7 +1134,8 @@ SEXP rsf(char mode, uint traceFlag) {
                                sexpVector);
   if (mode == RSF_GROW) {
     if (_opt & OPT_TREE) {
-      mwcpPtr = & _mwcpPT_;
+      mwcpPtr = _mwcpPT_;
+      mwcpPtrPtr = & mwcpPtr;
       forestNodeCounter = 1;
       for (b = 1; b <= _forestSize; b++) {
         saveTree(b, 
@@ -1176,7 +1146,7 @@ SEXP rsf(char mode, uint traceFlag) {
                  _parmID_, 
                  _contPT_,
                  _mwcpSZ_,
-                 mwcpPtr);
+                 mwcpPtrPtr);
       }
       forestNodeCounter --;
       if (getTraceFlag() & SUMM_HGH_TRACE) {
@@ -1187,34 +1157,60 @@ SEXP rsf(char mode, uint traceFlag) {
           Rprintf("%10d %10d %10d %12.4f %10d \n", _treeID_[i], _nodeID_[i], _parmID_[i], _contPT_[i], _mwcpSZ_[i]);
         }
         Rprintf("\n");
+        Rprintf("\n     index       mwcpPT \n");
+        for (i = 1; i <= _totalMWCPCount; i++) {
+          Rprintf("%10d %12d \n",i, _mwcpPT_[i]);
+        }
+        Rprintf("\n");
         Rprintf("\nGrown Forest Membership by Observation:  ");
         Rprintf("\n    OBSERV    TREE_ID    NODE_ID");
         for (b = 1; b <= _forestSize; b++) {
           for (k = 1; k <= _observationSize; k++) {
-            Rprintf("\n%10d %10d %10d ", k, b, getMembership(root[b], _observation, k) -> leafCount);
+            Rprintf("\n%10d %10d %10d ", k, b, getProxyMember(root[b], _observation, k) -> leafCount);
           }
         }
         Rprintf("\n");
       }
     }  
   }  
-  unstackPreDefinedCommonArrays();
-  if (mode == RSF_GROW) {
-    unstackPreDefinedGrowthArrays();
-  }
-  else {
-    unstackPreDefinedPredictArrays();
-  }
+  unstackDefinedOutputObjects(mode,
+                              root,
+                              localSplitDepth);
+  unstackCompetingArrays(mode);
   unstackMissingArrays(mode,
                        dmRecordBootFlag,
                        dmvImputation);
   unstackFactorArrays(mode);
-  unstackDefinedOutputObjects(mode,
-                              sortedTimeInterestSize,
-                              root);
+  switch (mode) {
+  case RSF_GROW:
+    unstackPreDefinedGrowthArrays();
+    break;
+  case RSF_PRED:
+    unstackPreDefinedPredictArrays();
+    break;
+  case RSF_INTR:
+    unstackPreDefinedInteractionArrays();
+    break;
+  default:
+    Rprintf("\nRSF:  *** ERROR *** ");
+    Rprintf("\nRSF:  Unknown case in switch encountered. ");
+    Rprintf("\nRSF:  Please Contact Technical Support.");
+    Rprintf("\nRSF:  The application will now exit.\n");
+    exit(TRUE);
+    break;
+  }
+  unstackPreDefinedCommonArrays();
   if (getTraceFlag() & TIME_DEF_TRACE) {
     totalTime = clock() - startTime;
-    Rprintf("\n %20d %20d %20d %20d %20d %20d", _splitTime, _hazrdTime, _ensblTime, _vimprTime, _cindxTime, totalTime);
+    Rprintf("\n  _splitTime  = %20d ",  _splitTime);
+    Rprintf("\n  _hazrdTime  = %20d ",  _hazrdTime);
+    Rprintf("\n _chazrdTime  = %20d ",  _chazrdTime);
+    Rprintf("\n  _ensblTime  = %20d ",  _ensblTime);
+    Rprintf("\n _censblTime  = %20d ",  _censblTime);
+    Rprintf("\n _censblTimeSub  = %20d ",  _censblTimeSub);
+    Rprintf("\n  _vimprTime  = %20d ",  _vimprTime);
+    Rprintf("\n  _cindxTime  = %20d ",  _cindxTime);
+    Rprintf("\n");
   }
   if (getTraceFlag() & SUMM_USR_TRACE) {
     Rprintf("\nRSF:  Native code rsf() exit. \n");

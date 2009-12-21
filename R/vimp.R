@@ -1,69 +1,99 @@
-##**********************************************************************
-##**********************************************************************
-##
-##  RANDOM SURVIVAL FOREST 3.5.1
-##
-##  Copyright 2008, Cleveland Clinic Foundation
-##
-##  This program is free software; you can redistribute it and/or
-##  modify it under the terms of the GNU General Public License
-##  as published by the Free Software Foundation; either version 2
-##  of the License, or (at your option) any later version.
-##
-##  This program is distributed in the hope that it will be useful,
-##  but WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##  GNU General Public License for more details.
-##
-##  You should have received a copy of the GNU General Public
-##  License along with this program; if not, write to the Free
-##  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##  Boston, MA  02110-1301, USA.
-##
-##  Project funded by:
-##    National Institutes of Health, HL072771-01
-##
-##    Michael S Lauer, MD, FACC, FAHA
-##    Cleveland Clinic Lerner College of Medicine of CWRU
-##    9500 Euclid Avenue
-##    Cleveland, OH 44195
-##
-##    email:  lauerm@ccf.org
-##    phone:   216-444-6798
-##
-##  Written by:
-##    Hemant Ishwaran, Ph.D.
-##    Dept of Quantitative Health Sciences/Wb4
-##    Cleveland Clinic Foundation
-##    9500 Euclid Avenue
-##    Cleveland, OH 44195
-##
-##    email:  hemant.ishwaran@gmail.com
-##    phone:  216-444-9932
-##    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-##    --------------------------------------------------------------
-##    Udaya B. Kogalur, Ph.D.
-##    Kogalur Shear Corporation
-##    5425 Nestleway Drive, Suite L1
-##    Clemmons, NC 27012
-##
-##    email:  ubk2101@columbia.edu
-##    phone:  919-824-9825
-##    URL:    www.kogalur-shear.com
-##
-##**********************************************************************
-##**********************************************************************
+####**********************************************************************
+####**********************************************************************
+####
+####  RANDOM SURVIVAL FOREST 3.6.0
+####
+####  Copyright 2009, Cleveland Clinic Foundation
+####
+####  This program is free software; you can redistribute it and/or
+####  modify it under the terms of the GNU General Public License
+####  as published by the Free Software Foundation; either version 2
+####  of the License, or (at your option) any later version.
+####
+####  This program is distributed in the hope that it will be useful,
+####  but WITHOUT ANY WARRANTY; without even the implied warranty of
+####  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+####  GNU General Public License for more details.
+####
+####  You should have received a copy of the GNU General Public
+####  License along with this program; if not, write to the Free
+####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+####  Boston, MA  02110-1301, USA.
+####
+####  ----------------------------------------------------------------
+####  Project Partially Funded By:
+####    --------------------------------------------------------------
+####    National Institutes of Health,  Grant HHSN268200800026C/0001
+####
+####    Michael S. Lauer, M.D., FACC, FAHA 
+####    National Heart, Lung, and Blood Institute
+####    6701 Rockledge Dr, Room 10122
+####    Bethesda, MD 20892
+####
+####    email:  lauerm@nhlbi.nih.gov
+####
+####    --------------------------------------------------------------
+####    Case Western Reserve University/Cleveland Clinic  
+####    CTSA Grant:  UL1 RR024989, National Center for
+####    Research Resources (NCRR), NIH
+####
+####    --------------------------------------------------------------
+####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
+####    Andy Minn, M.D., Ph.D.
+####    Department of Radiation and Cellular Oncology, and
+####    Ludwig Center for Metastasis Research
+####    The University of Chicago, Jules F. Knapp Center, 
+####    924 East 57th Street, Room R318
+####    Chicago, IL 60637
+#### 
+####    email:  aminn@radonc.uchicago.edu
+####
+####    --------------------------------------------------------------
+####    Bryan Lau, Ph.D.
+####    Department of Medicine, Johns Hopkins School of Medicine,
+####    Baltimore, Maryland 21287
+####
+####    email:  blau1@jhmi.edu
+####
+####  ----------------------------------------------------------------
+####  Written by:
+####    --------------------------------------------------------------
+####    Hemant Ishwaran, Ph.D.
+####    Dept of Quantitative Health Sciences/Wb4
+####    Cleveland Clinic Foundation
+####    9500 Euclid Avenue
+####    Cleveland, OH 44195
+####
+####    email:  hemant.ishwaran@gmail.com
+####    phone:  216-444-9932
+####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
+####
+####    --------------------------------------------------------------
+####    Udaya B. Kogalur, Ph.D.
+####    Dept of Quantitative Health Sciences/Wb4
+####    Cleveland Clinic Foundation
+####    
+####    Kogalur Shear Corporation
+####    5425 Nestleway Drive, Suite L1
+####    Clemmons, NC 27012
+####
+####    email:  ubk2101@columbia.edu
+####    phone:  919-824-9825
+####    URL:    www.kogalur-shear.com
+####    --------------------------------------------------------------
+####
+####**********************************************************************
+####**********************************************************************
 
-interaction.rsf <- function(
-                            object = NULL,
-                            predictorNames = NULL,
-                            subset = NULL,
-                            joint = TRUE,
-                            rough = FALSE,                            
-                            importance = c("randomsplit", "permute", "none")[1],
-                            seed = NULL,
-                            do.trace = FALSE,
-                            ...) {
+vimp <- function(object = NULL,
+                 predictorNames = NULL,
+                 subset = NULL,
+                 joint = TRUE,
+                 rough = FALSE,                            
+                 importance = c("randomsplit", "permute", "none")[1],
+                 seed = NULL,
+                 do.trace = FALSE,
+                 ...) {
 
   ## Check that 'object' is of the appropriate type.
   if (is.null(object)) stop("Object is empty!")
@@ -120,7 +150,7 @@ interaction.rsf <- function(
   ## Set the trace level
   if (!is.logical(do.trace)) {
     if (do.trace >= 1){
-      do.trace <- 2^16 * round(do.trace) + 1
+      do.trace <- 2^24 * round(do.trace) + 1
     }
     else {
       do.trace <- 0
@@ -164,7 +194,20 @@ interaction.rsf <- function(
     stop("Invalid choice for 'rough' option:  ", rough)
   }
 
-  
+
+  ## convert outcome (if it is present) into opt bit
+  if (is.null(object$outcome)) {
+    outcomeBits <- 0
+  }
+  else {
+    if (object$outcome == "test") {
+      outcomeBits <- 2^17
+    }
+    else {
+      outcomeBits <- 0
+    }
+  }
+
   ########################################################################
   ## rsfInteraction(...)
   ##
@@ -177,31 +220,10 @@ interaction.rsf <- function(
   ##       !0 = various levels of trace output
   ##
   ## 02 - option protocol for output objects.
-  ##    - only some of the following are relevant (*)
-  ##      GROW PRED INTR
-  ##       *         *    0x0001 = OENS
-  ##       *    *         0x0002 = FENS
-  ##       *    *    *    0x0004 = PERF
-  ##       **   *         0x0008 = PROX
-  ##       *    *    *    0x0010 = LEAF
-  ##       **             0x0020 = TREE \ part of 
-  ##       **             0x0040 = SEED / the forest 
-  ##       ***  ***       0x0080 = MISS
-  ##       ***       ***  0x0100 = OMIS
-  ##       **   **   *    0x0200 = \  VIMP_TYPE
-  ##       **   **   *    0x0400 =  | VIMP_JOIN
-  ##       **   **   *    0x0800 = /  VIMP
-  ##       **             0x1000 = \  VUSE_TYPE
-  ##       **             0x2000 = /  VUSE
-  ##       *    *    *    0x4000 = POUT_TYPE
-  ##
-  ##       (*)   default  output
-  ##       (**)  optional output
-  ##       (***) default  output 
-  ##             - dependent on data and potentially suppressed
+  ##    - see primary GROW call for details
   ##
   ## 03 - random seed for repeatability, integer < 0 
-  ## 04 - number of bootstrap iterations, integer > 0
+  ## 04 - number of trees in the forest, integer > 0
   ## 05 - number of individuals in GROW data set, integer > 1
   ## 06 - vector of GROW observed times of death, doubles > 0 
   ## 07 - vector of GROW observed event types
@@ -237,7 +259,8 @@ interaction.rsf <- function(
   nativeOutput <- .Call("rsfInteraction",
                         as.integer(do.trace),
                         as.integer(predictedOutcomeBits +
-                                   importanceBits),
+                                   importanceBits +
+                                   outcomeBits),
                         as.integer(seed),
                         as.integer(ntree),
                         as.integer(nrow(object$predictors)),
@@ -259,16 +282,57 @@ interaction.rsf <- function(
                         as.integer(predictorNames),
                         as.integer(length(subset)),
                         as.integer(subset))
-
+  
   ## Check for error return condition in the native code.
   if(is.null(nativeOutput)) {
     stop("Error occurred in algorithm.  Please turn trace on for further analysis.")
   }
 
+  # number of event types
+  # pretty names
+  n.event <- length(unique(na.omit(object$cens)[na.omit(object$cens) > 0]))
+  if (n.event > 1) n.event <- n.event + 1
+  if (joint) j.names <- "joint" else j.names <- object$predictorNames[predictorNames]
+  if (n.event > 1) {    
+    err.names <- list(c("CHF", paste("condCHF.", 1:(n.event - 1), sep = "")), NULL)
+    vimp.names <- list(c("CHF", paste("condCHF.", 1:(n.event - 1), sep = "")), j.names)
+  }
+  else {
+    err.names <- list(NULL, NULL)
+    vimp.names <- list(NULL, j.names)
+  }
+
+  # error rates
+  err.rate <- matrix(nativeOutput$performance, ncol=ntree, byrow=T,
+                      dimnames=err.names)[1:n.event, ntree, drop = FALSE]
+  colnames(err.rate) <- "all.vars"
+  if(!is.null(nativeOutput$importance)) {
+    err.perturb.rate <- matrix(nativeOutput$importance, ncol=max(1, length(j.names)), 
+                             byrow = TRUE, dimnames = vimp.names)[1:n.event,, drop = FALSE]
+    importance <- t(sweep(t(err.perturb.rate), 2, err.rate))
+  }
+  else {
+    err.perturb.rate <- importance <- NULL
+  }
+
+  ## for pretty output
+  make.vec <- function(x) {
+    if (!is.null(dim(x)) && nrow(x) == 1) {
+      x.names <- colnames(x)
+      x <- c(x)
+      names(x) <- x.names
+      x
+    }
+    else {
+      x
+    }
+  }
+  # make.vec <- function(x) {if (!is.null(dim(x)) && nrow(x) == 1) c(x) else x}
+  
   rsfOutput <- list(
-                    err.rate = nativeOutput$performance[ntree],
-                    err.perturb.rate = nativeOutput$importance,
-                    importance = nativeOutput$importance-nativeOutput$performance[ntree]
+                    err.rate = make.vec(err.rate),
+                    err.perturb.rate = make.vec(err.perturb.rate),
+                    importance = make.vec(importance)
                     )
 
  return(rsfOutput)
