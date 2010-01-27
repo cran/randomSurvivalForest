@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -235,7 +235,7 @@ SEXP rsfPredict(SEXP traceFlag,
   _xSize                = INTEGER(xSize)[0];
   _xData                =    REAL(xData);
   _fobservationSize     = INTEGER(fobservationSize)[0];
-  _ftime                =    REAL(ftime);  _ftime --;
+  rsf_ftime                =    REAL(ftime);  rsf_ftime --;
   _fstatus              =    REAL(fstatus);  _fstatus --;
   _fxData               =    REAL(fxData);
   _timeInterestSize     = INTEGER(timeInterestSize)[0];

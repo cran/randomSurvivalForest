@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -1333,7 +1333,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
     } 
     else {
       statusPtr = orgStatusPtr = _fstatus;
-      timePtr = orgTimePtr = _ftime;
+      timePtr = orgTimePtr = rsf_ftime;
       if (_fmRecordSize > 0) {
         concordanceImputeFlag = TRUE;
       }

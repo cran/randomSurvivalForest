@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -117,7 +117,7 @@ void imputeInteraction (uint treeID, Node *parent) {
       case TIME_IDX:
         unsignedIndex = abs(_fmvIndex[p]);
         valuePtr = _time;
-        imputePtr = _ftime;
+        imputePtr = rsf_ftime;
         break;
       default:
         unsignedIndex = (uint) _fmvIndex[p] + 2;
@@ -176,7 +176,7 @@ char imputeNode (uint     type,
     if (_fmRecordSize > 0) {
       obsSize = _fobservationSize;
       status = _fstatus;
-      time = _ftime;
+      time = rsf_ftime;
       predictor = _fobservation;
       nodeMembership = _fnodeMembership;
       mRecordMap = _fmRecordMap;
@@ -1377,7 +1377,7 @@ void unImpute (uint mode) {
   if (mode != RSF_GROW) {
     if (_fmRecordSize > 0) {
       statusPtr = _fstatus;
-      timePtr = _ftime;
+      timePtr = rsf_ftime;
       predictorPtr = _fobservation;
       mRecordSize = _fmRecordSize;
       mRecordIndex = _fmRecordIndex;

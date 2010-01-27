@@ -1,6 +1,6 @@
 Package: randomSurvivalForest
-Version: 3.6.0
-Date: 2009-12-21
+Version: 3.6.1
+Date: 2010-01-27
 Title: Ishwaran and Kogalur's Random Survival Forest
 Author: Hemant Ishwaran <hemant.ishwaran@gmail.com>, Udaya B. Kogalur
         <ubk2101@columbia.edu>
@@ -12,6 +12,6 @@ Description: Ensemble survival analysis based on a random forest of
 License: GPL (>= 2)
 URL: http://www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html,
         http://www.kogalur-shear.com
-Packaged: 2009-12-21 15:19:16 UTC; kogalur
+Packaged: 2010-01-27 17:01:18 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2009-12-21 17:43:21
+Date/Publication: 2010-01-27 18:02:51

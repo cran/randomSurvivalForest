@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -113,7 +113,7 @@ extern double   *_time;
 extern double   *_status;
 extern double   *_xData;
 extern uint      _fobservationSize;
-extern double   *_ftime;
+extern double   *rsf_ftime;
 extern double   *_fstatus;
 extern double   *_fxData;
 extern uint      _timeInterestSize;

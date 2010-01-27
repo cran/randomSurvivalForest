@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -155,7 +155,7 @@ double   *_time;
 double   *_status;
 double   *_xData;
 uint      _fobservationSize;
-double   *_ftime;
+double   *rsf_ftime;
 double   *_fstatus;
 double   *_fxData;
 uint      _timeInterestSize;
@@ -297,7 +297,7 @@ SEXP rsf(char mode, uint traceFlag) {
   setTraceFlag(traceFlag);
   updateTraceFlag(TRUE);
   if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\n\nRSF:  Native code rsf() entry:  bld20091221 \n");
+    Rprintf("\n\nRSF:  Native code rsf() entry:  bld20100127 \n");
   }
   startTime = clock();
   if (_imputeSize < 1) {
@@ -729,7 +729,7 @@ SEXP rsf(char mode, uint traceFlag) {
           if (_fmRecordSize > 0) {
             updateFlag = TRUE;
             statusPtr = _fstatus;
-            timePtr = _ftime;
+            timePtr = rsf_ftime;
             predictorPtr = _fobservation;
           }
           break;
@@ -737,7 +737,7 @@ SEXP rsf(char mode, uint traceFlag) {
           if (_fmRecordSize > 0) {
             updateFlag = TRUE;
             statusPtr = _fstatus;
-            timePtr = _ftime;
+            timePtr = rsf_ftime;
             predictorPtr = _fobservation;
           }
           break;

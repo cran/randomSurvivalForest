@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -262,7 +262,7 @@ void initializeArrays(char mode) {
     }
     Rprintf("\n");
     for (j = 1; j <= _fobservationSize; j++) {
-      Rprintf("%12d %12.4f %12.4f", j, _fstatus[j], _ftime[j]);
+      Rprintf("%12d %12.4f %12.4f", j, _fstatus[j], rsf_ftime[j]);
       for (i=1; i <= _xSize; i++) {
         Rprintf(" %12.4f", (_fxData+((i-1)*(_fobservationSize)))[j-1]);
       }
@@ -1111,17 +1111,17 @@ char stackMissingArrays(char       mode,
   if (mode == RSF_PRED) {
     if ((_opt & OPT_PERF) || (_opt & OPT_VIMP)) {
       for (i = 1 ; i <= _fobservationSize; i++) {
-        if (!ISNA(_ftime[i])) {
-          if (_ftime[i] <= 0) {
+        if (!ISNA(rsf_ftime[i])) {
+          if (rsf_ftime[i] <= 0) {
             result = FALSE;
-            Rprintf("\nRSF:  PRED time elements must be greater than zero or NA when PERF or VIMP is requested:  [%10d] = %12.4f \n", i, _ftime[i]);
+            Rprintf("\nRSF:  PRED time elements must be greater than zero or NA when PERF or VIMP is requested:  [%10d] = %12.4f \n", i, rsf_ftime[i]);
           }
         }
       }
     }
     else {
       for (i = 1 ; i <= _fobservationSize; i++) {
-        _fstatus[i] = _ftime[i] = -1;
+        _fstatus[i] = rsf_ftime[i] = -1;
       }
     }
     if (result == FALSE) {
@@ -1184,7 +1184,7 @@ char stackMissingArrays(char       mode,
     _fmRecordSize = getRecordMap(_fmRecordMap, 
                                  _fobservationSize, 
                                  _fstatus, 
-                                 _ftime, 
+                                 rsf_ftime, 
                                  _fxData);
     if (_fmRecordSize == 0) {
       _fobservation = pdvector(1, _xSize);
@@ -1200,10 +1200,10 @@ char stackMissingArrays(char       mode,
       _fmTime   = dvector(1, _fobservationSize);
       for (i = 1; i <= _fobservationSize; i++) {
         _fmStatus[i] = _fstatus[i];
-        _fmTime[i] = _ftime[i];
+        _fmTime[i] = rsf_ftime[i];
       }
       _fstatus = _fmStatus;
-      _ftime   = _fmTime;
+      rsf_ftime   = _fmTime;
       _fobservation = dmatrix(1, _xSize, 1, _fobservationSize);
       for (p=1; p <= _xSize; p++) {
         for (i = 1; i <= _fobservationSize; i++) {
@@ -1212,7 +1212,7 @@ char stackMissingArrays(char       mode,
       }
       stackMissingSignatures(_fobservationSize,
                              _fstatus,
-                             _ftime,
+                             rsf_ftime,
                              _fobservation,
                              _fmRecordMap,
                              _fmRecordSize,
@@ -1245,10 +1245,10 @@ char stackMissingArrays(char       mode,
   }  
   if (mode == RSF_INTR) {
     _fstatus = dvector(1, _fobservationSize);
-    _ftime   = dvector(1, _fobservationSize);
+    rsf_ftime   = dvector(1, _fobservationSize);
     _fobservation = dmatrix(1, _xSize, 1, _fobservationSize);
     for (j = 1; j <= _fobservationSize; j++) {
-      _ftime[j] = _time[_intrIndividual[j]];
+      rsf_ftime[j] = _time[_intrIndividual[j]];
       _fstatus[j] = _status[_intrIndividual[j]];
       for (i=1; i <= _xSize; i++) {
         _fobservation[i][j] = (_xData+((i-1)*(_observationSize)))[_intrIndividual[j]-1];
@@ -1277,14 +1277,14 @@ char stackMissingArrays(char       mode,
     _fmRecordSize = getRecordMap(_fmRecordMap, 
                                  _fobservationSize, 
                                  _fstatus, 
-                                 _ftime, 
+                                 rsf_ftime, 
                                  &_fobservation[1][1]);
     if (_fmRecordSize == 0) {
     }
     else {
       stackMissingSignatures(_fobservationSize,
                              _fstatus,
-                             _ftime,
+                             rsf_ftime,
                              _fobservation,
                              _fmRecordMap,
                              _fmRecordSize,
@@ -1428,7 +1428,7 @@ void unstackMissingArrays(char   mode,
     else {
       unstackMissingSignatures(_fobservationSize,
                                _fstatus,
-                               _ftime,
+                               rsf_ftime,
                                _fobservation,
                                _fmRecordMap,
                                _fmRecordSize,
@@ -1445,13 +1445,13 @@ void unstackMissingArrays(char   mode,
     free_uivector(_fmRecordMap, 1, _fobservationSize);
     if (_fmRecordSize == 0) {
       free_dvector(_fstatus, 1, _fobservationSize);
-      free_dvector(_ftime, 1, _fobservationSize);
+      free_dvector(rsf_ftime, 1, _fobservationSize);
       free_dmatrix(_fobservation, 1, _xSize, 1, _fobservationSize);
     }
     else {
       unstackMissingSignatures(_fobservationSize,
                                _fstatus,
-                               _ftime,
+                               rsf_ftime,
                                _fobservation,
                                _fmRecordMap,
                                _fmRecordSize,
@@ -1634,7 +1634,7 @@ uint stackDefinedOutputObjects(char      mode,
     obsSize = _fobservationSize;
     mRecordSize = _fmRecordSize;
     statusPtr = _fstatus;
-    timePtr = _ftime;
+    timePtr = rsf_ftime;
     predictorPtr = _fobservation;
     mRecordIndex = _fmRecordIndex;
     *stackCount = 2;
@@ -1673,7 +1673,7 @@ uint stackDefinedOutputObjects(char      mode,
     obsSize = _fobservationSize;
     mRecordSize = _fmRecordSize;
     statusPtr = _fstatus;
-    timePtr = _ftime;
+    timePtr = rsf_ftime;
     predictorPtr = _fobservation;
     mRecordIndex = _fmRecordIndex;
     *stackCount = 3;

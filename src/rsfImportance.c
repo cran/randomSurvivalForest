@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.0
+////  RANDOM SURVIVAL FOREST 3.6.1
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -635,7 +635,7 @@ void finalizeVariableImportance(uint       mode,
     obsSize = _fobservationSize;
     varCount = _xSize;
     statusPtr = _fstatus;
-    timePtr = _ftime;
+    timePtr = rsf_ftime;
     ensembleDenPtr = _fullEnsembleDen;
     poePtr = _fullPOEPtr;
     if (_fmRecordSize > 0) {
@@ -651,7 +651,7 @@ void finalizeVariableImportance(uint       mode,
       varCount = _intrPredictorSize;
     }
     statusPtr = _fstatus;
-    timePtr = _ftime;
+    timePtr = rsf_ftime;
     ensembleDenPtr = _oobEnsembleDen;
     poePtr = _oobPOEPtr;
     if (_fmRecordSize > 0) {
