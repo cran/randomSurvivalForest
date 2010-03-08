@@ -5,27 +5,13 @@
     Variable selection using minimal depth theory for trees.
 }
 \usage{
-    varSel(formula = NULL,          
-           data = NULL,
-           object = NULL,      
-           method = c("vh", "vhVIMP", "md")[3],
+    varSel(formula = NULL, data = NULL, object = NULL, method = c("vh", "vhVIMP", "md")[3],
            ntree = (if (method == "md") 1000 else 500),
-           mvars = (if (!is.null(data) & method != "md") min(1000, round(ncol(data)/5)) else NULL),
-           mtry = (if (!is.null(data) & method == "md") max(sqrt(ncol(data)), ncol(data)/3) else NULL),
-           nodesize = (if (method == "vh" | method == "vhVIMP") 2 else NULL),
-           nsplit = 10,
-           predictorWt = NULL,
-           big.data = FALSE,
-           na.action = c("na.omit", "na.impute")[1],
-           do.trace = 0,       
-           always.use = NULL,  
-           nrep = 50,        
-           K = 5,             
-           nstep = 1,         
-           verbose = TRUE,
-           ...
-           )
-
+           mvars = (if (!is.null(data) & method != "md") min(1000, round(ncol(data)/5)) else NULL), 
+           mtry = (if (!is.null(data) & method == "md") max(sqrt(ncol(data)), ncol(data)/3) else NULL), 
+           nodesize = (if (method == "vh" | method == "vhVIMP") 2 else NULL), nsplit = 10, 
+           predictorWt = NULL, big.data = FALSE, na.action = c("na.omit", "na.impute")[1], 
+           do.trace = 0, always.use = NULL, nrep = 50, K = 5, nstep = 1, verbose = TRUE, ...  )
 }
 \arguments{
    \item{formula}{A symbolic description of the model to be fit. 
@@ -158,11 +144,11 @@
     Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    H. Ishwaran, U.B. Kogalur, E.Z. Gorodeski, A.J. Minn and 
-    M.S. Lauer (2009).  High-dimensional variable selection for survival
-    data.  J. Amer. Stat. Assoc. (in press).
+    Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
+    Lauer M.S. (2010).  High-dimensional variable selection for survival
+    data.  \emph{J. Amer. Statist. Assoc. (in press)}.
 
-    H. Ishwaran, U.B. Kogalur, X. Chen and  A.J. Minn (2009).  Random
+    Ishwaran H., Kogalur U.B., Chen X. and Minn A.J. (2010).  Random
     survival forests for high-dimensional data.  
 }
 \seealso{

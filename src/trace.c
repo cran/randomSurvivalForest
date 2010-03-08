@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -130,8 +130,5 @@ unsigned int updateTimeStamp(unsigned int before) {
   double cpuTimeUsed;
   stamp = clock();
   cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  }
   return stamp;
 }

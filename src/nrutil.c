@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -399,9 +399,6 @@ double ****dmatrix4(unsigned long n4l,
       }
     }
   }
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndmatrix4() alloc:  %20x  \n", m);
-  }
   return m;
 }
 double ***dmatrix3(unsigned long n3l, 
@@ -437,9 +434,6 @@ double ***dmatrix3(unsigned long n3l,
       k++;
     }
   }
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndmatrix3() alloc:  %20x  \n", m);
-  }
   return m;
 }
 double **dmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
@@ -454,9 +448,6 @@ double **dmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsign
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndmatrix() alloc:  %20x  \n", m);
-  }
   return m;
 }
 int **imatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
@@ -471,9 +462,6 @@ int **imatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned 
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nimatrix() alloc:  %20x  \n", m);
-  }
   return m;
 }
 unsigned int **uimatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
@@ -488,9 +476,6 @@ unsigned int **uimatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl,
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nuimatrix() alloc:  %20x  \n", m);
-  }
   return m;
 }
 unsigned long **ulmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
@@ -505,9 +490,6 @@ unsigned long **ulmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nulmatrix() alloc:  %20x  \n", m);
-  }
   return m;
 }
 char **cmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
@@ -522,9 +504,6 @@ char **cmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned
   m[nrl] += NR_END;
   m[nrl] -= ncl;
   for(i=nrl+1;i<=nrh;i++) m[i]=m[i-1]+ncol;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ncmatrix() alloc:  %20x  \n", m);
-  }
   return m;
 }
 double *dvector(unsigned long nl, unsigned long nh) {
@@ -532,9 +511,6 @@ double *dvector(unsigned long nl, unsigned long nh) {
   v=(double *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(double)));
   if (!v) nrerror("Allocation Failure in dvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 double **pdvector(unsigned long nl, unsigned long nh) {
@@ -542,9 +518,6 @@ double **pdvector(unsigned long nl, unsigned long nh) {
   v=(double **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(double*)));
   if (!v) nrerror("Allocation Failure in pdvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npdvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 double ***ppdvector(unsigned long nl, unsigned long nh) {
@@ -552,9 +525,6 @@ double ***ppdvector(unsigned long nl, unsigned long nh) {
   v=(double ***) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(double**)));
   if (!v) nrerror("Allocation Failure in ppdvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nppdvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 int *ivector(unsigned long nl, unsigned long nh) {
@@ -562,9 +532,6 @@ int *ivector(unsigned long nl, unsigned long nh) {
   v=(int *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(int)));
   if (!v) nrerror("Allocation Failure in ivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nivector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 int **pivector(unsigned long nl, unsigned long nh) {
@@ -572,9 +539,6 @@ int **pivector(unsigned long nl, unsigned long nh) {
   v=(int **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(int*)));
   if (!v) nrerror("Allocation Failure in puivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npivector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 unsigned int *uivector(unsigned long nl, unsigned long nh) {
@@ -582,9 +546,6 @@ unsigned int *uivector(unsigned long nl, unsigned long nh) {
   v=(unsigned int *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(unsigned int)));
   if (!v) nrerror("Allocation Failure in uivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nuivector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 unsigned int **puivector(unsigned long nl, unsigned long nh) {
@@ -592,9 +553,6 @@ unsigned int **puivector(unsigned long nl, unsigned long nh) {
   v=(unsigned int **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(unsigned int*)));
   if (!v) nrerror("Allocation Failure in puivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npuivector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 unsigned int ***ppuivector(unsigned long nl, unsigned long nh) {
@@ -602,9 +560,6 @@ unsigned int ***ppuivector(unsigned long nl, unsigned long nh) {
   v=(unsigned int ***) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(unsigned int**)));
   if (!v) nrerror("Allocation Failure in ppuivector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nppuivector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 unsigned long *ulvector(unsigned long nl, unsigned long nh) {
@@ -612,9 +567,6 @@ unsigned long *ulvector(unsigned long nl, unsigned long nh) {
   v=(unsigned long *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(unsigned long)));
   if (!v) nrerror("Allocation Failure in ulvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nulvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 unsigned long **pulvector(unsigned long nl, unsigned long nh) {
@@ -622,9 +574,6 @@ unsigned long **pulvector(unsigned long nl, unsigned long nh) {
   v=(unsigned long **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(unsigned long*)));
   if (!v) nrerror("Allocation Failure in pulvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npulvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 char *cvector(unsigned long nl, unsigned long nh) {
@@ -632,9 +581,6 @@ char *cvector(unsigned long nl, unsigned long nh) {
   v=(char *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(char)));
   if (!v) nrerror("Allocation Failure in cvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ncvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 char **pcvector(unsigned long nl, unsigned long nh) {
@@ -642,9 +588,6 @@ char **pcvector(unsigned long nl, unsigned long nh) {
   v=(char **) malloc((size_t) ((nh-nl+1+NR_END)*sizeof(char*)));
   if (!v) nrerror("Allocation Failure in pcvector()");
   v = v-nl+NR_END;
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npcvector() alloc:  %20x  \n", v);
-  }
   return v;
 }
 void nrerror(char error_text[]) {
@@ -665,9 +608,6 @@ void free_dmatrix4(double    ****m,
                    unsigned long ncl,
                    unsigned long nch
                    ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndmatrix4() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[n4l][n3l][nrl]+ncl-NR_END));
   free((FREE_ARG) (m[n4l][n3l]+nrl-NR_END));
   free((FREE_ARG) (m[n4l]+n3l-NR_END));
@@ -681,9 +621,6 @@ void free_dmatrix3(double ***m,
                   unsigned long ncl,
                   unsigned long nch
                  ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndmatrix3() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[n3l][nrl]+ncl-NR_END));
   free((FREE_ARG) (m[n3l]+nrl-NR_END));
   free((FREE_ARG) (m+n3l-NR_END));
@@ -694,9 +631,6 @@ void free_dmatrix(double **m,
                   unsigned long ncl,
                   unsigned long nch
                  ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndmatrix() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
 }
@@ -706,9 +640,6 @@ void free_imatrix(int **m,
                   unsigned long ncl,
                   unsigned long nch
                   ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nimatrix() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
 }
@@ -718,9 +649,6 @@ void free_uimatrix(unsigned int **m,
                    unsigned long ncl,
                    unsigned long nch
                   ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nuimatrix() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
 }
@@ -730,9 +658,6 @@ void free_ulmatrix(unsigned long **m,
                    unsigned long ncl,
                    unsigned long nch
                   ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nulmatrix() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
 }
@@ -742,82 +667,43 @@ void free_cmatrix(char **m,
                   unsigned long ncl,
                   unsigned long nch
                   ) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ncmatrix() de-allocating:  %20x  \n", m);
-  }
   free((FREE_ARG) (m[nrl]+ncl-NR_END));
   free((FREE_ARG) (m+nrl-NR_END));
 }
 void free_dvector(double *v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ndvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pdvector(double **v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npdvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_ppdvector(double ***v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nppdvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_ivector(int *v,unsigned long nl,unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nivector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pivector(int **v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npivector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_uivector(unsigned int *v,unsigned long nl,unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nuivector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_puivector(unsigned int **v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npuivector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_ppuivector(unsigned int ***v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nppuivector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_ulvector(unsigned long *v,unsigned long nl,unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\nulvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pulvector(unsigned long **v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npulvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_cvector(char *v,unsigned long nl,unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\ncvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 void free_pcvector(char **v, unsigned long nl, unsigned long nh) {
-  if (getTraceFlag() & NUMR_DEF_TRACE) {
-    Rprintf("\npcvector() de-allocating:  %20x  \n", v);
-  }
   free((FREE_ARG) (v+nl-NR_END));
 }
 #undef FREE_ARG

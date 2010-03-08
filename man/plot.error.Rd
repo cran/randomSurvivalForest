@@ -36,16 +36,15 @@
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2008).  Random survival forests, \emph{Ann. App.
-    Statist.}, 2:841-860.
+    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+    (2008).  Random survival forests, \emph{Ann. App. Statist.}, 2:841-860.
 
-    L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
+    Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
 
-    F.E. Harrell et al. (1982).  Evaluating the yield of medical tests,
+    Harrell F.E. et al. (1982).  Evaluating the yield of medical tests,
     \emph{J. Amer. Med. Assoc.}, 247, 2543-2546.
 }
 \seealso{

@@ -40,19 +40,18 @@
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-
-    T.A. Gerds, T. Cai and M. Schumacher (2008).  The performance of
-    risk prediction models, \emph{Biometrical Jour.}, 4:457-479.
+    Gerds T.A., Cai T. and Schumacher M. (2008).  The performance of
+    risk prediction models, \emph{Biometrical J.}, 4:457-479.
   
-    E. Graf, C. Schmoor, W. Sauerbrei and M. Schumacher M (1999).
+    Graf E., Schmoor C., Sauerbrei W. and Schumacher M. (1999).
     Assessment and comparison of prognostic classification
-    schemes for survival data, \emph{Statistics in Medicine},
+    schemes for survival data, \emph{Statist. in Med.},
     18:2529-2545.
 
-    H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
+    Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,
     \emph{Rnews}, 7/2:25-31.
 }
 \seealso{

@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -103,12 +103,6 @@ double getConcordanceIndex(int     polarity,
   ulong concordancePairSize;
   ulong concordanceWorseCount;
   double result;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\ngetConcordanceIndex() ENTRY ...\n");
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   concordancePairSize = concordanceWorseCount = 0;
   for (i=1; i < size; i++) {
     for (j=i+1; j <= size; j++) {
@@ -145,29 +139,11 @@ double getConcordanceIndex(int     polarity,
       }  
     }  
   }  
-  if (getTraceFlag() & ENSB_LOW_TRACE) {
-    Rprintf("\nPredicted Outcome used in Concordance Index Calculations:  ");
-    Rprintf("\n        count     OOBcount       Status         Time    Mortality");
-    for (i=1; i <= size; i++) {
-      Rprintf("\n %12d %12d %12d %12.4f, %12.4f", i, oobCount[i], (uint) statusPtr[i], timePtr[i], predictedOutcome[i]);
-    }
-    Rprintf("\n");
-    Rprintf("\nConcordance pair and error update complete:");  
-    Rprintf("\nCount of concordance pairs:         %20d", concordancePairSize);
-    Rprintf("\nCount of pairs with worse outcome:  %20d", concordanceWorseCount);
-    Rprintf("\n");
-  }
   if (concordancePairSize == 0) {
     result = NA_REAL;
   }
   else {
     result = ((double) concordanceWorseCount / (double) concordancePairSize);
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _cindxTime = _cindxTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\ngetConcordanceIndex() EXIT() ...\n");
   }
   return result;
 }
@@ -176,12 +152,6 @@ void getNelsonAalenEstimate(uint mode, double **nelsonAalen, uint treeID) {
   Node *parent;
   uint priorTimePointIndex, currentTimePointIndex;
   double estimate;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getNelsonAalenEstimate() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   uint *nodeParentDeath  = uivector(1, _masterTimeSize);
   uint *nodeParentAtRisk = uivector(1, _masterTimeSize);
   for (leaf=1; leaf <= _leafCount_[treeID]; leaf++) {
@@ -212,22 +182,6 @@ void getNelsonAalenEstimate(uint mode, double **nelsonAalen, uint treeID) {
             i = _masterTimeSize;
           }
         }
-        if (getTraceFlag() & TURN_OFF_TRACE) {
-          Rprintf("\nNelson-Aalen at risk and death counts for node:  %10d \n", leaf);
-          Rprintf("  with time point index:  %10d \n", currentTimePointIndex);
-          for (i=1; i <= _masterTimeSize; i++) {
-            Rprintf("%10d", i);
-          }
-          Rprintf("\n");
-          for (i=1; i <= _masterTimeSize; i++) {
-            Rprintf("%10d", nodeParentAtRisk[i]);
-          }
-          Rprintf("\n");
-          for (i=1; i <= _masterTimeSize; i++) {
-            Rprintf("%10d", nodeParentDeath[i]);
-          }
-          Rprintf("\n");
-        }
         estimate = 0.0;
         for (i = priorTimePointIndex + 1; i <= currentTimePointIndex; i++) {
           if (nodeParentDeath[i] > 0) {
@@ -251,27 +205,6 @@ void getNelsonAalenEstimate(uint mode, double **nelsonAalen, uint treeID) {
   }  
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
   free_uivector(nodeParentAtRisk, 1, _masterTimeSize);
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nTree specific Nelson-Aalen estimator matrix:  %10d \n", treeID);
-    Rprintf("          ");
-    for (i=1; i <= _leafCount_[treeID]; i++) {
-      Rprintf("%10d", i);
-    }
-    Rprintf("\n");
-    for (j=1; j <= _sortedTimeInterestSize; j++) {
-      Rprintf("%10d", j);
-      for (i=1; i <= _leafCount_[treeID]; i++) {
-        Rprintf("%10.4f", nelsonAalen[j][i]);
-      }
-      Rprintf("\n");
-    }
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _hazrdTime = _hazrdTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getNelsonAalenEstimate() EXIT ...\n");  
-  }
 }
 void updateEnsembleCHF(uint      mode, 
                        uint      treeID,
@@ -283,12 +216,6 @@ void updateEnsembleCHF(uint      mode,
   uint     *ensembleDenPtr;  
   Node    **nodeMembershipPtr;
   uint i, j, k, p, n;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  updateEnsembleCHF() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   switch (mode) {
   case RSF_GROW:
     obsSize = _observationSize;
@@ -371,68 +298,6 @@ void updateEnsembleCHF(uint      mode,
         }
       }
     }  
-    if (getTraceFlag() & ENSB_LOW_TRACE) {
-      if (oobFlag == TRUE) {
-        Rprintf("\nOOB Ensemble calculations follow: \n");        
-      }
-      else {
-        if (fullFlag == TRUE) {
-          Rprintf("\nFULL Ensemble calculations follow: \n");        
-        }
-      }
-      Rprintf("\nEnsemble Estimator Numerator calculation: \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n");
-      for (k=1; k <= _sortedTimeInterestSize; k++) {
-        Rprintf("%10d", k);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", ensemblePtr[1][k][i]);
-        }
-        Rprintf("\n");
-      }
-      Rprintf("\nEnsemble Estimator Denominator calculation: \n");
-      Rprintf("          ");  
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", ensembleDenPtr[i]);
-      }
-      Rprintf("\n");
-      if (mortalityFlag == TRUE) {
-        Rprintf("\nMortality:  \n");
-        Rprintf("          ");
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10d", n);
-        }
-        Rprintf("\n          ");
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10.4f", mortality[n]);
-        }
-        Rprintf("\n");
-      }
-      if (oobFlag == TRUE) {
-        Rprintf("\nClassification of OOB elements:  ");
-        Rprintf("\n       Leaf     Indiv            EE      predictors ->  ");
-        for (p=1; p <= _leafCount_[treeID]; p++) {
-          for (i = 1; i <= obsSize; i++) {
-            if ( _bootMembershipFlag[_individualIndex[i]] == FALSE) {
-              if ((nodeMembershipPtr[i] -> leafCount) == p) {
-                Rprintf("\n %10d %10d %12.4f", p, i, mortality[i]);
-                for (j = 1; j <= _xSize; j++) {
-                  Rprintf("%12.4f", _observation[j][_individualIndex[i]]);
-                }
-              }
-            }
-          }
-        }
-        Rprintf("\n");
-      }
-    }
     if (mortalityFlag == TRUE) {
       mortalityFlag = FALSE;
     }
@@ -445,12 +310,6 @@ void updateEnsembleCHF(uint      mode,
       }
     }
   }  
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _ensblTime = _ensblTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  updateEnsembleCHF() EXIT ...\n");  
-  }
 }
 void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
   uint leaf, i, j, k, q, m;
@@ -458,12 +317,6 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
   Node *parent;
   double estimate, headValue;
   uint priorTimePointIndex, currentTimePointIndex;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getTreeSpecificSubSurvivalAndDistribution() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   if (_eventTypeSize == 1) {
       Rprintf("\nRSF:  *** ERROR *** ");
       Rprintf("\nRSF:  Illegal sub-survival function call.");
@@ -508,43 +361,6 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
           nodeEventTimeIndex[++nodeEventTimeSize] = k;
         }
       }
-      if (getTraceFlag() & ENSB_HGH_TRACE) {
-        Rprintf("\nSurvival at risk, death and event counts for node:  %10d  \n", leaf);
-        Rprintf("mstTimIdx ");
-        for (k=1; k <= _masterTimeSize; k++) {
-          Rprintf("%10d", k);
-        }
-        Rprintf("\n");
-        Rprintf("At Risk   ");
-        for (k=1; k <= _masterTimeSize; k++) {
-          Rprintf("%10d", nodeParentAtRisk[k]);
-        }
-        Rprintf("\n");
-        Rprintf("Deaths    ");
-        for (k=1; k <= _masterTimeSize; k++) {
-          Rprintf("%10d", nodeParentDeath[k]);
-        }
-        Rprintf("\n");
-        for (j=1; j <= _eventTypeSize; j++) {
-          Rprintf("Ev %7d", j);
-          for (k=1; k <= _masterTimeSize; k++) {
-            Rprintf("%10d", nodeParentEvent[j][k]);
-          }
-          Rprintf("\n");
-        }
-        Rprintf("\n");
-        Rprintf("\nNode specific POE counts of length [_eventTypeSize] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
-        Rprintf("Event Types:  ");
-        for (j=1; j <= _eventTypeSize; j++) {
-          Rprintf("%10d ", _eventType[j]);
-        }
-        Rprintf("\n");
-        Rprintf("              ");
-        for (j=1; j <= _eventTypeSize; j++) {
-          Rprintf("%10d ", (parent -> poe)[j]);
-        }
-        Rprintf("\n");
-      }  
       double **subDensity = dmatrix(1, _eventTypeSize, 1, nodeEventTimeSize);
       double **survival = dmatrix(1, nodeEventTimeSize, 1, _leafCount_[treeID]);
       for (q=1; q <= nodeEventTimeSize; q++) {
@@ -608,39 +424,6 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
         }
         priorTimePointIndex = currentTimePointIndex;
       }
-      if (getTraceFlag() & ENSB_HGH_TRACE) {
-        Rprintf("\nNode specific survival function of length [nodeEventTimeSize] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
-        Rprintf("              mTimIdx       time   survival \n");
-        for (q=1; q <= nodeEventTimeSize; q++) {
-          Rprintf("%10d %10d %10.4f %10.4f \n", q, nodeEventTimeIndex[q], _masterTime[nodeEventTimeIndex[q]], survival[q][leaf]);
-        }
-        Rprintf("\nNode specific sub-density function [_eventTypeSize] x [nodeEventTimeSize] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
-        Rprintf("             mTimIdx       time ");
-        for (j=1; j <= _eventTypeSize; j++) {
-          Rprintf("%10d ", j);
-        }
-        Rprintf("\n");
-        for (q=1; q <= nodeEventTimeSize; q++) {
-          Rprintf("%10d %10d %10.4f ", q, nodeEventTimeIndex[q], _masterTime[nodeEventTimeIndex[q]]);
-          for (j=1; j <= _eventTypeSize; j++) {
-            Rprintf("%10.4f ", subDensity[j][q]);
-          }
-          Rprintf("\n");
-        }
-        Rprintf("\nNode specific pre sub-survival function (before head adjsutment) [_eventTypeSize] x [_sortedTimeInterestSize] x [_leafCount_[treeID]] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
-        Rprintf("                 time ");
-        for (j=1; j <= _eventTypeSize; j++) {
-          Rprintf("%10d ", j);
-        }
-        Rprintf("\n");
-        for (k=1; k <= _sortedTimeInterestSize; k++) {
-          Rprintf("%10d %10.4f ", k, _timeInterest[k]);
-          for (j=1; j <= _eventTypeSize; j++) {
-            Rprintf("%10.4f ", (parent -> subSurvival)[j][k]);
-          }
-          Rprintf("\n");
-        }
-      }
       for (j=1; j <= _eventTypeSize; j++) {
         headValue = (double) (parent -> poe)[j] / parent -> eventCount;
         headValue = (headValue > (parent -> subSurvival)[j][_sortedTimeInterestSize]) ? headValue : (parent -> subSurvival)[j][_sortedTimeInterestSize];
@@ -662,21 +445,6 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
           }
         }
       }
-      if (getTraceFlag() & ENSB_HGH_TRACE) {
-        Rprintf("\nNode specific sub-survival function (after head adjustment) [_eventTypeSize] x [_sortedTimeInterestSize] x [_leafCount_[treeID]] for:  (tree, node) = (%10d, %10d)  \n", treeID, leaf);
-        Rprintf("                 time ");
-        for (j=1; j <= _eventTypeSize; j++) {
-          Rprintf("%10d ", j);
-        }
-        Rprintf("\n");
-        for (k=1; k <= _sortedTimeInterestSize; k++) {
-          Rprintf("%10d %10.4f ", k, _timeInterest[k]);
-          for (j=1; j <= _eventTypeSize; j++) {
-            Rprintf("%10.4f ", (parent -> subSurvival)[j][k]);
-          }
-          Rprintf("\n");
-        }
-      }
       for (j = 1; j <= _eventTypeSize; j++) {
         if ((parent -> poe)[j] == 0) {
           for (k=1; k <= _sortedTimeInterestSize; k++) {
@@ -696,12 +464,6 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
   free_uivector(nodeParentDeath, 1, _masterTimeSize);
   free_uivector(nodeParentAtRisk, 1, _masterTimeSize);
   free_uimatrix(nodeParentEvent, 1, _eventTypeSize, 1, _masterTimeSize);
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _chazrdTime = _chazrdTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getTreeSpecificSubSurvivalAndDistribution() EXIT ...\n");  
-  }
 }
 void updateEnsembleSubSurvivalAndDistribution(uint      mode, 
                                               uint      treeID,
@@ -714,12 +476,6 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
   Node    **nodeMembershipPtr;
   double  value;
   uint i, j, k, n, p;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  updateEnsembleSubSurvivalAndDistribution() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   if (_eventTypeSize == 1) {
       Rprintf("\nRSF:  *** ERROR *** ");
       Rprintf("\nRSF:  Illegal ensemble sub-survival call.");
@@ -821,8 +577,6 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
       for (j = 1; j <= _eventTypeSize; j++) {
         for (k=1; k <= _sortedTimeInterestSize; k++) {
           if(ensSubSurvivalPtr[j][k][i] > 0) {
-            if (getTraceFlag() & TIME_DEF_TRACE) {
-            }
             if (poePtr[j][i] > 0) {
               value = ensSubSurvivalPtr[j][k][i] / poePtr[j][i];
               value = (value <= 1.0) ? value : 1.0;
@@ -832,8 +586,6 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
               value = ensSubSurvivalPtr[j][k][i] / 1.0;
               value = (value <= 1.0) ? value : 1.0;
               ensemblePtr[j+1][k][i] = - log (value);
-            }
-            if (getTraceFlag() & TIME_DEF_TRACE) {
             }
           }
           else {
@@ -859,74 +611,6 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
         }
       }
     }  
-    if (getTraceFlag() & ENSB_LOW_TRACE) {
-      if (oobFlag == TRUE) {
-        Rprintf("\nOOB Conditional Ensemble calculations follow: \n");        
-      }
-      else {
-        if (fullFlag == TRUE) {
-          Rprintf("\nFULL Conditional Ensemble calculations follow: \n");        
-        }
-      }
-      for (j = 1; j <= _eventTypeSize; j++) {
-        Rprintf("\nSub-SRV Numerator calculation:  Event %10d \n", j);
-        Rprintf("          ");
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10d", n);
-        }
-        Rprintf("\n");
-        for (k=1; k <= _sortedTimeInterestSize; k++) {
-          Rprintf("%10d", k);
-          for (n=1; n <= obsSize; n++) {
-            Rprintf("%10.4f", ensSubSurvivalPtr[j][k][n]);
-          }
-          Rprintf("\n");
-        }
-      }
-      Rprintf("\nProbability of Event:  \n");
-      Rprintf("          ");
-      for (n=1; n <= obsSize; n++) {
-        Rprintf("%10d", n);
-      }
-      Rprintf("\n");
-      for (j=1; j <= _eventTypeSize; j++) {
-        Rprintf("%10d", j);
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10.4f", poePtr[j][n]);
-        }
-        Rprintf("\n");
-      }
-      for (j = 1; j <= _eventTypeSize; j++) {
-        Rprintf("\nEnsemble Conditional CHF:  Event %10d \n", j);
-        Rprintf("          ");
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10d", n);
-        }
-        Rprintf("\n");
-        for (k=1; k <= _sortedTimeInterestSize; k++) {
-          Rprintf("%10d", k);
-          for (n=1; n <= obsSize; n++) {
-            Rprintf("%10.4f", ensemblePtr[j+1][k][n]);
-          }
-          Rprintf("\n");
-        }
-      }
-      if (mortalityFlag == TRUE) {
-        Rprintf("\nConditional Mortality:  \n");
-        Rprintf("          ");
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10d", n);
-        }
-        Rprintf("\n");
-        for (j = 1; j <= _eventTypeSize; j++) {       
-          Rprintf("%10d", _eventType[j]);
-          for (n=1; n <= obsSize; n++) {
-            Rprintf("%10.4f", conditionalMortality[j][n]);
-          }
-          Rprintf("\n");
-        }
-      }
-    }  
     if (mortalityFlag == TRUE) {
       mortalityFlag = FALSE;
     }
@@ -939,12 +623,6 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
       }
     }
   }  
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _censblTime = _censblTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  updateEnsembleSubSurvivalAndDistribution() EXIT ...\n");  
-  }
 }
 void getConditionalConcordanceArrays(uint     j, 
                                      double  *statusPtr, 
@@ -956,12 +634,6 @@ void getConditionalConcordanceArrays(uint     j,
                                      double  *subsettedMortality,
                                      uint    *subsettedEnsembleDen) {
   uint i;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getConditionalConcordanceArrays() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   if (_eventTypeSize == 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to update event type subsets in a non-CR analysis.");
@@ -974,24 +646,12 @@ void getConditionalConcordanceArrays(uint     j,
     subsettedMortality[i]   = mortalityPtr[_eIndividual[j][i]];
     subsettedEnsembleDen[i] = genericEnsembleDenPtr[_eIndividual[j][i]];
   }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _censblTime = _censblTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getConditionalConcordanceArrays() EXIT ...\n");  
-  }
 }
 void getMeanSurvivalTime(uint mode, double *meanSurvivalTime, uint treeID) {
   uint leaf, i;
   double totalDeathTime;
   uint deathCount;
   Node *parent;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getMeanSurvivalTime() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   for (leaf=1; leaf <= _leafCount_[treeID]; leaf++) {
     totalDeathTime = 0;
     deathCount = 0;
@@ -1020,25 +680,6 @@ void getMeanSurvivalTime(uint mode, double *meanSurvivalTime, uint treeID) {
     else {
     }      
   }  
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nTree specific mean survival time vector:  %10d \n", treeID);
-    Rprintf("          ");
-    for (i=1; i <= _leafCount_[treeID]; i++) {
-      Rprintf("%10d", i);
-    }
-    Rprintf("\n");
-    Rprintf("          ");
-    for (i=1; i <= _leafCount_[treeID]; i++) {
-      Rprintf("%10.4f", meanSurvivalTime[i]);
-    }
-    Rprintf("\n");
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _hazrdTime = _hazrdTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  getMeanSurvivalTime() EXIT ...\n");  
-  }
 }
 void updateEnsembleSurvivalTime(uint     mode, 
                                 uint     treeID, 
@@ -1047,12 +688,6 @@ void updateEnsembleSurvivalTime(uint     mode,
   uint i, j, k, p;
   uint obsSize;
   uint *genericEnsembleDenPtr;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  updateEnsembleSurvivalTime() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   switch (mode) {
   case RSF_GROW:
     for (i=1; i <= _observationSize; i++) {
@@ -1114,116 +749,12 @@ void updateEnsembleSurvivalTime(uint     mode,
     exit(TRUE);
     break;
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    switch (mode) {
-    case RSF_GROW:
-      obsSize = _observationSize;
-      genericEnsembleDenPtr = _oobEnsembleDen;
-      break;
-    case RSF_PRED:
-      obsSize = _fobservationSize;
-      genericEnsembleDenPtr = _fullEnsembleDen;
-      break;
-    case RSF_INTR:
-      obsSize = _fobservationSize;
-      genericEnsembleDenPtr = _oobEnsembleDen;
-      break;
-    default:
-      Rprintf("\nRSF:  *** ERROR *** ");
-      Rprintf("\nRSF:  Unknown case in switch encountered. ");
-      Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
-      break;
-    }
-    if (_opt & OPT_OENS) {
-      Rprintf("\nOOB Ensemble Estimator Numerator calculation: \n");
-      Rprintf("          ");
-      for (i=1; i <= _observationSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n");
-      for (k=1; k <= 1; k++) {
-        Rprintf("%10d", k);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", _oobEnsemblePtr[1][k][i]);
-        }
-        Rprintf("\n");
-      }
-    }
-    if (_opt & OPT_FENS) {
-      Rprintf("\nFull Ensemble Estimator Numerator calculation: \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n");
-      for (k=1; k <= 1; k++) {
-        Rprintf("%10d", k);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%10.4f", _fullEnsemblePtr[1][k][i]);
-        }
-        Rprintf("\n");
-      }
-    }
-    if ((_opt & OPT_OENS) || (_opt & OPT_FENS)) {
-      Rprintf("\nRunning Ensemble Estimator:  \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10.4f", mortality[i]);
-      }
-      Rprintf("\n");
-      Rprintf("\nEnsemble Estimator Denominator calculation: \n");
-      Rprintf("          ");  
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", i);
-      }
-      Rprintf("\n          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%10d", genericEnsembleDenPtr[i]);
-      }
-      Rprintf("\n");
-    }
-    if (mode == RSF_GROW) {
-      Rprintf("\nClassification of OOB elements:  ");
-      Rprintf("\n       Leaf     Indiv            EE      predictors ->  ");
-      for (j=1; j <= _leafCount_[treeID]; j++) {
-        for (i = 1; i <= _observationSize; i++) {
-          if (_bootMembershipFlag[i] == FALSE) {
-            if ((_nodeMembership[i] -> leafCount) == j) {
-              Rprintf("\n %10d %10d %12.4f", j, i, mortality[i]);
-              for (k = 1; k <= _xSize; k++) {
-                Rprintf("%12.4f", _observation[k][i]);
-              }
-            }
-          }
-        }
-      }
-      Rprintf("\n");
-    }
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _ensblTime = _ensblTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nRSF:  updateEnsembleSurvivalTime() EXIT ...\n");  
-  }
 }
 void getVariablesUsed(Node *parent, uint *varUsedPtr) {
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\ngetVariablesUsed() ENTRY ...\n");  
-  }
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     varUsedPtr[parent -> splitParameter] ++;
      getVariablesUsed(parent ->  left, varUsedPtr);
      getVariablesUsed(parent -> right, varUsedPtr);
-  }
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\ngetVariablesUsed() EXIT ...\n");  
   }
   return;
 }
@@ -1247,9 +778,6 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
   int concordancePolarity;
   double concordanceIndex;
   double *crPerformanceVector;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nupdateEnsembleCalculations() ENTRY ...\n");
-  }
   cumulativeHazard     = NULL;  
   meanSurvivalTime     = NULL;  
   conditionalMortality = NULL;  
@@ -1305,9 +833,6 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       updateEnsembleSubSurvivalAndDistribution(mode, b, conditionalMortality);
     }
   }  
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nRSF:  Predicted outcome calculation complete.");  
-  }
   if (_opt & OPT_VIMP) {
     getVariableImportance(mode,
                           _leafCount_[b],
@@ -1381,22 +906,6 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       }
       free_dvector(crPerformanceVector, 1, _eventTypeSize);
     }
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Error Rate for treeID:  %10d", b);
-      if (_eventTypeSize > 1) {
-        for (j = 1; j <= _eventTypeSize; j++) {
-          Rprintf("                [%2d]", j);
-        }
-      }
-      Rprintf("\n                   ");
-      Rprintf("%20.4f", _performancePtr[1][b]);
-      if (_eventTypeSize > 1) {
-        for (j = 1; j <= _eventTypeSize; j++) {
-          Rprintf("%20.4f", _performancePtr[1+j][b]);
-        }
-      }
-      Rprintf("\n");
-    }
     if (concordanceImputeFlag > 0) {
       free_dvector(mStatusPtr, 1, obsSize);
       free_dvector(mTimePtr, 1, obsSize);
@@ -1416,20 +925,6 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       varUsedRow = _varUsedPtr[1];
     }
     getVariablesUsed(rootPtr, varUsedRow);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nVariables Used Counts by Parameter:  \n");
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12d", i);
-      }
-      Rprintf("\n");
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12d", varUsedRow[i]);
-      }
-      Rprintf("\n");
-    }
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nupdateEnsembleCalculations() EXIT ...\n");
   }
 }
 void getConditionalPerformance (uint     mode,
@@ -1445,9 +940,6 @@ void getConditionalPerformance (uint     mode,
   uint  *mRecordIndex;
   double concordanceIndex;
   uint j;
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\ngetConditionalPerformance() ENTRY() ...\n");
-  }
   if (_eventTypeSize == 1) { 
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt at conditional performance updates in a non-CR analysis.");
@@ -1499,7 +991,4 @@ void getConditionalPerformance (uint     mode,
   free_dvector(subsettedTime, 1, obsSize);
   free_dvector(subsettedMortality, 1, obsSize);
   free_uivector(subsettedEnsembleDen, 1, obsSize);
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\ngetConditionalPerformance() EXIT() ...\n");
-  }
 }

@@ -6,15 +6,9 @@
   variables.
 }
 \usage{
-    vimp(object,
-         predictorNames = NULL,
-         subset = NULL,
-         joint = TRUE,
-         rough = FALSE,
-         importance = c("randomsplit", "permute", "none")[1],
-         seed = NULL,
-         do.trace = FALSE,
-         ...)
+  vimp(object, predictorNames = NULL, subset = NULL, joint = TRUE,
+       rough = FALSE, importance = c("randomsplit", "permute", "none")[1], 
+       seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -66,10 +60,10 @@
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    H. Ishwaran (2007).  Variable importance in binary regression
+    Ishwaran H. (2007).  Variable importance in binary regression
     trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
 }
 \seealso{

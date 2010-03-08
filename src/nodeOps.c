@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -158,17 +158,11 @@ Node *makeNode(unsigned int xSize) {
   parent -> poe                  = NULL;
   parent -> subSurvival          = NULL;
   parent -> eventCount           = 0;
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-  }
   return parent;
 }
 void freeNode(Node        *parent, 
               unsigned int eventTypeSize, 
               unsigned int sortedTimeInterestSize) {
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nFreeNode NodeInfo:  ");
-    getNodeInfo(parent);
-  }
   free_cvector(parent -> permissibleSplit, 1, parent -> xSize);
   if ((parent -> splitValueFactSize) > 0) {
     free_uivector(parent -> splitValueFactPtr, 1, parent -> splitValueFactSize);
@@ -226,9 +220,6 @@ char forkNode(Node         *parent,
               unsigned int  splitValueMaxFactSize,
               unsigned int *splitValueMaxFactPtr,
               double        splitValueMaxCont) {
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nforkNode() ENTRY ...\n");
-  }
   if (parent == NULL) {
     Rprintf("\nRSF:  *** WARNING *** ");
     Rprintf("\nRSF:  Inconsistent call to forkNode().  ");
@@ -272,13 +263,5 @@ char forkNode(Node         *parent,
   nrCopyVector(left  -> permissibleSplit, parent -> permissibleSplit, left -> xSize);
   nrCopyVector(right -> permissibleSplit, parent -> permissibleSplit, right -> xSize);
   parent -> splitFlag = FALSE;
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nParent Info:  "); getNodeInfo(parent);
-    Rprintf("\nLeft   Info:  "); getNodeInfo(left);
-    Rprintf("\nRight  Info:  "); getNodeInfo(right);
-  }
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nforkNode() EXIT ...\n");
-  }
   return TRUE;
 }

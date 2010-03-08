@@ -1,7 +1,7 @@
 \name{competing.risk}
 \alias{competing.risk}
 \alias{competing.risk}
-\title{Plots Summarizing Competings Risks Analysis}
+\title{Summary values for Competing Risks}
 \description{
   Plot the ensemble cumulative incidence function (CIF), ensemble
   subsurvival function, ensemble conditional survival function, and
@@ -24,23 +24,26 @@
   See Gray (1988) for motivation regarding the CIF and subsurvival
   functions.
   
-  For right-censored data only the survival function is plotted. 
+  For right-censored data, only the survival function is plotted.
+
+  Whenever possible, out-of-bag (OOB) values are plotted.
 }
 \value{
-   Invisibly, the ensemble CIF and ensemble subsurvival function for
-   each event type.
+   Invisibly, the ensemble CIF, ensemble subsurvival function and
+   conditional mortality for each event type.  Whenever possible,
+   out-of-bag (OOB) values are returned.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    R. J. Gray (1988).  A class of k-sample tests for comparing the
+    Gray R.J. (1988).  A class of k-sample tests for comparing the
     cumulative incidence of a competing risk, \emph{Ann. Statist.},
     16: 1141-1154.
 
-    H. Ishwaran, and Udaya B. Kogalur (2009).  Competing risks: a forest
-    approach. \emph{Cleveland Clinic Technical Report}.
+    Ishwaran H., Kogalur U.B. and Lau B.M. (2010).  Random survival
+    forests for competing risks.
 }
 \seealso{
   \code{find.interaction},

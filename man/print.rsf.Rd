@@ -15,12 +15,7 @@
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
-}
-\references{
-    H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2008).  Random survival forests, \emph{To appear in Ann. App.
-    Statist.}.
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \seealso{
   \code{rsf},

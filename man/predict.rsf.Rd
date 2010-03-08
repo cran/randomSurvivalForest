@@ -5,16 +5,9 @@
     Prediction on test data using Random Survival Forests.  
 }
 \usage{
-  predict.rsf(object = NULL,
-              test = NULL,
-              importance = c("randomsplit", "permute", "none")[1],
-              na.action = c("na.omit", "na.impute")[1],
-              outcome = c("train", "test")[1],
-              proximity = FALSE,
-              split.depth = FALSE,
-              seed = NULL,
-              do.trace = FALSE,
-              ...)
+  predict.rsf(object = NULL, test = NULL, importance = c("randomsplit", "permute", "none")[1],
+              na.action = c("na.omit", "na.impute")[1], outcome = c("train", "test")[1],
+              proximity = FALSE, split.depth = FALSE, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -89,6 +82,10 @@
          evaluated at each of the time points in \code{timeInterest}.
          For competing risks, a 3-D array where the 3rd dimension is for
          the ensemble CHF and each of the CCHFs, respectively.}
+     \item{poe}{Matrix containing the ensemble probability
+         of an event (poe) for each test set individual: used to estimate the
+         CIF.  Rows correspond to each of the event types.  Applies only
+	 to competing risk data.  NULL otherwise.}
      \item{mortality}{Vector containing ensemble mortality for each
          individual in the test data.  Ensemble mortality should
          be interpreted in terms of total number of training deaths if
@@ -124,17 +121,19 @@
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
+    Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
 
-    H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2008).  Random survival forests, \emph{Ann. App.
-    Statist.}, 2:841-860.
-
-    H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
+    Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,
     \emph{Rnews}, 7/2:25-31.
+
+    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+    (2008).  Random survival forests, \emph{Ann. App. Statist.}, 2:841-860.
+    
+    Ishwaran H., Kogalur U.B. and Lau B.M. (2010).  Random survival
+    forests for competing risks.
 }	
 \seealso{
   \code{competing.risk},

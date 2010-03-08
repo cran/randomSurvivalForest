@@ -1,9 +1,25 @@
 Package: randomSurvivalForest
-Version: 3.6.1
-BUILD: bld20100127
+Version: 3.6.2
+BUILD: bld20100308
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.6.1
+CHANGES TO RELEASE 3.6.2
+
+RELEASE 3.6.2 represents a minor update of the product, and
+will not affect most users of the prior version of the product.  Key
+changes are as follows:
+
+o Updates to Rd files.
+
+o Minor updates to R functions.
+
+o Removal of all trace functionality to decrease execution time.
+
+NOTE: The 3.6.x stream represents the last and final major upgrade of
+this product.  Current and future functionality will migrate to the
+new CRAN package, Random Forests for Survival, Regression, and
+Classification, that will be released in the coming months.
+---------------------------------------------------------------------------------
 
 RELEASE 3.6.1 represents a critical update of the product
 resolving platform portability on 64-bit Windows machines.  Key
@@ -13,6 +29,10 @@ o Fix to 64-bit Windows build resulting in naming conflict with
   variable reserved for implementation.  No other platforms affected.
   Thanks to Brian Ripley for this.
 
+NOTE: The 3.6.x stream represents the last and final major upgrade of
+this product.  Current and future functionality will migrate to the
+new CRAN package, Random Forests for Survival, Regression, and
+Classification, that will be released in the coming months.
 ---------------------------------------------------------------------------------
 
 RELEASE 3.6.0 represents the last and final major upgrade of this

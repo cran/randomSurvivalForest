@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.1
+####  RANDOM SURVIVAL FOREST 3.6.2
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -116,8 +116,9 @@ plot.error <- function (x, sorted = TRUE, ...) {
       if (sorted) pred.order <- order(imp[, 1]) else pred.order <- n.pred:1
       if (ncol(imp) == 1) max.pred <- 100 else max.pred <- 80/ncol(imp)
       if (n.pred > max.pred) {
-        dotchart.labels <- rep("",n.pred)
+        dotchart.labels <- rep("", n.pred)
         pretty.pt <- pretty(1:n.pred, n = max.pred)
+        pretty.pt <- pretty.pt[pretty.pt > 0 & pretty.pt < n.pred]
         dotchart.labels[pretty.pt] <- x$predictorNames[pred.order][pretty.pt]
       }
       else {
@@ -162,11 +163,14 @@ plot.err <- function(err) {
   matplot(1:ncol(err), t(err),
           xlab = "Number of Trees",
           ylab = "Error Rate",
-          type = c("p", "l")[1+1*(ncol(err)>1)], pch = 16, lty = 1, lwd = 3)
+          type = c("p", "l")[1 + 1 * (ncol(err) > 1)], pch = 16, lty = 1,
+          lwd = c(3, 1.5)[1 + 1 * (nrow(err) > 10)])
   if (nrow(err) > 1) {
     legend("topright",
-           legend = c("CHF    ", paste("cond CHF ", 1:(nrow(err)-1), "    ")),
-           col = 1:nrow(err), lty = 1, lwd = 3)
+           legend = c("CHF", paste("cond CHF   ", 1:(nrow(err)-1), " ")),
+           col = 1:nrow(err), lty = 1, xjust = 1,
+           lwd = c(3, 1.5)[1 + 1 * (nrow(err) > 10)],
+           cex = c(1, 0.75)[1 + 1 * (nrow(err) > 10)])
   }
 }
 

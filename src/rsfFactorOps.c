@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -105,9 +105,6 @@ void free_factorPtrVector(Factor **v,
 }
 Factor *makeFactor(uint r, char bookFlag) {
   uint i;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nmakeFactor(%2x) ENTRY ...\n", bookFlag);
-  }
   Factor *f = (Factor*) malloc((size_t)sizeof(Factor));
   f -> r = r;
   f -> cardinalGroupCount = (uint) floor(r/2);
@@ -148,33 +145,9 @@ Factor *makeFactor(uint r, char bookFlag) {
       bookFactor(f);
     }
   }  
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    if (r <= MAX_EXACT_LEVEL) {
-      Rprintf("\n    Levels   GrpCount  PairCount\n");
-      Rprintf("%10d %10d %12d \n", f -> r, f -> cardinalGroupCount, *((uint*) f -> complementaryPairCount));
-      Rprintf("\n     Group       Size \n");
-      for (i=1; i <= f -> cardinalGroupCount; i++) {
-        Rprintf("%10d %12d \n", i, ((uint*) f -> cardinalGroupSize)[i]);
-      }
-    }
-    else {
-      Rprintf("\n    Levels   GrpCount  PairCount\n");
-      Rprintf("%10d %10d %24.0f \n", f -> r, f -> cardinalGroupCount, *((double*) f -> complementaryPairCount));
-      Rprintf("\n     Group       Size \n");
-      for (i=1; i <= f -> cardinalGroupCount; i++) {
-        Rprintf("%10d %24.0f \n", i, ((double*) f -> cardinalGroupSize)[i]);
-      }
-    }
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nmakeFactor() EXIT ...\n");
-  }
   return f;
 }
 void free_Factor(Factor *f) {
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nfree_Factor(%4d) ENTRY ...\n", f -> r);
-  }
   if (f -> r > 1) {
     unBookFactor(f);
     if (f -> r <= MAX_EXACT_LEVEL) {
@@ -185,17 +158,11 @@ void free_Factor(Factor *f) {
     }
   }
   free((FREE_ARG) f);
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nfree_Factor() EXIT ...\n");
-  }
 }
 char bookFactor(Factor *f) {
   uint i, j;
   uint row;
   char result;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nbookFactor(%4d) ENTRY ...\n", f -> r);
-  }
   if (((f -> r) < 2) || ((f -> r) > MAX_EXACT_LEVEL)) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Minimum or Maximum number of factor levels violated in bookFactor(). ");
@@ -212,14 +179,7 @@ char bookFactor(Factor *f) {
       for (j = 1; j <= i; j++) {
         leftLevel[j] = 0;
       }
-      if (getTraceFlag() & FACT_HGH_TRACE) {
-        Rprintf("\nBooking Group:  %10d", i);
-        Rprintf("\n     Index       Binary");
-      }
       bookPair(f -> r , i, 1, &row, leftLevel, f);
-      if (getTraceFlag() & FACT_HGH_TRACE) {
-        Rprintf("\n");
-      }
     }
     free_uivector(leftLevel, 1, f -> r);
     result = TRUE;
@@ -227,17 +187,11 @@ char bookFactor(Factor *f) {
   else {
     result = FALSE;
   }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nbookFactor(%2x) EXIT ...\n", result);
-  }
   return result;
 }
 char unBookFactor(Factor *f) {
   char result;
   uint i;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nunBookFactor() ENTRY ...\n");
-  }
   if (f -> cardinalGroupBinary != NULL) {
     for (i = 1; i <= f -> cardinalGroupCount; i++) {
       free_uivector((f -> cardinalGroupBinary)[i], 1, ((uint*) f -> cardinalGroupSize)[i]);
@@ -249,9 +203,6 @@ char unBookFactor(Factor *f) {
   else {
     result = FALSE;
   }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nunBookFactor(%2x) EXIT ...\n", result);
-  }
   return result;
 }
 void bookPair (uint   levelCount, 
@@ -261,9 +212,6 @@ void bookPair (uint   levelCount,
                uint   *daughter, 
                Factor *f) {
   uint i;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nbookPair() ENTRY ...\n");
-  }
   daughter[setColumn] ++;
   if (setColumn < groupIndex) {
     setColumn ++; 
@@ -286,16 +234,9 @@ void bookPair (uint   levelCount,
     for (i=1; i <=groupIndex; i++) {
       (f -> cardinalGroupBinary)[groupIndex][*setRow] += upower(2, daughter[i] - 1);
     }
-    if (getTraceFlag() & FACT_HGH_TRACE) {
-      Rprintf("\n%10d", *setRow);
-      Rprintf(", hex = %16x", (ulong) (f -> cardinalGroupBinary)[groupIndex][*setRow]);
-    }
     if ( (levelCount > 2) && (daughter[setColumn] < levelCount)) {
       bookPair(levelCount, groupIndex, setColumn, setRow, daughter, f);
     }
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nbookPair() EXIT ...\n");
   }
 }
 void nChooseK (uint n, uint r, char type, void *result) {
@@ -364,15 +305,6 @@ char splitOnFactor(uint level, uint *mwcp) {
   daughterFlag = RIGHT;
   if (mwcpLevelWord & mwcp[mwcpLevelIdentifier]) {
     daughterFlag = LEFT;
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nMWCP Info:  level= %8d, word= %8d : %8x %8x --> ", level, mwcpLevelIdentifier, mwcpLevelWord, mwcp[mwcpLevelIdentifier]);
-    if (daughterFlag == LEFT) {
-      Rprintf("LEFT");
-    }
-    else {
-      Rprintf("RGHT");
-    }
   }
   return daughterFlag;
 }

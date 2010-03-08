@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -100,17 +100,9 @@ void updateMaximumSplit(double  delta,
                         uint   *splitParameterMax,
                         void   *permissibleSplitPtr) {
   uint k;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nupdateMaximumSplit() ENTRY ...\n");
-  }
   if (delta > *deltaMax) {
     *deltaMax = delta;
     *splitParameterMax = randomCovariate;
-    if (getTraceFlag() & SPLT_MED_TRACE) {
-      Rprintf("\n\nUpdated Running Split Statistics: \n");
-      Rprintf("  SplitParm  SplitValIdx        Delta \n");
-      Rprintf(" %10d %12d %12.4f \n", randomCovariate, index, *deltaMax);
-    }
     if (factorFlag == TRUE) {
       if (_splitValueMaxFactSize > 0) {
         if (_splitValueMaxFactSize != mwcpSizeAbsolute) {
@@ -128,13 +120,6 @@ void updateMaximumSplit(double  delta,
         _splitValueMaxFactPtr[k] = 
           ((uint*) permissibleSplitPtr + ((index - 1) * _splitValueMaxFactSize))[k];
       }
-      if (getTraceFlag() & SPLT_MED_TRACE) {
-        Rprintf(" at MWCPsize= %2d, mwcp= ", _splitValueMaxFactSize);
-        for (k = _splitValueMaxFactSize; k >= 1; k--) {
-          Rprintf("%8x ", _splitValueMaxFactPtr[k]);
-        }
-        Rprintf("\n");
-      }
     }
     else {
       if (_splitValueMaxFactSize > 0) {
@@ -145,13 +130,7 @@ void updateMaximumSplit(double  delta,
       else {
       }
       _splitValueMaxCont = ((double*) permissibleSplitPtr)[index];
-      if (getTraceFlag() & SPLT_MED_TRACE) {
-        Rprintf(" at %12.4f \n", _splitValueMaxCont);
-      }
     }
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nupdateMaximumSplit() EXIT ...\n");
   }
 }
 uint stackAndSelectRandomCovariates(Node     *parent,
@@ -163,9 +142,6 @@ uint stackAndSelectRandomCovariates(Node     *parent,
   uint i;
   uint actualCovariateCount;
   uint candidateCovariate;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nstackAndSelectRandomCovariates() ENTRY ...\n");
-  }
   *covariateIndex = uivector(1, _xSize);
   *permissibleSplit = dmatrix(1, _randomCovariateCount, 1, nodeSize);
   *permissibleSplitSize = uivector(1, _randomCovariateCount);
@@ -186,9 +162,6 @@ uint stackAndSelectRandomCovariates(Node     *parent,
   while ((actualCovariateCount  <= _randomCovariateCount) && (candidateCovariate != 0)) {
     candidateCovariate = getSelectableElement(_xSize, randomSplitVector, _randomCovariateWeight);
     if (candidateCovariate != 0) {
-      if (getTraceFlag() & SPLT_HGH_TRACE) {
-        Rprintf("\nCandidate covariate (index, candidate):  %10d %10d \n", actualCovariateCount, candidateCovariate);
-      }
       for (i=1; i <= nodeSize; i++) {
         (*permissibleSplit)[actualCovariateCount][i] = _observation[candidateCovariate][nodeIndex[i]];
       }
@@ -200,48 +173,19 @@ uint stackAndSelectRandomCovariates(Node     *parent,
           (*permissibleSplit)[actualCovariateCount][(*permissibleSplitSize)[actualCovariateCount]] = (*permissibleSplit)[actualCovariateCount][i];
         }
       }
-      if (getTraceFlag() & SPLT_HGH_TRACE) {
-        Rprintf("\nCandidate covariate size:  %10d \n", (*permissibleSplitSize)[actualCovariateCount]);
-      }
       if((*permissibleSplitSize)[actualCovariateCount] >= 2) {
         randomSplitVector[candidateCovariate] = ACTIVE;
         (*covariateIndex)[actualCovariateCount] = candidateCovariate;
-        if (getTraceFlag() & SPLT_HGH_TRACE) {
-          Rprintf("\nCovariate selected:  %10d \n", candidateCovariate);
-          Rprintf("\nSplit points:       index        value");
-          for (i = 1; i <= (*permissibleSplitSize)[actualCovariateCount]; i++) {
-            Rprintf("\n               %10d %12.4f", i, (*permissibleSplit)[actualCovariateCount][i]);
-          }
-        }
         actualCovariateCount ++;
       }
       else {
         (parent -> permissibleSplit)[candidateCovariate] = FALSE;
         randomSplitVector[candidateCovariate] = FALSE;
-        if (getTraceFlag() & SPLT_HGH_TRACE) {
-          Rprintf("\nCovariate rejected:  %10d \n", candidateCovariate);
-        }
       }
     }
   }
   actualCovariateCount --;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nCovariate Random Selection:  \n");
-    for (i=1; i <= actualCovariateCount; i++) {
-      Rprintf("%10d %10d \n", i, (*covariateIndex)[i]);
-    }
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nPermissible Split Sizes: \n");
-    Rprintf(" covariate       size \n");
-    for (i=1; i <= actualCovariateCount; i++) {
-      Rprintf("%10d %10d \n", (*covariateIndex)[i], (*permissibleSplitSize)[i]);
-    }
-  }
   free_cvector(randomSplitVector, 1, _xSize);
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nstackAndSelectRandomCovariates() EXIT ...\n");
-  }
   return actualCovariateCount;
 }
 void unstackRandomCovariates(uint     nodeSize, 
@@ -261,9 +205,6 @@ uint getSelectableElement (uint    length,
   uint covariateIndex;
   double randomValue;
   uint i, j, k, p, index;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\ngetSelectableElement() ENTRY ...\n");
-  }
   if (length > 0) {
     localPermissible = cvector(1, length);
     cdf = dvector(1, length);
@@ -289,10 +230,6 @@ uint getSelectableElement (uint    length,
       localPermissible[i] = FALSE;
     }
   }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nSelectable vs Total Count: \n");  
-    Rprintf("%10d %10d \n", selectableCount, length);
-  }
   if (selectableCount > 0) {
     if (weight != NULL) { 
       covariateIndex = 0;
@@ -303,14 +240,6 @@ uint getSelectableElement (uint    length,
       }
       for (k=2; k <= covariateIndex; k++) {
         cdf[k] += cdf[k-1];
-      }
-      if (getTraceFlag() & SPLT_HGH_TRACE) {
-        Rprintf("\nUpdated CDF based on weights:  ");
-        Rprintf("\n     index          cdf");
-        for (k=1; k <= covariateIndex; k++) {
-          Rprintf("\n%10d  %12.4f", k, cdf[k]);
-        }
-        Rprintf("\n");
       }
       randomValue = ran2(_seed2Ptr)*cdf[covariateIndex];
       j=1;
@@ -343,12 +272,6 @@ uint getSelectableElement (uint    length,
     free_cvector(localPermissible, 1, length);
     free_dvector(cdf, 1, length);
   }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nSelected Index:  %10d", index);
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\ngetSelectableElement() EXIT ...\n");
-  }
   return index;
 }
 char getDeathCount(Node *parent, 
@@ -360,9 +283,6 @@ char getDeathCount(Node *parent,
   uint parentDeathCount = 0;
   uint i;
   char result;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\ngetDeathCount() ENTRY ...\n");
-  }
   *localMembershipSize = 0;
   *localDeathTimeSize  = 0;
   result = FALSE;
@@ -378,75 +298,35 @@ char getDeathCount(Node *parent,
       }
     }
   }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nParent Death Count:  %10d \n", parentDeathCount);
-    Rprintf("\nLocal Membership Index for Parent Node: \n");
-    for (i=1; i <= (*localMembershipSize); i++) {
-      Rprintf("%10d %10d %10d %10d %12.4f \n", i, localMembershipIndex[i], _masterTimeIndex[localMembershipIndex[i]], (uint) _status[localMembershipIndex[i]], _time[localMembershipIndex[i]]);
-    }
-    Rprintf("\nLocal Death Time Counts:  \n");
-    for (i=1; i <= _masterTimeSize; i++) {
-      Rprintf("%10d %10d %12.4f \n", i, localDeathTimeCount[i], _masterTime[i]);
-    }
-  }
   if (parentDeathCount >= (2 * (_minimumDeathCount))) {
     for (i=1; i <= _masterTimeSize; i++) {
       if (localDeathTimeCount[i] > 0) {
         localDeathTimeIndex[++(*localDeathTimeSize)] = i;
       }
     }
-    if (getTraceFlag() & SPLT_HGH_TRACE) {
-      Rprintf("\nLocal Death Times (i, _masterTimeIndex): \n");
-      for (i=1; i <= (*localDeathTimeSize); i++) {
-        Rprintf("%10d %10d \n", i, localDeathTimeIndex[i]);
-      }
-    }
     if ((*localDeathTimeSize) >= _minimumDeathCount) {
       result = TRUE;
     }
     else {
-      if (getTraceFlag() & SPLT_HGH_TRACE) {
-        Rprintf("\nMinimum unique deaths not acheived:  %10d versus %10d ", *localDeathTimeSize, _minimumDeathCount);
-        Rprintf("\nNode will not be split.  \n");
-      }
     }
   }
   else {
-    if (getTraceFlag() & SPLT_HGH_TRACE) {
-      Rprintf("\nLess than twice the minimum number of deaths encountered.  ");
-      Rprintf("\nNode will not be split.  \n");
-    }
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\ngetDeathCount() EXIT ...\n");
   }
   return result;
 }
 void stackSplit(uint **localMembershipIndex, 
                 uint **localDeathTimeCount, 
                 uint **localDeathTimeIndex) {
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nstackSplit() ENTRY ...\n");
-  }
   *localMembershipIndex = uivector(1, _observationSize);
   *localDeathTimeCount = uivector(1, _masterTimeSize);
   *localDeathTimeIndex = uivector(1, _masterTimeSize);
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nstackSplit() EXIT ...\n");
-  }
 }
 void unstackSplit(uint *localMembershipIndex, 
                   uint *localDeathTimeCount, 
                   uint *localDeathTimeIndex) {
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nunstackSplit() ENTRY ...\n");
-  }
   free_uivector(localMembershipIndex, 1, _observationSize);
   free_uivector(localDeathTimeCount, 1, _masterTimeSize);
   free_uivector(localDeathTimeIndex, 1, _masterTimeSize);
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nunstackSplit() EXIT ...\n");
-  }
 }
 void stackSplitCompact(uint   deathTimeSize,
                        uint **nodeParentDeath,
@@ -457,9 +337,6 @@ void stackSplitCompact(uint   deathTimeSize,
                        uint **nodeRightAtRisk,
                        uint   nodeSize,
                        char **localSplitIndicator) {
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nstackSplitCompact() ENTRY ...\n");
-  }
   *nodeParentDeath  = uivector(1, deathTimeSize);
   *nodeParentAtRisk = uivector(1, deathTimeSize);
   *nodeLeftDeath  = uivector(1, deathTimeSize);
@@ -469,9 +346,6 @@ void stackSplitCompact(uint   deathTimeSize,
   if ((nodeSize > 0) && (localSplitIndicator != NULL)) {
     *localSplitIndicator = cvector(1, nodeSize);
   } 
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nstackSplitCompact() EXIT ...\n");
-  }
 }
 void unstackSplitCompact(uint  deathTimeSize,
                          uint *nodeParentDeath,
@@ -482,9 +356,6 @@ void unstackSplitCompact(uint  deathTimeSize,
                          uint *nodeRightAtRisk,
                          uint  nodeSize,
                          char *localSplitIndicator) {
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nunstackSplitCompact() ENTRY ...\n");
-  }
   free_uivector(nodeParentDeath, 1, deathTimeSize);
   free_uivector(nodeParentAtRisk, 1, deathTimeSize);
   free_uivector(nodeLeftDeath, 1, deathTimeSize);
@@ -494,9 +365,6 @@ void unstackSplitCompact(uint  deathTimeSize,
   if ((nodeSize > 0) && (localSplitIndicator != NULL)) {
     free_cvector(localSplitIndicator, 1, nodeSize);
   } 
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nunstackSplitCompact() EXIT ...\n");
-  }
 }
 void getAtRisk(uint *localMembershipIndex,
                uint *localDeathTimeCount,
@@ -506,32 +374,14 @@ void getAtRisk(uint *localMembershipIndex,
                uint *nodeParentDeath,
                uint *nodeParentAtRisk) {
   uint i, j;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\ngetAtRisk() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nLocal Death Counts (timIdx, deaths): \n");
-  }
   for (i=1; i <= localDeathTimeSize; i++) {
     nodeParentAtRisk[i] = 0;
     nodeParentDeath[i] = localDeathTimeCount[localDeathTimeIndex[i]];
-    if (getTraceFlag() & SPLT_HGH_TRACE) {
-      Rprintf("%10d %10d \n", i, nodeParentDeath[i]);
-    }
     for (j=1; j <= localMembershipSize; j++) {
       if (localDeathTimeIndex[i] <= _masterTimeIndex[localMembershipIndex[j]]) {
         nodeParentAtRisk[i] ++;
       }
     }
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nLocal At Risk Counts (timIdx, at risk): \n");
-    for (i=1; i <= localDeathTimeSize; i++) {
-      Rprintf("%10d %10d \n", i, nodeParentAtRisk[i]);
-    }
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\ngetAtRisk() EXIT ...\n");
   }
 }
 uint stackAndConstructSplitVector (uint     localMembershipSize,
@@ -547,14 +397,8 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
   uint offset;
   uint splitLength;
   uint relativePair;
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nstackAndConstructSplitVector() ENTRY ...\n");
-  }
   splitLength = 0;  
   (*permissibleSplitPtr) = NULL;  
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nSplitting on (parameter, of size):  %10d %10d \n", randomCovariateIndex, permissibleSplitSize);
-  }
   if (strcmp(_xType[randomCovariateIndex], "C") == 0) {
     *factorFlag = TRUE;
     if(_factorList[permissibleSplitSize] == NULL) {
@@ -562,9 +406,6 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
     }
     factorSizeAbsolute = _factorSize[_factorMap[randomCovariateIndex]];
     *mwcpSizeAbsolute = _factorList[factorSizeAbsolute] -> mwcpSize;
-    if (getTraceFlag() & SPLT_MED_TRACE) {
-      Rprintf("\n(Absolute Factor Size, Absolute MWCP Size):  (%10d, %10d)", factorSizeAbsolute, *mwcpSizeAbsolute);
-    }
     if (_splitRule == RANDOM_SPLIT) {
       splitLength = 1 + ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize);
       *deterministicSplitFlag = FALSE;
@@ -582,20 +423,6 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
         }
         if (*deterministicSplitFlag == FALSE) {
           splitLength = localMembershipSize + 1;
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            if (permissibleSplitSize <= MAX_EXACT_LEVEL) {
-              Rprintf("\nFactor override to random (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
-                      *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
-                      _splitRandomRule,
-                      localMembershipSize);
-            }
-            else {
-              Rprintf("\nFactor override to random (pSplit, nSplit, ndSize):  (%24.0f, %10d, %10d) \n", 
-                      *((double*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
-                      _splitRandomRule,
-                      localMembershipSize);
-            }
-          }
         }
         else {
           splitLength = *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) + 1;
@@ -607,12 +434,6 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
           if (*((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) <= ((_splitRandomRule <= localMembershipSize) ? _splitRandomRule : localMembershipSize)) {
             splitLength = *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount) + 1;
             *deterministicSplitFlag = TRUE;
-            if (getTraceFlag() & SPLT_MED_TRACE) {
-              Rprintf("\nFactor override to determ (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
-                      *((uint*) _factorList[permissibleSplitSize] -> complementaryPairCount), 
-                      _splitRandomRule,
-                      localMembershipSize);
-            }
           }
         }
         if (*deterministicSplitFlag == FALSE) {
@@ -662,12 +483,6 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
           splitLength = permissibleSplitSize;
           (*permissibleSplitPtr) = permissibleSplit;
           *deterministicSplitFlag = TRUE;
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            Rprintf("\nContinuous override to determ (pSplit, nSplit, ndSize):  (%10d, %10d, %10d) \n", 
-                    permissibleSplitSize,
-                    _splitRandomRule,
-                    localMembershipSize);
-          }
         }
         else {
           splitLength = _splitRandomRule + 1;
@@ -684,9 +499,6 @@ uint stackAndConstructSplitVector (uint     localMembershipSize,
       }
     }  
   }  
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nstackAndConstructSplitVector(%10d) EXIT ...\n", splitLength);
-  }
   return splitLength;
 }
 void unstackSplitVector(uint   permissibleSplitSize,
@@ -728,20 +540,6 @@ void virtuallySplitNode (uint  localMembershipSize,
                          char *localSplitIndicator) {
   char daughterFlag;
   uint k, m, index;
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nvirtuallySplitNode() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    if (factorFlag == TRUE) {
-      Rprintf("\nSplitting on (index, factor (mwcp)):  ");
-      for (k = mwcpSizeAbsolute; k >= 1; k--) {
-        Rprintf("( %10d, %8x)", offset, ((uint*) permissibleSplitPtr + ((offset - 1) * mwcpSizeAbsolute))[k]);
-      }
-    }
-    else {
-      Rprintf("\nSplitting on (index, value):  ( %10d, %12.4f) \n", offset, ((double*) permissibleSplitPtr)[offset]);
-    }
-  }
   *leftDeathTimeSize = *rightDeathTimeSize = 0;
   for (k=1; k <= localDeathTimeSize; k++) {
     nodeLeftDeath[k] = nodeLeftAtRisk[k] = 0;
@@ -760,15 +558,9 @@ void virtuallySplitNode (uint  localMembershipSize,
       localSplitIndicator[k] = daughterFlag;
     }
     if (daughterFlag == LEFT) {
-      if (getTraceFlag() & SPLT_HGH_TRACE) {
-        Rprintf("\nMember of LEFT Daughter (index):  %10d %10d \n", k, localMembershipIndex[k]);
-      }
       index = 0;  
       for (m = 1; m <= localDeathTimeSize; m++) {
         if (localDeathTimeIndex[m] <= _masterTimeIndex[localMembershipIndex[k]]) {
-          if (getTraceFlag() & TURN_OFF_TRACE) {
-            Rprintf("NLAR:  %10d %10d %10d \n", m, localDeathTimeIndex[m], _masterTimeIndex[localMembershipIndex[k]]);
-          }
           nodeLeftAtRisk[m] ++;
           index = m;
         }
@@ -781,9 +573,6 @@ void virtuallySplitNode (uint  localMembershipSize,
       }
     }  
     else {
-      if (getTraceFlag() & SPLT_HGH_TRACE) {
-        Rprintf("\nMember of RGHT Daughter (index):  %10d %10d \n", k, localMembershipIndex[k]);
-      }
     }
   }  
   for (k=1; k <= localDeathTimeSize; k++) {
@@ -796,36 +585,9 @@ void virtuallySplitNode (uint  localMembershipSize,
       (*rightDeathTimeSize) ++;
     }
   }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nRunning Split Risk Counts: \n");
-    Rprintf("     timIdx    PARrisk    LFTrisk    RGTrisk    PARdeath   LFTdeath   RGTdeath\n");
-    for (k=1; k <=  localDeathTimeSize; k++) {
-      Rprintf(" %10d %10d %10d %10d %10d %10d %10d\n", k,
-              nodeParentAtRisk[k], nodeLeftAtRisk[k], nodeRightAtRisk[k],
-              nodeParentDeath[k], nodeLeftDeath[k], nodeRightDeath[k]);
-    }
-    uint totalDeathCount = 0;
-    uint leftDeathCount  = 0;
-    uint rightDeathCount = 0;
-    for (k=1; k <=  localDeathTimeSize; k++) {
-      totalDeathCount += nodeParentDeath[k];
-      leftDeathCount  += nodeLeftDeath[k];
-      rightDeathCount += nodeRightDeath[k];
-    }
-    Rprintf("\nRunning Split Total LFT & RGT Deaths: \n");
-    Rprintf("                                             %10d %10d %10d \n", totalDeathCount, leftDeathCount, rightDeathCount);
-    Rprintf("\nRunning Split Total LFT & RGT Unique Death Times: \n");
-    Rprintf(" %10d %10d \n", *leftDeathTimeSize, *rightDeathTimeSize);
-  }          
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nvirtuallySplitNode() EXIT ...\n");
-  }
 }
 void getReweightedRandomPair (uint relativeFactorSize, uint absoluteFactorSize, double *absoluteLevel, uint *result) {
   uint randomGroupIndex;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\ngetReweightedRandomPair() ENTRY ...\n");
-  }
   if(_factorList[relativeFactorSize] == NULL) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Factor not allocated for size:  %10d", relativeFactorSize);
@@ -834,21 +596,12 @@ void getReweightedRandomPair (uint relativeFactorSize, uint absoluteFactorSize, 
     exit(TRUE);
   }
   randomGroupIndex = (uint) ceil(ran2(_seed2Ptr)*((_factorList[relativeFactorSize] -> cardinalGroupCount) *1.0));
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nRandomly Selected Group Index:  %10d", randomGroupIndex);
-  }
   createRandomBinaryPair(relativeFactorSize, absoluteFactorSize, randomGroupIndex, absoluteLevel, result);
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\ngetReweightedRandomPair() EXIT ...\n");
-  }
 }
 void getRandomPair (uint relativeFactorSize, uint absoluteFactorSize, double *absoluteLevel, uint *result) {
   uint randomGroupIndex;
   double randomValue;
   uint k;
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\ngetRandomPair() ENTRY ...\n");
-  }
   if(_factorList[relativeFactorSize] == NULL) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Factor not allocated for size:  %10d", relativeFactorSize);
@@ -867,19 +620,8 @@ void getRandomPair (uint relativeFactorSize, uint absoluteFactorSize, double *ab
       cdf[k] = ((double*) _factorList[relativeFactorSize] -> cardinalGroupSize)[k];
     }
   }
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\nFactor (relativeFactorSize, cardinalGroupCount):  (%10d, %10d) \n", relativeFactorSize, _factorList[relativeFactorSize] -> cardinalGroupCount);
-  }
   for (k=2; k <= _factorList[relativeFactorSize] -> cardinalGroupCount; k++) {
     cdf[k] += cdf[k-1];
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nUpdated CDF based on cardinal group size:  ");
-    Rprintf("\n     index          cdf");
-    for (k=1; k <= _factorList[relativeFactorSize] -> cardinalGroupCount; k++) {
-      Rprintf("\n%10d  %12f", k, cdf[k]);
-    }
-    Rprintf("\n");
   }
   randomValue = ceil((ran2(_seed2Ptr) * cdf[_factorList[relativeFactorSize] -> cardinalGroupCount]));
   randomGroupIndex = 1;
@@ -887,13 +629,7 @@ void getRandomPair (uint relativeFactorSize, uint absoluteFactorSize, double *ab
     randomGroupIndex ++;
   }
   free_dvector(cdf, 1, _factorList[relativeFactorSize] -> cardinalGroupCount);
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\nRandomly Selected Group Index:  %10d", randomGroupIndex);
-  }
   createRandomBinaryPair(relativeFactorSize, absoluteFactorSize, randomGroupIndex, absoluteLevel, result);
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\ngetRandomPair() EXIT ...\n");
-  }
 }
 void createRandomBinaryPair(uint    relativeFactorSize, 
                             uint    absoluteFactorSize,
@@ -903,14 +639,6 @@ void createRandomBinaryPair(uint    relativeFactorSize,
   uint mwcpLevelIdentifier;
   uint mwcpSizeAbsolute;
   uint k, offset;
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\ncreateRandomBinaryPair() ENTRY ...\n");
-  }
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\nrelativeSize absoluteSize   groupIndex ");
-    Rprintf("\n%12d %12d %12d", relativeFactorSize, absoluteFactorSize, groupIndex);
-    Rprintf("\n");
-  }
   mwcpSizeAbsolute = _factorList[absoluteFactorSize] -> mwcpSize;
   char *localPermissible = cvector(1, relativeFactorSize);
   uint *randomLevel = uivector(1, groupIndex);
@@ -921,47 +649,18 @@ void createRandomBinaryPair(uint    relativeFactorSize,
     randomLevel[k] = getSelectableElement(relativeFactorSize, localPermissible, NULL);
     localPermissible[randomLevel[k]] = FALSE;
   }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nAbsolute Levels:  ");
-    Rprintf("\n     index      level");
-    for (k=1; k <= relativeFactorSize; k++) {
-      Rprintf("\n%10d  %10d", k, (uint) absoluteLevel[k]);
-    }
-    Rprintf("\n");
-    Rprintf("\nRandomly Selected Levels Prior to Remapping:  ");
-    Rprintf("\n     index      level");
-    for (k=1; k <= groupIndex; k++) {
-      Rprintf("\n%10d  %10d", k, randomLevel[k]);
-    }
-    Rprintf("\n");
-  }
   for (k = 1; k <= groupIndex; k++) {
     randomLevel[k] = (uint) absoluteLevel[randomLevel[k]];
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nRandomly Selected Levels After Remapping:  ");
-    Rprintf("\n     index      level");
-    for (k=1; k <= groupIndex; k++) {
-      Rprintf("\n%10d  %10d", k, randomLevel[k]);
-    }
-    Rprintf("\n");
   }
   for (offset = 1; offset <= mwcpSizeAbsolute; offset++) {
       pair[offset] = 0;
   }
   for (k = 1; k <= groupIndex; k++) {
     mwcpLevelIdentifier = (randomLevel[k] >> (3 + ulog2(SIZE_OF_INTEGER))) + ((randomLevel[k] & (MAX_EXACT_LEVEL - 1)) ? 1 : 0);
-    if (getTraceFlag() & FACT_HGH_TRACE) {
-      Rprintf("\n MWCP Level Identifier:   %10d ", mwcpLevelIdentifier);
-      Rprintf("\n upower() bit:  %10d ", randomLevel[k] - ((mwcpLevelIdentifier - 1) * MAX_EXACT_LEVEL) - 1 );
-    }
     pair[mwcpLevelIdentifier] += upower(2, randomLevel[k] - ((mwcpLevelIdentifier - 1) * MAX_EXACT_LEVEL) - 1 );
   }
   free_cvector(localPermissible, 1, relativeFactorSize);
   free_uivector(randomLevel, 1, groupIndex);
-  if (getTraceFlag() & FACT_LOW_TRACE) {
-    Rprintf("\ncreateRandomBinaryPair() EXIT ...\n");
-  }
 }
 void convertRelToAbsBinaryPair(uint    relativeFactorSize, 
                                uint    absoluteFactorSize,
@@ -972,24 +671,7 @@ void convertRelToAbsBinaryPair(uint    relativeFactorSize,
   uint mwcpSizeAbsolute;
   uint coercedAbsoluteLevel;
   uint k, offset;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nconvertRelToAbsBinaryPair() ENTRY ...\n");
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nrelativeSize absoluteSize      relPair");
-    Rprintf("\n%12d %12d %12x", relativeFactorSize, absoluteFactorSize, relativePair);
-    Rprintf("\n");
-  }
   mwcpSizeAbsolute = _factorList[absoluteFactorSize] -> mwcpSize;
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nAbsolute Levels:  ");
-    Rprintf("\n     index      level");
-    for (k=1; k <= relativeFactorSize; k++) {
-      Rprintf("\n%10d  %10d", k, (uint) absoluteLevel[k]);
-    }
-    Rprintf("\n");
-    Rprintf("\nRelative Pair:  %8x \n", relativePair);
-  }
   for (offset = 1; offset <= mwcpSizeAbsolute; offset++) {
       pair[offset] = 0;
   }
@@ -998,46 +680,18 @@ void convertRelToAbsBinaryPair(uint    relativeFactorSize,
       coercedAbsoluteLevel = (uint) absoluteLevel[k];
       mwcpLevelIdentifier = (coercedAbsoluteLevel >> (3 + ulog2(SIZE_OF_INTEGER))) + ((coercedAbsoluteLevel & (MAX_EXACT_LEVEL - 1)) ? 1 : 0);
       pair[mwcpLevelIdentifier] += upower(2, coercedAbsoluteLevel - ((mwcpLevelIdentifier - 1) * MAX_EXACT_LEVEL) - 1 );
-      if (getTraceFlag() & FACT_HGH_TRACE) {
-        Rprintf("\n MWCP Level Identifier:   %10d ", mwcpLevelIdentifier);
-        Rprintf("\n upower() bit:  %10d ", coercedAbsoluteLevel - ((mwcpLevelIdentifier - 1) * MAX_EXACT_LEVEL) - 1);
-      }
     }
     relativePair = relativePair >> 1;
-  }
-  if (getTraceFlag() & FACT_HGH_TRACE) {
-    Rprintf("\nconvertRelToAbsBinaryPair() EXIT ...\n");
   }
 }
 char summarizeSplitResult(uint splitParameterMax, double deltaMax) {
   char result;
   uint k;
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nsummarizeSplitResult() ENTRY ...\n");
-  }
   if (splitParameterMax > 0) {
     result = TRUE;
-    if (getTraceFlag() & SPLT_LOW_TRACE) {
-      Rprintf("\nBest Split Statistics: \n");
-      Rprintf("  SplitParm        Delta \n");
-      Rprintf(" %10d %12.4f \n", splitParameterMax, deltaMax);
-      if (strcmp(_xType[splitParameterMax], "C") == 0) {
-        Rprintf(" at MWCPsize= %2d, mwcp= ", _splitValueMaxFactSize);
-        for (k = _splitValueMaxFactSize; k >= 1; k--) {
-          Rprintf("%8x ", _splitValueMaxFactPtr[k]);
-        }
-        Rprintf("\n");
-      }
-      else {
-        Rprintf(" at %12.4f \n", _splitValueMaxCont);
-      }
-    }
   }
   else {
     result = FALSE;
-  }
-  if (getTraceFlag() & SPLT_HGH_TRACE) {
-    Rprintf("\nsummarizeSplitResult(%1d) EXIT ...\n", result);
   }
   return result;
 }

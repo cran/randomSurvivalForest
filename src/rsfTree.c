@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -125,9 +125,6 @@ char testNodeSize(Node *parent) {
   char result;
   uint i;
   uint *localDeathTimeCount = uivector(1, _masterTimeSize);
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\ntestNodeSize() ENTRY ...\n");
-  }
   localDeathTimeSize = 0;
   for (i=1; i <= _masterTimeSize; i++) {
     localDeathTimeCount[i] = 0;
@@ -157,9 +154,6 @@ char testNodeSize(Node *parent) {
   else {
     result = FALSE;
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\ntestNodeSize(%1d) EXIT ...\n", result);
-  }
     return result;
 }
 char forkAndUpdate(uint  *leafCount,
@@ -172,29 +166,12 @@ char forkAndUpdate(uint  *leafCount,
   char daughterFlag;
   uint i;
   char result;
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nforkAndUpdate() ENTRY ...\n");
-  }
   result = forkNode(parent, 
                     splitParameterMax, 
                     splitValueMaxFactSize, 
                     splitValueMaxFactPtr, 
                     splitValueMaxCont);
   if (result == TRUE) {
-    if (getTraceFlag() & FORK_DEF_TRACE) {
-      Rprintf("\nForking On:  ");
-      Rprintf("\n   LeafCnt   SpltParm  ");
-      Rprintf("\n%10d %10d ", parent -> leafCount, parent -> splitParameter);
-      if (parent -> splitValueFactSize > 0) {
-        for (i = parent -> splitValueFactSize; i >= 1; i--) {
-          Rprintf("%8x ", (parent -> splitValueFactPtr)[i]);
-        }
-        Rprintf("\n");
-      }
-      else {
-        Rprintf(" %20.4f \n", parent -> splitValueCont);
-      }
-    }
     (*leafCount)++;
     factorFlag = FALSE;
     if (strcmp(_xType[splitParameterMax], "C") == 0) {
@@ -207,9 +184,6 @@ char forkAndUpdate(uint  *leafCount,
         if (factorFlag == TRUE) {
           if (_observation[splitParameterMax][i] != 0) {
             daughterFlag = splitOnFactor((uint) _observation[splitParameterMax][i], _splitValueMaxFactPtr);
-            if (getTraceFlag() & FORK_DEF_TRACE) {
-              Rprintf("\nNode Membership:  %10d %16d", i, (uint) _observation[splitParameterMax][i]);
-            }
           }
           else {
             Rprintf("\nRSF:  *** ERROR *** ");
@@ -221,9 +195,6 @@ char forkAndUpdate(uint  *leafCount,
         }
         else {
           if (!ISNA(_observation[splitParameterMax][i])) {
-            if (getTraceFlag() & FORK_DEF_TRACE) {
-              Rprintf("\nNode Membership:  %10d %16.4f, %16.4f", i, _observation[splitParameterMax][i], _splitValueMaxCont);
-            }
             if (_observation[splitParameterMax][i] <= _splitValueMaxCont) {
               daughterFlag = LEFT;
             }
@@ -239,16 +210,10 @@ char forkAndUpdate(uint  *leafCount,
         if (daughterFlag == LEFT) {
           _nodeMembership[i] = parent -> left;
           ((parent -> left) -> leafCount) = (parent -> leafCount);
-          if (getTraceFlag() & FORK_DEF_TRACE) {
-            Rprintf(" --> LEFT ");
-          }
         }
         else {
           _nodeMembership[i] = parent -> right;
           ((parent -> right) -> leafCount) = *leafCount;
-          if (getTraceFlag() & FORK_DEF_TRACE) {
-            Rprintf(" --> RGHT ");
-          }
         }
       }
     }
@@ -259,9 +224,6 @@ char forkAndUpdate(uint  *leafCount,
     Rprintf("\nRSF:  Please Contact Technical Support.");
     Rprintf("\nRSF:  The application will now exit.\n");
     exit(TRUE);
-  }
-  if (getTraceFlag() & FORK_DEF_TRACE) {
-    Rprintf("\nforkAndUpdate() EXIT ...\n");
   }
   return result;
 }
@@ -274,13 +236,7 @@ char makeTree (char     multipleImputeFlag,
   uint splitParameterMax;
   Node *reversePtr;
   uint i;
-  if (getTraceFlag() & SPLT_DEF_TRACE) {
-    Rprintf("\nmakeTree() ENTRY ...\n");
-  }
   result = TRUE;
-  if (getTraceFlag() & SPLT_DEF_TRACE) {
-    Rprintf("\nMake tree leaf:  %10d at depth %10d \n", parent -> leafCount, parent -> depth);
-  }
   parent -> depth = depth;
   if (multipleImputeFlag == FALSE) {
     if (_mRecordSize > 0) {
@@ -306,23 +262,11 @@ char makeTree (char     multipleImputeFlag,
                              _splitValueMaxFactPtr, 
                              _splitValueMaxCont);
       if (result == TRUE) {
-        if (getTraceFlag() & SPLT_DEF_TRACE) {
-          Rprintf("\nNode Membership:  \n");
-          for (i=1; i <=  _observationSize; i++) {
-            Rprintf("%10d %10d \n", i, _nodeMembership[i] -> leafCount);
-          }
-        }
-        if (getTraceFlag() & SPLT_DEF_TRACE) {
-          Rprintf("\nmakeTree() LEFT:  \n");
-        }
         makeTree (multipleImputeFlag,
                   b,
                   parent -> left,
                   depth + 1,
                   maximumDepth);
-        if (getTraceFlag() & SPLT_DEF_TRACE) {
-          Rprintf("\nmakeTree() RIGHT:  \n");
-        }
         makeTree (multipleImputeFlag,
                   b,
                   parent -> right,
@@ -339,16 +283,10 @@ char makeTree (char     multipleImputeFlag,
     }  
     else {
       parent -> splitFlag = FALSE;
-      if (getTraceFlag() & SPLT_DEF_TRACE) {
-        Rprintf("\ngetBestSplit() FAILED ...\n");
-      }
     }
   }  
   else {
     parent -> splitFlag = FALSE;
-    if (getTraceFlag() & SPLT_DEF_TRACE) {
-      Rprintf("\ntestMinimumDeath() FAILED ...\n");
-    }
   }
   if (!result) {
     if (_eventTypeSize > 1) {
@@ -376,9 +314,6 @@ char makeTree (char     multipleImputeFlag,
       }    
     }
   }
-  if (getTraceFlag() & SPLT_DEF_TRACE) {
-    Rprintf("\nmakeTree() EXIT ...\n");
-  }
   return result;
 }
 char restoreTree(uint    b,
@@ -396,9 +331,6 @@ char restoreTree(uint    b,
   char result;
   Node *reversePtr;
   uint i;
-  if (getTraceFlag() & SPLT_DEF_TRACE) {
-    Rprintf("\nrestoreTree() ENTRY ...\n");
-  }
   if (b != treeID[*offset]) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Invalid forest input record at line:  %10d", b);
@@ -421,17 +353,11 @@ char restoreTree(uint    b,
   parent -> splitParameter = parmID[*offset];
   if ((parent -> splitParameter) != 0) {
     if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-      if (getTraceFlag() & SPLT_DEF_TRACE) {
-        Rprintf("  mwcpPT (reversed):  [%16x] 0x ", (*mwcpPtr) + 1);
-      }
       parent -> splitValueFactSize = mwcpSZ[*offset];
       parent -> splitValueFactPtr = uivector(1, mwcpSZ[*offset]);    
       for (i = 1; i <= parent -> splitValueFactSize; i++) {
         (*mwcpPtr) ++;
         (parent -> splitValueFactPtr)[i] = **mwcpPtr;
-        if (getTraceFlag() & SPLT_DEF_TRACE) {
-          Rprintf("%8x ",  (parent -> splitValueFactPtr)[i]);
-        }
       }
       parent -> splitValueCont = NA_REAL;
     }
@@ -448,9 +374,6 @@ char restoreTree(uint    b,
   }
   (*offset) ++;
   if ((parent -> splitParameter) != 0) {
-    if (getTraceFlag() & FORK_DEF_TRACE) {
-      getNodeInfo(parent);
-    }
     result = TRUE;
     (*leafCount)++;
     parent -> left  = makeNode(parent -> xSize);
@@ -513,9 +436,6 @@ char restoreTree(uint    b,
       }    
     }
   }
-  if (getTraceFlag() & SPLT_DEF_TRACE) {
-    Rprintf("\nrestoreTree() EXIT ...\n");
-  }
   return result;
 }
 void saveTree(uint    b,
@@ -528,27 +448,15 @@ void saveTree(uint    b,
               uint   *mwcpSZ,
               uint  **mwcpPtr) {
   uint i;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nsaveTree() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    getNodeInfo(parent);
-  }
   treeID[*offset] = b;
   nodeID[*offset] = parent -> leafCount;
   parmID[*offset] = parent -> splitParameter;
   if ((parent -> splitParameter) != 0) {
     if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-      if (getTraceFlag() & SUMM_HGH_TRACE) {
-        Rprintf("  mwcpPT (reversed):  [%16x] 0x ", *(*mwcpPtr + 1));
-      }
       mwcpSZ[*offset] = parent -> splitValueFactSize;
       for (i = 1; i <= mwcpSZ[*offset]; i++) {
         (*mwcpPtr) ++;
         **mwcpPtr = (parent -> splitValueFactPtr)[i];
-        if (getTraceFlag() & SUMM_HGH_TRACE) {
-          Rprintf("%8x ",  (parent -> splitValueFactPtr)[i]);
-        }
       }
       contPT[*offset] = NA_REAL;
     }
@@ -561,20 +469,10 @@ void saveTree(uint    b,
     contPT[*offset] = NA_REAL;
     mwcpSZ[*offset] = 0;
   }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\n     index     treeID     nodeID     parmID       contPT     mwcpSZ \n");
-    Rprintf("%10d %10d %10d %10d %12.4f %10d \n", 
-            *offset, treeID[*offset], 
-            nodeID[*offset], parmID[*offset], 
-            contPT[*offset], mwcpSZ[*offset]);
-  }
   (*offset) ++;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     saveTree(b, parent ->  left, offset, treeID, nodeID, parmID, contPT, mwcpSZ, mwcpPtr);
     saveTree(b, parent -> right, offset, treeID, nodeID, parmID, contPT, mwcpSZ, mwcpPtr);
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nsaveTree() EXIT ...\n");
   }
 }
 void freeTree(Node *parent) {

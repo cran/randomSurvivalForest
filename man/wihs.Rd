@@ -14,8 +14,8 @@
         black  \tab race:  0=not African-American; 1=African-American\cr
      cd4nadir  \tab CD4 count (per 100 cells/ul)
     }
-  }
-  \source{
+}
+\source{
   Study included 1164 women enrolled in WIHS, who were alive, infected
   with HIV, and free of clinical AIDS on December, 1995, when the first
   protease inhibitor (saquinavir mesylate) was approved by the Federal
@@ -23,11 +23,16 @@
   following occurred: treatment initiation, AIDS diagnosis, death, or
   administrative censoring (September, 2006). Variables included history
   of injection drug use at WIHS enrollment, whether an individual was
-  African American, age, and CD4 nadir prior to baseline.}
+  African American, age, and CD4 nadir prior to baseline.
+}
 \references{
-  Bacon M.C, von Wyl V., Alden C., et al. (2005). The Women's Interagency
-  HIV Study: an observational cohort brings clinical sciences to the
-  bench, \emph{Clin Diagn Lab Immunol}, 12(9):1013-1019.
+ Lau B.M, Cole S.R. and Gange S.J. (2009).  Competing risk regression
+ models for epidemiologic data, \emph{Amer. J. Epidemiol.}, 170(2):244-56.
+
+ Barkan S.E., Melnick S.L., Preston-Martin S., Weber K., Kalish L.A.,
+ Miotti P., Young M., Greenblatt R,, Sacks H,, Feldman J. (1998).
+ The Women's Interagency HIV Study. WIHS Collaborative Study Group. 
+ \emph{Epidemiology}, 9(2):117-25.
 }
 \examples{
 \dontrun{

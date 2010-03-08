@@ -9,19 +9,9 @@
   rates are calculated.
 }
 \usage{
-    impute.rsf(formula,
-      data = NULL,
-      ntree = 1000,
-      mtry = NULL,
-      nodesize = NULL,
-      splitrule = NULL,
-      nsplit = 0,
-      big.data = FALSE,
-      nimpute = 1,
-      predictorWt = NULL,
-      seed = NULL,
-      do.trace = FALSE,
-      ...)
+impute.rsf(formula, data = NULL, ntree = 1000, mtry = NULL,
+    nodesize = NULL, splitrule = NULL, nsplit = 0, big.data = FALSE,
+    nimpute = 1, predictorWt = NULL, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
     \item{formula}{A symbolic description of the model to be fit.}
@@ -53,6 +43,10 @@
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
     Udaya B. Kogalur \email{kogalurshear@gmail.com}
+}
+\references{
+    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+    (2008).  Random survival forests, \emph{Ann. App. Statist.}, 2:841-860.
 }
 \seealso{
   \code{rsf}.

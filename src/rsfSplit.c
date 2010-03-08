@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -95,12 +95,6 @@
 char getBestSplit(Node *parent, 
                   uint *splitParameterMax) {
   char  result;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\ngetBestSplit() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nAttempting to split nodeID:  %10d at depth %10d", parent -> leafCount, parent -> depth);
-  }
   switch(_splitRule) {
   case LOG_RANK:
     result = logRank(parent, splitParameterMax);
@@ -131,9 +125,6 @@ default:
     exit(TRUE);
     break;
   }
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\ngetBestSplit(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char randomSplit(Node *parent, uint *splitParameterMax) {
@@ -153,9 +144,6 @@ char randomSplit(Node *parent, uint *splitParameterMax) {
   char deterministicSplitFlag;
   char result;
   uint i, j;
-  if (getTraceFlag() & SPLT_MED_TRACE) {
-    Rprintf("\nrandomSplit() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -286,9 +274,6 @@ char randomSplit(Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nrandomSplit(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char logRankScore(Node *parent, uint *splitParameterMax) {
@@ -307,9 +292,6 @@ char logRankScore(Node *parent, uint *splitParameterMax) {
   char deterministicSplitFlag;
   char result;
   uint i, j, k;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogrankScore() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -358,9 +340,6 @@ char logRankScore(Node *parent, uint *splitParameterMax) {
                                                                & permissibleSplit, 
                                                                & permissibleSplitSize);
     for (i = 1; i <= actualCovariateCount; i++) {
-      if (getTraceFlag() & SPLT_MED_TRACE) {
-        Rprintf("\nSplitting on (index, parameter, size):  %10d %10d %10d \n", i, randomCovariateIndex[i], permissibleSplitSize[i]);
-      }
       splitLength = stackAndConstructSplitVector(localMembershipSize,
                                                  randomCovariateIndex[i], 
                                                  permissibleSplit[i], 
@@ -379,15 +358,6 @@ char logRankScore(Node *parent, uint *splitParameterMax) {
           if ( _masterTimeIndex[localMembershipIndex[j]]  <= _masterTimeIndex[localMembershipIndex[localSplitRank[k]]] ) {
             survivalTimeIndexRank[k] ++;
           }
-        }
-      }
-      if (getTraceFlag() & SPLT_MED_TRACE) {
-        Rprintf("\nLocal Membership Information for Parent Node: \n");
-        Rprintf("       RANK    INDVidx       SPLTval    TIMEidx -> SORTidx \n");
-        for (k=1; k <=  localMembershipSize; k++) {
-          Rprintf(" %10d %10d %10.4f %10d %10d\n", k,
-                  localMembershipIndex[localSplitRank[k]], _observation[i][localMembershipIndex[localSplitRank[k]]],
-                  _masterTimeIndex[localMembershipIndex[localSplitRank[k]]], survivalTimeIndexRank[k]);
         }
       }
       meanSurvRank = varSurvRank = 0;
@@ -489,9 +459,6 @@ char logRankScore(Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRankScore(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char conserveEvents(Node *parent, uint *splitParameterMax) {
@@ -510,9 +477,6 @@ char conserveEvents(Node *parent, uint *splitParameterMax) {
   char deterministicSplitFlag;
   char result;
   uint i, j, k;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nconserveEvents() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -647,9 +611,6 @@ char conserveEvents(Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nconserveEvents(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char logRank (Node *parent, uint *splitParameterMax) {
@@ -668,9 +629,6 @@ char logRank (Node *parent, uint *splitParameterMax) {
   char deterministicSplitFlag;
   char result;
   uint i, j, k;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRank() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -743,18 +701,12 @@ char logRank (Node *parent, uint *splitParameterMax) {
           delta = deltaNum = deltaDen =  0.0;
           for (k=1; k <= localDeathTimeSize; k++) {
             deltaNum = deltaNum + ((double) nodeLeftDeath[k] - ((double) ( nodeLeftAtRisk[k] * nodeParentDeath[k]) / nodeParentAtRisk[k]));
-            if (getTraceFlag() & TURN_OFF_TRACE) {
-              Rprintf("\nPartial Sum deltaNum:  %10d %10.4f", k, deltaNum);
-            }
             if (nodeParentAtRisk[k] >= 2) {
               deltaDen = deltaDen + (
                                      ((double) nodeLeftAtRisk[k] / nodeParentAtRisk[k]) *
                                      (1.0 - ((double) nodeLeftAtRisk[k] / nodeParentAtRisk[k])) *
                                      ((double) (nodeParentAtRisk[k] - nodeParentDeath[k]) / (nodeParentAtRisk[k] - 1)) * nodeParentDeath[k]
                                      );
-              if (getTraceFlag() & TURN_OFF_TRACE) {
-                Rprintf("\nPartial Sum deltaDen:  %10d %10.4f", k, deltaDen);
-              }
             }
           }
           deltaNum = fabs(deltaNum);
@@ -801,9 +753,6 @@ char logRank (Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRank(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char subCumHazCR (Node *parent, uint *splitParameterMax) {
@@ -825,9 +774,6 @@ char subCumHazCR (Node *parent, uint *splitParameterMax) {
   char result;
   uint index;
   uint i, j, k, m, q;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nsubCumHazCR() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -929,17 +875,6 @@ char subCumHazCR (Node *parent, uint *splitParameterMax) {
           }
           for (q = 1; q <= _eventTypeSize; q++) {
             weight[q] = 1.0;
-          }
-          if (getTraceFlag() & SPLT_HGH_TRACE) {
-            Rprintf("\nLogRankCR Weights:  \n");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf(" %10d", _eventType[q]);
-            }
-            Rprintf("\n");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf(" %10d", weight[q]);
-            }
-            Rprintf("\n");
           }
           double **subDensityParent = dmatrix(1, _eventTypeSize, 1, localDeathTimeSize);
           double **subDensityLeft   = dmatrix(1, _eventTypeSize, 1, localDeathTimeSize);
@@ -1026,62 +961,6 @@ char subCumHazCR (Node *parent, uint *splitParameterMax) {
               }
             }
           }
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            Rprintf("\nNode specific survival function of length [localDeathTimeSize] for:  (PARENT NODE )  \n");
-            Rprintf("              mTimIdx       time   survival \n");
-            for (m=1; m <= localDeathTimeSize; m++) {
-              Rprintf("%10d %10d %10.4f %10.4f \n", m, localDeathTimeIndex[m], _masterTime[localDeathTimeIndex[m]], survivalParent[m]);
-            }
-            Rprintf("\nNode specific sub-density function [_eventTypeSize] x [localDeathTimeSize] for:  (LEFT NODE)  \n");
-            Rprintf("             mTimIdx       time ");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf("%10d ", q);
-            }
-            Rprintf("\n");
-            for (m=1; m <= localDeathTimeSize; m++) {
-              Rprintf("%10d %10d %10.4f ", m, localDeathTimeIndex[m], _masterTime[localDeathTimeIndex[m]]);
-              for (q=1; q <= _eventTypeSize; q++) {
-                Rprintf("%10.4f ", subDensityParent[q][m]);
-              }
-              Rprintf("\n");
-            }
-            Rprintf("\nNode specific survival function of length [localDeathTimeSize] for:  (LEFT NODE )  \n");
-            Rprintf("              mTimIdx       time   survival \n");
-            for (m=1; m <= localDeathTimeSize; m++) {
-              Rprintf("%10d %10d %10.4f %10.4f \n", m, localDeathTimeIndex[m], _masterTime[localDeathTimeIndex[m]], survivalLeft[m]);
-            }
-            Rprintf("\nNode specific sub-density function [_eventTypeSize] x [localDeathTimeSize] for:  (LEFT NODE)  \n");
-            Rprintf("             mTimIdx       time ");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf("%10d ", q);
-            }
-            Rprintf("\n");
-            for (m=1; m <= localDeathTimeSize; m++) {
-              Rprintf("%10d %10d %10.4f ", m, localDeathTimeIndex[m], _masterTime[localDeathTimeIndex[m]]);
-              for (q=1; q <= _eventTypeSize; q++) {
-                Rprintf("%10.4f ", subDensityLeft[q][m]);
-              }
-              Rprintf("\n");
-            }
-            Rprintf("\nNode specific survival function of length [localDeathTimeSize] for:  (RGHT NODE )  \n");
-            Rprintf("              mTimIdx       time   survival \n");
-            for (m=1; m <= localDeathTimeSize; m++) {
-              Rprintf("%10d %10d %10.4f %10.4f \n", m, localDeathTimeIndex[m], _masterTime[localDeathTimeIndex[m]], survivalRight[m]);
-            }
-            Rprintf("\nNode specific sub-density function [_eventTypeSize] x [localDeathTimeSize] for:  (RGHT NODE)  \n");
-            Rprintf("             mTimIdx       time ");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf("%10d ", q);
-            }
-            Rprintf("\n");
-            for (m=1; m <= localDeathTimeSize; m++) {
-              Rprintf("%10d %10d %10.4f ", m, localDeathTimeIndex[m], _masterTime[localDeathTimeIndex[m]]);
-              for (j=1; j <= _eventTypeSize; j++) {
-                Rprintf("%10.4f ", subDensityRight[q][m]);
-              }
-              Rprintf("\n");
-            }
-          }
           for (q=1; q <= _eventTypeSize; q++) {
             subDistributionParent[q][1] = subDensityParent[q][1];
             subDistributionLeft[q][1] = subDensityLeft[q][1];
@@ -1131,11 +1010,6 @@ char subCumHazCR (Node *parent, uint *splitParameterMax) {
               deltaNum += pow(subDistributionCHFLeft[q][m] - subDistributionCHFParent[q][m], 2.0);
             }
             delta += weight[q] * deltaNum;
-          }
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            Rprintf("\nSum deltaNum:  %16.4f", deltaNum);
-            Rprintf("\nSum delta:     %16.4f", delta);
-            Rprintf("\n");
           }
           updateMaximumSplit(delta,
                              randomCovariateIndex[i],
@@ -1187,9 +1061,6 @@ char subCumHazCR (Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nsubCumHazCR(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char logRankCR (Node *parent, uint *splitParameterMax) {
@@ -1209,9 +1080,6 @@ char logRankCR (Node *parent, uint *splitParameterMax) {
   char result;
   uint index;
   uint i, j, k, m, q;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRankCR() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -1314,17 +1182,6 @@ char logRankCR (Node *parent, uint *splitParameterMax) {
           for (q = 1; q <= _eventTypeSize; q++) {
             weight[q] = 1.0;
           }
-          if (getTraceFlag() & SPLT_HGH_TRACE) {
-            Rprintf("\nLogRankCR Weights:  \n");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf(" %10d", _eventType[q]);
-            }
-            Rprintf("\n");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf(" %10d", weight[q]);
-            }
-            Rprintf("\n");
-          }
           delta = deltaNum = deltaDen =  0.0;
           for (q = 1; q <= _eventTypeSize; q++) {
             deltaSubNum = 0;
@@ -1345,11 +1202,6 @@ char logRankCR (Node *parent, uint *splitParameterMax) {
               }
             }
             deltaDen += (weight[q] * weight[q] * deltaSubDen);
-          }
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            Rprintf("\nSum deltaNum:  %16.4f", deltaNum);
-            Rprintf("\nSum deltaDen:  %16.4f", deltaDen);
-            Rprintf("\n");
           }
           deltaNum = fabs(deltaNum);
           deltaDen = sqrt(deltaDen);
@@ -1399,9 +1251,6 @@ char logRankCR (Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRankCR(%1d) EXIT ...\n", result);
-  }
   return result;
 }
 char logRankLauCR (Node *parent, uint *splitParameterMax) {
@@ -1421,9 +1270,6 @@ char logRankLauCR (Node *parent, uint *splitParameterMax) {
   char result;
   uint index;
   uint i, j, k, m, q, r, s;
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRankLauCR() ENTRY ...\n");
-  }
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   _splitValueMaxFactSize = 0;
@@ -1545,17 +1391,6 @@ char logRankLauCR (Node *parent, uint *splitParameterMax) {
           for (q = 1; q <= _eventTypeSize; q++) {
             weight[q] = 1.0;
           }
-          if (getTraceFlag() & SPLT_HGH_TRACE) {
-            Rprintf("\nLogRankCR Weights:  \n");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf(" %10d", _eventType[q]);
-            }
-            Rprintf("\n");
-            for (q=1; q <= _eventTypeSize; q++) {
-              Rprintf(" %10d", weight[q]);
-            }
-            Rprintf("\n");
-          }
           delta = deltaNum = deltaDen =  0.0;
           for (q = 1; q <= _eventTypeSize; q++) {
             deltaSubNum = 0;
@@ -1576,11 +1411,6 @@ char logRankLauCR (Node *parent, uint *splitParameterMax) {
               }
             }
             deltaDen = deltaDen + (weight[q] * weight[q] * deltaSubDen);
-          }
-          if (getTraceFlag() & SPLT_MED_TRACE) {
-            Rprintf("\nSum deltaNum:  %16.4f", deltaNum);
-            Rprintf("\nSum deltaDen:  %16.4f", deltaDen);
-            Rprintf("\n");
           }
           deltaNum = fabs(deltaNum);
           deltaDen = sqrt(deltaDen);
@@ -1633,8 +1463,5 @@ char logRankLauCR (Node *parent, uint *splitParameterMax) {
                localDeathTimeCount, 
                localDeathTimeIndex);
   result = summarizeSplitResult(*splitParameterMax, deltaMax);
-  if (getTraceFlag() & SPLT_LOW_TRACE) {
-    Rprintf("\nlogRankLauCR(%1d) EXIT ...\n", result);
-  }
   return result;
 }

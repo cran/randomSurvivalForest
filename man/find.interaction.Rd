@@ -5,18 +5,10 @@
   Find pairwise interactions between variables.
 }
 \usage{
-    find.interaction(object,
-                  predictorNames = NULL,
-                  method = c("maxsubtree", "vimp")[1],
-                  sorted = TRUE,
-                  npred = NULL,
-                  subset = NULL, 
-                  nrep = 1,
-                  rough = FALSE,
-                  importance = c("randomsplit", "permute")[1],
-                  seed = NULL,
-                  do.trace = FALSE,
-                  ...)
+   find.interaction(object, predictorNames = NULL, method = c("maxsubtree", "vimp")[1],
+          sorted = TRUE, npred = NULL, subset = NULL, nrep = 1, rough = FALSE,
+          importance = c("randomsplit", "permute")[1], seed = NULL, do.trace = FALSE,
+          ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -99,12 +91,12 @@
     Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    H. Ishwaran, U.B. Kogalur, E.Z. Gorodeski, A.J. Minn and 
-    M.S. Lauer (2009).  High-dimensional variable selection for survival
-    data.  Manuscript.
-
-    H. Ishwaran (2007).  Variable importance in binary regression
+    Ishwaran H. (2007).  Variable importance in binary regression
     trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+
+    Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
+    Lauer M.S. (2010).  High-dimensional variable selection for survival
+    data.  \emph{J. Amer. Statist. Assoc. (in press)}.
 }
 \seealso{
   \code{max.subtree},

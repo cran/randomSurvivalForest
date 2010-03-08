@@ -7,18 +7,10 @@
   and partial plots.
 }
 \usage{
-    plot.variable(x,
-                  plots.per.page = 4,
-                  granule = 5,
-                  sorted = TRUE,
+    plot.variable(x, plots.per.page = 4, granule = 5, sorted = TRUE,
                   type = c("mort", "rel.freq", "surv", "time")[1],
-                  partial = FALSE,
-                  predictorNames = NULL,
-                  npred = NULL,
-                  npts = 25,
-                  subset = NULL,
-                  percentile = 50,
-                  ...)
+                  partial = FALSE, predictorNames = NULL, npred = NULL,
+                  npts = 25, subset = NULL, percentile = 50, ...)
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -107,13 +99,16 @@
     Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
+    Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,
     \emph{Rnews}, 7/2:25-31.
 
-    J.H. Friedman (2001). Greedy function approximation: a gradient
-    boosting machine, \emph{Ann. of Stat.}, 5:1189-1232.
+    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+    (2008).  Random survival forests, \emph{Ann. App. Statist.}, 2:841-860.
 
-    A. Liaw and M. Wiener (2002). Classification and regression by
+    Friedman J.H. (2001). Greedy function approximation: a gradient
+    boosting machine, \emph{Ann. of Statist.}, 5:1189-1232.
+
+    Liaw A. and Wiener M. (2002). Classification and regression by
     randomForest, \emph{R News}, 2:18-22.    
 }
 \seealso{

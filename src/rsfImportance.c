@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -99,23 +99,12 @@ Node *getProxyMember(Node    *parent,
   char daughterFlag;
   uint i;
   Node *result = parent;
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\ngetProxyMember() ENTRY:  idx= %10d: ", index, ", val= ");
-  }
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     daughterFlag = RIGHT;
     if (strcmp(_xType[parent -> splitParameter], "C") == 0) {
-      if (getTraceFlag() & TURN_OFF_TRACE) {
-        for (i = parent -> splitValueFactSize; i >= 1; i--) {
-          Rprintf("%8x ", (parent -> splitValueFactPtr)[i]);
-        }
-      }
       daughterFlag = splitOnFactor((uint) predictor[parent -> splitParameter][index], parent -> splitValueFactPtr);
     }
     else {
-      if (getTraceFlag() & TURN_OFF_TRACE) {
-        Rprintf("%12.4f ", parent -> splitValueCont);
-      }
       if (predictor[parent -> splitParameter][index] <= (parent -> splitValueCont)) {
         daughterFlag = LEFT;
       }
@@ -127,9 +116,6 @@ Node *getProxyMember(Node    *parent,
       result = getProxyMember(parent -> right, predictor, index);
     }
   }
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\ngetProxyMember() EXIT:  idx= %10d: ", index, ", val= ");
-  }
   return result;
 }
 Node *randomizeMembership(Node    *parent, 
@@ -139,9 +125,6 @@ Node *randomizeMembership(Node    *parent,
   char daughterFlag;
   char randomSplitFlag;
   Node *result;
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nrandomizeMembership() ENTRY... \n");
-  }
   result = parent;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     randomSplitFlag = FALSE;
@@ -181,16 +164,10 @@ Node *randomizeMembership(Node    *parent,
       }
     }
   }
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\nrandomizeMembership() EXIT... \n");
-  }
   return result;
 }
 void permute(uint n, uint *indx) {
   uint i,j,k;
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\npermute() ENTRY... \n");
-  }
   for (i=1; i<= n; i++) {
     indx[i] = 0;
   }
@@ -203,16 +180,6 @@ void permute(uint n, uint *indx) {
     }
     indx[j-1] = i;
   }
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\nRequest for Permutation:  \n");
-    Rprintf("     index   permute\n");
-    for (i=1; i <= n; i++) {
-      Rprintf("%10d %10d \n", i, indx[i]);
-    }
-  }
-  if (getTraceFlag() & TURN_OFF_TRACE) {
-    Rprintf("\npermute() EKIT... \n");
-  }
 }
 void getVariableImportance (uint      mode,
                             uint      leafCount,
@@ -224,12 +191,6 @@ void getVariableImportance (uint      mode,
   double **predictorPtr;
   char selectionFlag;
   char result;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nRSF:  getVariableImportance() ENTRY ...\n");  
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _benchTime = clock();
-  }
   if (!(_opt & OPT_VIMP)) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to compute variable importance though not requested.");
@@ -288,70 +249,8 @@ void getVariableImportance (uint      mode,
       Rprintf("\nRSF:  The application will now exit.\n");
       exit(TRUE);
     } 
-    if (getTraceFlag() & OUTP_DEF_TRACE) {
-      switch (mode) {
-      case RSF_GROW:
-        varCount = _xSize;
-        break;
-      case RSF_PRED:
-        varCount = _xSize;
-        break;
-      case RSF_INTR:
-        varCount = 1;
-        break;
-      default:
-        Rprintf("\nRSF:  *** ERROR *** ");
-        Rprintf("\nRSF:  Unknown case in switch encountered. ");
-        Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
-        break;
-      }
-      Rprintf("\nTree specific unconditional variable importance calculation:  treeID %10d \n", b);
-      Rprintf("          ");
-      for (n=1; n <= obsSize; n++) {
-        Rprintf("%10d", n);
-      }
-      Rprintf("\n");
-      for (p=1; p <= varCount; p++) {
-        Rprintf("%10d", p);
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10.4f", _vimpMortality[p][n]);
-        }
-        Rprintf("\n");
-      }
-      if (_eventTypeSize > 1) {
-        Rprintf("\nTree specific conditional variable importance calculation:  treeID %10d \n", b);
-        for (p=1; p <= varCount; p++) {
-          for (j = 1; j <= _eventTypeSize; j++) {
-            Rprintf("\n  [varCount][event] = [%10d][%10d] \n", p, j);
-            Rprintf("          ");
-            for (n=1; n <= obsSize; n++) {
-              Rprintf("%10d", n);
-            }
-            Rprintf("\n");
-            for (k=1; k <= _sortedTimeInterestSize; k++) {
-              Rprintf("%10d", k);
-              for (n=1; n <= obsSize; n++) {
-                Rprintf("%10.4f", _crVimpEnsemble[p][j][k][n]);
-              }
-              Rprintf("\n");
-            }
-          }
-        }
-      }
-    }
   }  
   else {
-    if (getTraceFlag() & OUTP_DEF_TRACE) {
-      Rprintf("\nVIMP omitted since OOB sample size is zero. \n");      
-    }
-  }
-  if (getTraceFlag() & TIME_DEF_TRACE) {
-    _vimprTime = _vimprTime + (clock() - _benchTime);
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nRSF:  getVariableImportance() EXIT ...\n");  
   }
 }
 void getVimpRandom (uint      mode,
@@ -362,10 +261,6 @@ void getVimpRandom (uint      mode,
                     char      selectionFlag) {
   Node *terminalNode;
   uint i, j, k, p;
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\nType is VIMP_RAND.");  
-    Rprintf("\nRandom seed for ran2():  %20d", *_seed2Ptr);
-  }
   if (!(_opt & (~OPT_VIMP) & OPT_VIMP_JOIN)) {
     for (p=1; p <= varCount; p++) {
       for (i=1; i <= obsSize; i++) {
@@ -428,9 +323,6 @@ void getVimpRandom (uint      mode,
       }
     }
   }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  VIMP random split calculation complete.");  
-  }
 }
 void getVimpPermute(uint      mode,
                     Node     *rootPtr,
@@ -444,10 +336,6 @@ void getVimpPermute(uint      mode,
   uint    *indexVIMP;
   uint    *permuteVIMP;
   uint i, j, k, p;
-  if (getTraceFlag() & OUTP_DEF_TRACE) {
-    Rprintf("\nType is VIMP_PERM.");  
-    Rprintf("\nRandom seed for ran2():  %20d", *_seed2Ptr);
-  }
   switch (mode) {
   case RSF_GROW:
     permuteObsSize = _oobSampleSize[b];
@@ -575,9 +463,6 @@ void getVimpPermute(uint      mode,
   }  
   free_uivector(indexVIMP, 1, permuteObsSize);
   free_uivector(permuteVIMP, 1, permuteObsSize);
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  VIMP permutation calculation complete.");  
-  }
 } 
 void finalizeVariableImportance(uint       mode,
                                 uint       rejectedTreeCount, 
@@ -597,9 +482,6 @@ void finalizeVariableImportance(uint       mode,
   double    value;
   uint     *denominatorCount;
   uint i, j, k, n, p;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nRSF:  finalizeVariableImportance() ENTRY ...\n");  
-  }
   if (!(rejectedTreeCount < _forestSize)) {
     Rprintf("\nRSF:  *** WARNING *** ");
     Rprintf("\nRSF:  Insufficient trees for VIMP analysis.  \n");
@@ -728,9 +610,6 @@ void finalizeVariableImportance(uint       mode,
                       timePtr);
   }
   for (p=1; p <= varCount; p++) {
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nConcordance Calculation for VIMP (covariate):  %10d", p);  
-    }
     for (i = 1; i <= obsSize; i++) {
       if (_opt & OPT_VOUT_TYPE) {
         denominatorCount[i] = ensembleDenPtr[i] - _oobVimpInvalidDen[p][i];
@@ -752,21 +631,6 @@ void finalizeVariableImportance(uint       mode,
       _importancePtr[1][p] = 1 - concordanceIndex;
     }
     if (_eventTypeSize > 1) {
-      if (getTraceFlag() & OUTP_DEF_TRACE) {
-        Rprintf("\nVIMPED up Conditional Mortality:  varCount %10d \n", p);
-        Rprintf("          ");
-        for (n=1; n <= obsSize; n++) {
-          Rprintf("%10d", n);
-        }
-        Rprintf("\n");
-        for (j = 1; j <= _eventTypeSize; j++) {
-          Rprintf("%10d", j);            
-          for (n=1; n <= obsSize; n++) {
-            Rprintf("%10.4f", crVimpMortality[p][j][n]);
-          }
-          Rprintf("\n");
-        }
-      }
       getConditionalPerformance(mode,
                                 concordancePolarity, 
                                 obsSize, 
@@ -786,34 +650,5 @@ void finalizeVariableImportance(uint       mode,
   }
   if (_opt & OPT_VOUT_TYPE) {
     free_uivector(denominatorCount, 1, obsSize);
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Variable Importance Measure: \n");
-    Rprintf("          ");  
-    for (p=1; p <= varCount; p++) {
-      Rprintf("%10d", p);
-    }
-    Rprintf("\n          ");
-    for (p=1; p <= varCount; p++) {
-      Rprintf("%10.4f", _importancePtr[1][p]);
-    }
-    Rprintf("\n");
-    if (_eventTypeSize > 1) {
-      for (j=1; j <=_eventTypeSize; j++) {
-        Rprintf("\nRSF:  Conditional Variable Importance Measure:  Event %10d \n", j);
-        Rprintf("          ");  
-        for (p=1; p <= varCount; p++) {
-          Rprintf("%10d", p);
-        }
-        Rprintf("\n          ");
-        for (p=1; p <= varCount; p++) {
-          Rprintf("%10.4f", _importancePtr[1+j][p]);
-        }
-        Rprintf("\n");
-      }
-    }
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nRSF:  finalizeVariableImportance() EXIT ...\n");  
   }
 } 

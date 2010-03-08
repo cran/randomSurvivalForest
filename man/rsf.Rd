@@ -20,25 +20,11 @@
   generic method for the package.
 }
 \usage{
-\method{rsf}{default}(formula,
-    data = NULL,
-    ntree = 1000,
-    mtry = NULL,
-    nodesize = NULL,
-    splitrule = NULL,
-    nsplit = 0,
-    importance = c("randomsplit", "permute", "none")[1],
-    big.data = FALSE,
-    na.action = c("na.omit", "na.impute")[1],
-    nimpute = 1,
-    predictorWt = NULL,
-    forest = FALSE,
-    proximity = FALSE,
-    varUsed = NULL,
-    split.depth = FALSE,
-    seed = NULL,
-    do.trace = FALSE,
-    ...)
+\method{rsf}{default}(formula, data = NULL, ntree = 1000, mtry = NULL, nodesize = NULL,
+    splitrule = NULL, nsplit = 0, importance = c("randomsplit", "permute", "none")[1], 
+    big.data = FALSE, na.action = c("na.omit", "na.impute")[1], nimpute = 1, predictorWt = NULL,
+    forest = FALSE, proximity = FALSE, varUsed = NULL, split.depth = FALSE, seed = NULL, 
+    do.trace = FALSE, ...)
 }
 \arguments{
     \item{formula}{A symbolic description of the model to be fit. 
@@ -237,8 +223,8 @@
   is reserved for the ensemble CHF and each of the J ensemble
   conditional CHFs (CCHFs).  The wrapper \code{competing.risk} can be
   used to process the ensemble and to generate event-specific cumulative
-  incidence functions and subsurvival functions (see Gray (1988) for
-  background and definitions).
+  incidence functions (CIF) and subsurvival functions (see Gray (1988)
+  for background and definitions).
 
   (4) The cases within a terminal node are used to estimate both the
   unconditional survival function and the event-specific subsurvival
@@ -313,9 +299,8 @@
          data.}
      \item{poe}{Matrix for the in-bag ensemble probability
          of an event (poe) for each individual: used to estimate the
-         subcumulative distribution function.  Rows correspond to each
-         of the event types.  Applies only to competing risk data.  NULL
-         otherwise.}
+         CIF.  Rows correspond to each of the event types.  Applies only
+	 to competing risk data.  NULL otherwise.}
      \item{oob.poe}{Same as \code{poe}, but based on OOB data.}
      \item{mortality}{A vector of length \code{n} for the in-bag
          ensemble mortality for an individual in the data.  Ensemble
@@ -375,51 +360,56 @@
     Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    L. Breiman (2001). Random forests, \emph{Machine Learning}, 45:5-32.
+    Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
 
-    A. Cutler and G. Zhao (2001). Pert-Perfect random tree ensembles.
+    Cutler A. and Zhao G. (2001). Pert-Perfect random tree ensembles.
     \emph{Comp. Sci. Statist.}, 33: 490-497.
 
-    R. J. Gray (1988).  A class of k-sample tests for comparing the
+    Gray R.J. (1988).  A class of k-sample tests for comparing the
     cumulative incidence of a competing risk, \emph{Ann. Statist.},
     16: 1141-1154.
 
-    F.E. Harrell et al. (1982).  Evaluating the yield of medical tests,
+    Harrell F.E. et al. (1982).  Evaluating the yield of medical tests,
     \emph{J. Amer. Med. Assoc.}, 247:2543-2546.
 
-    T. Hothorn and B. Lausen (2003). On the exact distribution of maximally selected
-    rank statistics, \emph{Comp. Stat. Data Anal.}, 43:121-137.    
+    Hothorn T. and Lausen B. (2003). On the exact distribution of maximally selected
+    rank statistics, \emph{Comp. Statist. Data Anal.}, 43:121-137.    
 
-    H. Ishwaran, U.B. Kogalur, E.Z. Gorodeski, A.J. Minn and 
-    M.S. Lauer (2009).  High-dimensional variable selection for survival
-    data.  J. Amer. Stat. Assoc. (in press).
-
-    H. Ishwaran, U.B. Kogalur, E.H. Blackstone and M.S. Lauer
-    (2008).  Random survival forests, \emph{Ann. App.
-    Statist.}, 2:841-860.
-
-    H. Ishwaran, U.B. Kogalur (2007).  Random survival forests for R,
-    \emph{Rnews}, 7/2:25-31.
-
-    H. Ishwaran (2007).  Variable importance in binary regression
+    Ishwaran H. (2007).  Variable importance in binary regression
     trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
 
-    M. LeBlanc and J. Crowley (1993).  Survival trees by goodness of split,
-    \emph{J. Amer. Stat. Assoc.}, 88:457-467.
+    Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,
+    \emph{Rnews}, 7/2:25-31.
+
+    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+    (2008).  Random survival forests, \emph{Ann. App. Statist.}, 2:841-860.
     
-    A. Liaw and M. Wiener (2002). Classification and regression by randomForest,
+    Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
+    Lauer M.S. (2010).  High-dimensional variable selection for survival
+    data.  \emph{J. Amer. Statist. Assoc. (in press)}.
+
+    Ishwaran H., Kogalur U.B., Chen X. and Minn A.J. (2010).  Random
+    survival forests for high-dimensional data.  
+
+    Ishwaran H., Kogalur U.B. and Lau B.M. (2010).  Random survival
+    forests for competing risks.
+    
+    LeBlanc M. and Crowley J. (1993).  Survival trees by goodness of split,
+    \emph{J. Amer. Statist. Assoc.}, 88:457-467.
+    
+    Liaw A. and Wiener M. (2002). Classification and regression by randomForest,
     \emph{R News}, 2:18-22.
 
-    Y. Lin and Y. Jeon (2006).  Random forests and adaptive nearest
-    neighbors, \emph{J. Amer. Stat. Assoc.}, 101:578-590.
+    Lin Y. and Jeon Y. (2006).  Random forests and adaptive nearest
+    neighbors, \emph{J. Amer. Statist. Assoc.}, 101:578-590.
 
-    W.-Y Loh and Y.-S Shih (1997).  Split selection methods for
+    Loh W.-Y and Shih Y.-S (1997).  Split selection methods for
     classification trees, \emph{Statist. Sinica}, 7:815-840, 1997.
 
-    D.C. Naftel, E.H. Blackstone and M.E. Turner (1985). Conservation of
+    Naftel N.C., Blackstone E.H. and Turner M.E. (1985). Conservation of
     events, unpublished notes.
   
-    M. R. Segal. (1988).  Regression trees for censored data, 
+    Segal M.R. (1988).  Regression trees for censored data, 
     \emph{Biometrics},  44:35-47.
 }
 \seealso{
@@ -517,8 +507,8 @@ pbc.out <- rsf(Surv(days, status) ~ ., pbc, nsplit = 3)
 print(pbc.out)
 
 #------------------------------------------------------------
-# Example 5:  Same as Example 4, but with data imputation.
-# Also see the R-wrapper "impute.rsf".
+# Example 5:  Same as Example 4, but with data imputation
+# Also see the R-wrapper "impute.rsf"
 
 # rsf call with imputation
 data(pbc, package = "randomSurvivalForest") 
@@ -564,9 +554,9 @@ breast.out <- rsf(Surv(time, cens) ~ . , breast,
 breast.vs <- varSel(object=breast.out)
 
 #------------------------------------------------------------
-# Example 7:  Compare Cox regression to RSF using PBC data. 
-# OOB estimate of C-index for Cox based on 100 bootstraps.
-# Assumes "Hmisc" and "survival" libraries are loaded. 
+# Example 7:  Compare Cox regression to RSF using PBC data
+# OOB estimate of C-index for Cox based on 100 bootstraps
+# Assumes "Hmisc" and "survival" libraries are loaded
 
 if (library("survival", logical.return = TRUE) 
     & library("Hmisc", logical.return = TRUE))

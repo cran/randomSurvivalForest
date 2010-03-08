@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -95,38 +95,23 @@
 #include       "rsfTree.h"
 #include      "rsfStack.h"
 void stackPreDefinedCommonArrays() {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedCommonArrays() ENTRY ...\n");
-  }
   _nodeMembership = nodePtrVector(1, _observationSize);
   _bootMembershipIndex = uivector(1, _observationSize);
   _bootMembershipFlag = cvector(1, _observationSize);
   _masterTime  = dvector(1, _observationSize);
   _masterTimeIndex  = uivector(1, _observationSize);
   _oobSampleSize = uivector(1, _forestSize);
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedCommonArrays() EXIT ...\n");
-  }
 }
 void unstackPreDefinedCommonArrays() {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedCommonArrays() ENTRY ...\n");
-  }
   free_nodePtrVector(_nodeMembership, 1, _observationSize);
   free_uivector(_bootMembershipIndex, 1, _observationSize);
   free_cvector(_bootMembershipFlag, 1, _observationSize);
   free_dvector(_masterTime, 1, _observationSize);
   free_uivector(_masterTimeIndex, 1, _observationSize);
   free_uivector(_oobSampleSize, 1, _forestSize);
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedCommonArrays() EXIT ...\n");
-  }
 }
 void stackPreDefinedGrowthArrays() {
   uint i;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedGrowthArrays() ENTRY ...\n");
-  }
   _individualIndex = uivector(1, _observationSize);
   for (i = 1; i <= _observationSize; i++) {
     _individualIndex[i] = i;
@@ -136,25 +121,13 @@ void stackPreDefinedGrowthArrays() {
     _predictorIndex[i] = i;
   }
   _genericMembershipFlag = _bootMembershipFlag;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedGrowthArrays() EXIT ...\n");
-  }
 }
 void unstackPreDefinedGrowthArrays() {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedGrowthArrays() ENTRY ...\n");
-  }
   free_uivector(_individualIndex, 1, _observationSize);
   free_uivector(_predictorIndex, 1, _xSize);
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedGrowthArrays() EXIT ...\n");
-  }
 }
 void stackPreDefinedPredictArrays() {
   uint i;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedPredictArrays() ENTRY ...\n");
-  }
   _fnodeMembership = nodePtrVector(1, _fobservationSize);
   _individualIndex = uivector(1, _fobservationSize);
   for (i = 1; i <= _fobservationSize; i++) {
@@ -168,27 +141,15 @@ void stackPreDefinedPredictArrays() {
   for (i = 1; i <= _fobservationSize; i++) {
     _genericMembershipFlag[i] = ACTIVE;
   }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedPredictArrays() EXIT ...\n");
-  }
 }
 void unstackPreDefinedPredictArrays() {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedPredictArrays() ENTRY ...\n");
-  }
   free_nodePtrVector(_fnodeMembership, 1, _fobservationSize);
   free_uivector(_individualIndex, 1, _fobservationSize);
   free_uivector(_predictorIndex, 1, _xSize);
   free_cvector(_genericMembershipFlag, 1, _fobservationSize);
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedPredictArrays() EXIT ...\n");
-  }
 }
 void stackPreDefinedInteractionArrays() {
   uint i;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedInteractionArrays() ENTRY ...\n");
-  }
   _fnodeMembership = nodePtrVector(1, _fobservationSize);
   _foobSampleSize = uivector(1, _forestSize);
   _importanceFlag = cvector(1, _xSize);
@@ -201,98 +162,15 @@ void stackPreDefinedInteractionArrays() {
   _individualIndex = _intrIndividual;
   _predictorIndex = _intrPredictor;
   _genericMembershipFlag = _bootMembershipFlag;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackPreDefinedInteractionArrays() EXIT ...\n");
-  }
 }
 void unstackPreDefinedInteractionArrays() {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedInteractionArrays() ENTRY ...\n");
-  }
   free_nodePtrVector(_fnodeMembership, 1, _fobservationSize);
   free_uivector(_foobSampleSize, 1, _forestSize);
   free_cvector(_importanceFlag, 1, _xSize);
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackPreDefinedInteractionArrays() EXIT ...\n");
-  }
 }
 void initializeArrays(char mode) {
   uint i,j;
   uint leadingIndex;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nCommon Incoming Parameters:  ");
-    Rprintf("\n            traceFlag:  %10d", getTraceFlag());
-    Rprintf("\n                  opt:  %10x", _opt);
-    Rprintf("\n           forestSize:  %10d", _forestSize);
-    Rprintf("\n      observationSize:  %10d", _observationSize);
-    Rprintf("\n     timeInterestSize:  %10d", _timeInterestSize);
-    Rprintf("\n                xSize:  %10d", _xSize);
-    Rprintf("\n randomCovariateCount:  %10d", _randomCovariateCount);
-    Rprintf("\n");
-  }
-  if ((mode == RSF_GROW) && (getTraceFlag() & SUMM_LOW_TRACE)) {
-    Rprintf("\nIncoming Random Covariate Weights:  ");
-    Rprintf("\n     index       weight");
-    for (j=1; j <= _xSize; j++) {
-      Rprintf("\n%10d  %12.4f", j, _randomCovariateWeight[j]);
-    }
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nIncoming TRAINING Data:  ");
-    Rprintf("\n       index       status         time   observations -> \n");
-    Rprintf("\n                                      ");
-    for (i=1; i <= _xSize; i++) {
-      Rprintf(" %12d", i);
-    }
-    Rprintf("\n");
-    for (j = 1; j <= _observationSize; j++) {
-      Rprintf("%12d %12.4f %12.4f", j, _status[j], _time[j]);
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12.4f", (_xData+((i-1)*(_observationSize)))[j-1]);
-      }
-      Rprintf("\n");
-    }
-  }
-  if ((mode == RSF_PRED) && (getTraceFlag() & SUMM_MED_TRACE)) {
-    Rprintf("\nIncoming PRED Data:  ");
-    Rprintf("\n       index       status         time   observations -> \n");
-    Rprintf("\n                                      ");
-    for (i=1; i <= _xSize; i++) {
-      Rprintf(" %12d", i);
-    }
-    Rprintf("\n");
-    for (j = 1; j <= _fobservationSize; j++) {
-      Rprintf("%12d %12.4f %12.4f", j, _fstatus[j], rsf_ftime[j]);
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12.4f", (_fxData+((i-1)*(_fobservationSize)))[j-1]);
-      }
-      Rprintf("\n");
-    }
-  }
-  if ((mode == RSF_INTR) && (getTraceFlag() & SUMM_MED_TRACE)) {
-    Rprintf("\nIncoming INTR Data (implied):  ");
-    Rprintf("\n       index       status         time   observations -> \n");
-    Rprintf("\n                                      ");
-    for (i=1; i <= _xSize; i++) {
-      Rprintf(" %12d", i);
-    }
-    Rprintf("\n");
-    for (j = 1; j <= _fobservationSize; j++) {
-      Rprintf("%12d %12.4f %12.4f", _intrIndividual[j], _status[_intrIndividual[j]], _time[_intrIndividual[j]]);
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12.4f", (_xData+((i-1)*(_observationSize)))[_intrIndividual[j]-1]);
-      }
-      Rprintf("\n");
-    }
-    Rprintf("\nIncoming INTR Predictors:  ");
-    Rprintf("\n       index    predictor");
-    for (i=1; i <= _intrPredictorSize; i++) {
-      Rprintf("\n%12d %12d ", i, _intrPredictor[i]);
-    }
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Initial read complete.");  
-  }
   _masterTimeSize = 0;
   for (j = 1; j <= _observationSize; j++) {
     if (!ISNA(_time[j])) {
@@ -311,15 +189,6 @@ void initializeArrays(char mode) {
   _masterTimeSize = leadingIndex;
   for (i= _masterTimeSize + 1; i <= _observationSize; i++) {
     _masterTime[i] = 0;
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\n\nSorted Unique Times:  \n");
-    for (i=1; i <= _masterTimeSize; i++) {
-      Rprintf("%10d %10.4f \n", i, _masterTime[i]);
-    }
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Initialization of master time data complete.");  
   }
   if (!(_opt & OPT_IMPU_ONLY)) {
     hpsort(_timeInterest, _timeInterestSize);
@@ -341,23 +210,11 @@ void initializeArrays(char mode) {
     for (i= (_sortedTimeInterestSize) + 1; i <= _timeInterestSize; i++) {
       _timeInterest[i] = 0;
     }
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\n\nSorted Distinct Times of Interest:  \n");
-      for (i=1; i <= _sortedTimeInterestSize; i++) {
-        Rprintf("%10d %10.4f \n", i, _timeInterest[i]);
-      }
-    }
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Initialization of time interest data complete.");  
-    }
   }
 }
 void initializeFactorArrays(char mode) {
   uint i, j;
   uint factorLevel;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\ninitializeFactorArrays() ENTRY ...\n");
-  }
   if (_factorCount < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to initialize factorness in its absence.");
@@ -412,53 +269,12 @@ void initializeFactorArrays(char mode) {
       }
     }
   }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nGROW Factor data:  ");
-    Rprintf("\n     index    factors -> ");
-    Rprintf("\n          ");
-    for (j = 1; j <= _factorCount; j++) {
-      Rprintf(" %10d", _factorIndex[j]);
-    }
-    Rprintf("\n\n");
-    for (i = 1; i <= _observationSize; i++) {
-      Rprintf("%10d", i);
-      for (j = 1; j <= _factorCount; j++) {
-        Rprintf(" %10.0f", _observation[_factorIndex[j]][i]);
-      }
-      Rprintf("\n");
-    }
-    Rprintf("\nMaximum factor levels:  ");
-    Rprintf("\n          ");
-    for (j = 1; j <= _factorCount; j++) {
-      Rprintf(" %10d", _factorSize[j]);
-    }
-    Rprintf("\n");
-    if (mode != RSF_GROW) {
-      Rprintf("\n!GROW Factor data:  ");
-      Rprintf("\n     index    factors -> ");
-      Rprintf("\n          ");
-      for (j = 1; j <= _factorCount; j++) {
-        Rprintf(" %10d", _factorIndex[j]);
-      }
-      Rprintf("\n\n");
-      for (i = 1; i <= _fobservationSize; i++) {
-        Rprintf("%10d", i);
-        for (j = 1; j <= _factorCount; j++) {
-          Rprintf(" %10.0f", _fobservation[_factorIndex[j]][i]);
-        }
-        Rprintf("\n");
-      }
-    }
-  }
   _factorList = factorPtrVector(1, _maxFactorLevel);
   for (j = 1; j <= _maxFactorLevel; j++) {
     _factorList[j] = NULL;
   }
   for (j = 1; j <= _factorCount; j++) {
     _factorList[_factorSize[j]] = makeFactor(_factorSize[j], FALSE);
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\ninitializeFactorArrays() EXIT ...\n");
   }
 }
 char stackCompetingArrays(char mode) {
@@ -470,9 +286,6 @@ char stackCompetingArrays(char mode) {
   char statusFlag;
   uint *eventCounter;
   uint i, j, jgrow, n;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackCompetingArrays() ENTRY ...\n");
-  }
   _eventType = uivector(1, _observationSize);
   overWriteFlag = FALSE;
   if (mode == RSF_GROW) {
@@ -505,17 +318,6 @@ char stackCompetingArrays(char mode) {
     }
     for (j = 1; j <= _eventTypeSize; j++) {
       _eventTypeIndex[_eventType[j]] = j;
-    }
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\n\nSorted Unique Event Types:  \n");
-      for (j=1; j <= _eventTypeSize; j++) {
-        Rprintf("%10d %10d \n", j, _eventType[j]);
-      }
-      Rprintf("\nEvent Type Index Mapping:  \n");
-      for (j = 1; j <= _eventType[_eventTypeSize]; j++) {
-        Rprintf("%10d %10d \n", j, _eventTypeIndex[_eventType[j]]);
-      }
-      Rprintf("\nNumber in GROW data missing status:  %10d \n", _mStatusSize);
     }
   }
   switch (mode) {
@@ -632,16 +434,6 @@ char stackCompetingArrays(char mode) {
     for (j = 1; j <= _eventTypeSize; j++) {
       _eIndividual[j] = uivector(1, _eIndividualSize[j] + _mStatusSize + 1);
     }
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nMaximum (allocated - 1) Event Type Subset Sizes:  \n");
-      for (j=1; j <= _eventTypeSize; j++) {
-        Rprintf("%10d %10d %10d \n", j, _eventType[j], _eIndividualSize[j] + _mStatusSize);
-      }
-      Rprintf("\nNon-missing Event Type Subset Sizes:  \n");
-      for (j=1; j <= _eventTypeSize; j++) {
-        Rprintf("%10d %10d %10d \n", j, _eventType[j], _eIndividualSize[j]);
-      }
-    }
     eventCounter = uivector(1, _eventTypeSize);
     for (j = 1; j <= _eventTypeSize; j++) {
       eventCounter[j] = 0;
@@ -677,25 +469,7 @@ char stackCompetingArrays(char mode) {
     else {
       _meIndividualSize  = _eIndividualSize;
     }
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nEvent Type Subsets:  \n");
-      Rprintf("          ");
-      for (n=1; n <= obsSize; n++) {
-        Rprintf("%10d", n);
-      }
-      Rprintf("\n");
-      for (j=1; j <= _eventTypeSize; j++) {
-        Rprintf("%10d", j);
-        for (n=1; n <= _eIndividualSize[j]; n++) {
-          Rprintf("%10d", _eIndividual[j][n]);
-        }
-        Rprintf("\n");
-      }
-    }
   }  
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackCompetingArrays() EXIT ...\n");
-  }
   return TRUE;
 }
 void getEventTypeSize(uint     obsSize, 
@@ -709,9 +483,6 @@ void getEventTypeSize(uint     obsSize,
   uint statusFlag;
   uint leadingIndex;
   uint i;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\ngetEventTypeSize() ENTRY ...\n");
-  }
   *eventTypeSize = *msize = 0;
   for (i = 1; i <= obsSize; i++) {
     statusFlag = FALSE;
@@ -757,20 +528,10 @@ void getEventTypeSize(uint     obsSize,
       eventType[i] = 0;
     }
   }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nUnique  Event Type Count:  %10d ", *eventTypeSize);
-    Rprintf("\nMissing Event Type Count:  %10d \n", *msize);
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\ngetEventTypeSize() EXIT ...\n");
-  }
 }
 void unstackCompetingArrays(char mode) {
   char eventAnalysisFlag;
   uint j;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackCompetingArrays() ENTRY ...\n");
-  }
   free_uivector(_eventType, 1, _observationSize);
   if (_eventTypeSize > 1) {
     if (mode == RSF_PRED) {
@@ -799,15 +560,9 @@ void unstackCompetingArrays(char mode) {
     free_uivector(_eIndividualSize, 1, _eventTypeSize);
     free_uivector(_eventTypeIndex, 1, _eventType[_eventTypeSize]);
   }  
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackCompetingArrays() EXIT ...\n");
-  }
 }
 void stackFactorArrays(char mode) {
   uint j, p;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackFactorArrays() ENTRY ...\n");
-  }
   _xType = pcvector(1, _xSize);
   for (p = 1; p <= _xSize; p++) {
     _xType[p] = (char*) CHAR(STRING_ELT(AS_CHARACTER(_sexp_xType), p-1));
@@ -817,13 +572,6 @@ void stackFactorArrays(char mode) {
       Rprintf("\nRSF:  Type must be 'C', 'I', or 'R'.");
       Rprintf("\nRSF:  The application will now exit.\n");
       exit(TRUE);
-    }
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nIncoming Predictor Types:  ");
-    Rprintf("\n     index  predictor \n");
-    for (p = 1; p <= _xSize; p++) {
-      Rprintf("%10d %10s \n", p, _xType[p]);
     }
   }
   _factorMap = uivector(1, _xSize);
@@ -843,24 +591,11 @@ void stackFactorArrays(char mode) {
         _factorIndex[++j] = p;
       }
     }
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nFactor Index Mapping:  ");
-      Rprintf("\n     index  predictor \n");
-      for (j = 1; j <= _factorCount; j++) {
-        Rprintf("%10d %10d \n", j, _factorIndex[j]);
-      }
-    }
     _factorSize = uivector(1, _factorCount);
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackFactorArrays() EXIT ...\n");
   }
 }
 void unstackFactorArrays(char mode) {
   uint j;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackFactorArrays() ENTRY ...\n");
-  }
   free_pcvector(_xType, 1, _xSize);
   free_uivector(_factorMap, 1, _xSize);
   if (_factorCount > 0) {
@@ -872,9 +607,6 @@ void unstackFactorArrays(char mode) {
       }
     }
     free_factorPtrVector(_factorList, 1, _maxFactorLevel);
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackFactorArrays() EXIT ...\n");
   }
 }
 char stackMissingSignatures(uint     obsSize, 
@@ -892,9 +624,6 @@ char stackMissingSignatures(uint     obsSize,
                             uint   **p_mFactorIndex) {
   char result;
   uint i, j, p;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackMissingSignatures() ENTRY ...\n");
-  }
   if (recordSize < 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to allocate for missingness in its absence.");
@@ -990,45 +719,6 @@ char stackMissingSignatures(uint     obsSize,
       break;
     }
   }
-  if (getTraceFlag() & MISS_LOW_TRACE) {
-    Rprintf("\nIndex of Individuals with any Missing Outcomes or Predictors:  ");
-    Rprintf("\n    mIndex   orgIndex \n");
-    for (i = 1; i <= recordSize; i++) {
-      Rprintf("%10d %10d \n", i, (*p_recordIndex)[i]);
-    }
-    Rprintf("\nIncoming Indices of Missing Outcomes and Predictors:  ");
-    Rprintf("\n   element      index \n");
-    for (i = 1; i <= (*p_vSize); i++) {
-      Rprintf("%10d %10d \n", i, (*p_vIndex)[i]);
-    }
-    Rprintf("\nIncoming Signatures of Missing Outcomes and Predictors:  ");
-    Rprintf("\n     index   signatures -> \n");
-    Rprintf(  "                  ");
-    for (i=1; i <= _xSize; i++) {
-      Rprintf("%3d", i);
-    }
-    Rprintf("\n");
-    Rprintf(  "              C  T");
-    for (i=1; i <= _xSize; i++) {
-      Rprintf("%3s", _xType[i]);
-    }
-    Rprintf("\n");
-    for (i = 1; i <= recordSize; i++) {
-      Rprintf("%10d  ", (*p_recordIndex)[i]);
-      for (j=1; j <= _xSize+2; j++) {
-        Rprintf("%3d", (*p_vSign)[j][i]);
-      }
-      Rprintf("\n");
-    }
-    Rprintf("\nLinking of factor data structures to missing data structures:  ");
-    Rprintf("\n       index   mFactorIdx \n");
-    for (i = 1; i <= (*p_mFactorSize); i++) {
-      Rprintf("%12d %12d \n", i, (*p_mFactorIndex)[i]);
-    }
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackMissingSignatures() EXIT ...\n");
-  }
   return result;
 }
 void unstackMissingSignatures(uint      obsSize, 
@@ -1044,9 +734,6 @@ void unstackMissingSignatures(uint      obsSize,
                               int     **vForestSign,
                               uint      mFactorSize,
                               uint     *mFactorIndex) {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackMissingSignatures() ENTRY ...\n");
-  }
   free_dvector(statusPtr, 1, obsSize);
   free_dvector(timePtr, 1, obsSize);
   free_dmatrix(predictorPtr, 1, _xSize, 1, obsSize);
@@ -1055,9 +742,6 @@ void unstackMissingSignatures(uint      obsSize,
   free_ivector(vIndex, 1, _xSize+2);
   free_imatrix(vForestSign, 1, _forestSize, 1, vSize);
   free_uivector(mFactorIndex, 1, _xSize);
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackMissingSignatures() EXIT ...\n");
-  }
 }
 char stackMissingArrays(char       mode,
                         char    ***p_dmRecordBootFlag,
@@ -1068,9 +752,6 @@ char stackMissingArrays(char       mode,
   uint recordSize;
   uint vSize;
   uint i,j,k,p;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackMissingArrays() ENTRY ...\n");
-  }
   result = TRUE;
   for (i = 1 ; i <= _observationSize; i++) {
     if (!ISNA(_time[i])) {
@@ -1143,9 +824,6 @@ char stackMissingArrays(char       mode,
     if (mode == RSF_GROW) {
       _imputeSize = 1;
     }
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Missing TRAINING data analysis complete -- none found.");  
-    }
   }
   else {
     _mStatus = dvector(1, _observationSize);
@@ -1175,9 +853,6 @@ char stackMissingArrays(char       mode,
                                              & _mvForestSign,
                                              & _mFactorSize,
                                              & _mFactorIndex);
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Missing data analysis of TRAINING complete -- some found.");  
-    }
   }  
   if (mode == RSF_PRED) {
     _fmRecordMap = uivector(1, _fobservationSize);
@@ -1190,9 +865,6 @@ char stackMissingArrays(char       mode,
       _fobservation = pdvector(1, _xSize);
       for (j=1; j <= _xSize; j++) {
         _fobservation[j] = (_fxData + ((j-1)*(_fobservationSize)) - 1);
-      }
-      if (getTraceFlag() & SUMM_USR_TRACE) {
-        Rprintf("\nRSF:  Missing data analysis of PRED complete -- none found.");  
       }
     }  
     else {
@@ -1223,24 +895,6 @@ char stackMissingArrays(char       mode,
                              & _fmvForestSign,
                              & _fmFactorSize,
                              & _fmFactorIndex);
-      if (getTraceFlag() & MISS_LOW_TRACE) {
-        Rprintf("\nPRED Missing Signatures For Forest (cleared). \n");
-        Rprintf(  " Outcome or Predictor: ");
-        for (p=1; p <= _fmvSize; p++) {
-          Rprintf("%3d", _fmvIndex[p]);
-        }
-        Rprintf("\n");
-        for (i = 1; i <= _forestSize; i++) {
-        Rprintf(  "            %10d ", i);
-          for (p=1; p <= _fmvSize; p++) {
-            Rprintf("%3d", _fmvForestSign[i][p]);
-          }
-          Rprintf("\n");
-        }
-      }
-      if (getTraceFlag() & SUMM_USR_TRACE) {
-        Rprintf("\nRSF:  Missing data analysis of PRED complete -- some found.");  
-      }
     }  
   }  
   if (mode == RSF_INTR) {
@@ -1253,25 +907,6 @@ char stackMissingArrays(char       mode,
       for (i=1; i <= _xSize; i++) {
         _fobservation[i][j] = (_xData+((i-1)*(_observationSize)))[_intrIndividual[j]-1];
       }
-    }
-    if (getTraceFlag() & MISS_LOW_TRACE) {
-      Rprintf("\nIncoming INTR Data (actual):  ");
-      Rprintf("\n       index       status         time   observations -> \n");
-      Rprintf("\n                                      ");
-      for (i=1; i <= _xSize; i++) {
-        Rprintf(" %12d", i);
-      }
-      Rprintf("\n");
-      for (j = 1; j <= _fobservationSize; j++) {
-        Rprintf("%12d %12.4f %12.4f", j, _status[j], _time[j]);
-        for (i=1; i <= _xSize; i++) {
-          Rprintf(" %12.4f", (_fobservation[i][j]));
-        }
-        Rprintf("\n");
-      }
-    }
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Initialization of INTR data structures complete.");  
     }
     _fmRecordMap = uivector(1, _fobservationSize);
     _fmRecordSize = getRecordMap(_fmRecordMap, 
@@ -1295,24 +930,6 @@ char stackMissingArrays(char       mode,
                              & _fmvForestSign,
                              & _fmFactorSize,
                              & _fmFactorIndex);
-      if (getTraceFlag() & MISS_LOW_TRACE) {
-        Rprintf("\nINTR Missing Signatures For Forest (cleared). \n");
-        Rprintf(  " Outcome or Predictor: ");
-        for (p=1; p <= _fmvSize; p++) {
-          Rprintf("%3d", _fmvIndex[p]);
-        }
-        Rprintf("\n");
-        for (i = 1; i <= _forestSize; i++) {
-        Rprintf(  "            %10d ", i);
-          for (p=1; p <= _fmvSize; p++) {
-            Rprintf("%3d", _fmvForestSign[i][p]);
-          }
-          Rprintf("\n");
-        }
-      }
-      if (getTraceFlag() & SUMM_USR_TRACE) {
-        Rprintf("\nRSF:  Missing data analysis of INTR complete -- some found.");  
-      }
     }  
   }  
   dualUseFlag = FALSE;
@@ -1387,9 +1004,6 @@ char stackMissingArrays(char       mode,
   if (_factorCount > 0) {
     initializeFactorArrays(mode);
   }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackMissingArrays() EXIT ...\n");
-  }
   return result;
 }
 void unstackMissingArrays(char   mode,
@@ -1398,9 +1012,6 @@ void unstackMissingArrays(char   mode,
   char dualUseFlag;
   uint recordSize;
   uint vSize;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackMissingArrays() ENTRY ...\n");
-  }
   free_uivector(_mRecordMap, 1, _observationSize);
   if (_mRecordSize == 0) {
     free_pdvector(_observation, 1, _xSize);
@@ -1492,9 +1103,6 @@ void unstackMissingArrays(char   mode,
     free_cmatrix(dmRecordBootFlag, 1, _forestSize, 1, recordSize);
     free_dmatrix3(dmvImputation, 1, _forestSize, 1, recordSize, 1, vSize);
   }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackMissingArrays() EXIT ...\n");
-  }
 }
 uint stackDefinedOutputObjects(char      mode,
                                char    **sexpString,
@@ -1539,9 +1147,6 @@ uint stackDefinedOutputObjects(char      mode,
   double **predictorPtr;
   uint adjEventSize;
   uint i,j,k,p;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackDefinedOutputObjects() ENTRY ...\n");
-  }
   sexpIndex      = 0;  
   ensembleSize   = 0;  
   performanceSize= 0;  
@@ -1709,12 +1314,6 @@ uint stackDefinedOutputObjects(char      mode,
     exit(TRUE);
     break;
   }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nTotal Stack Count:  %12d", *stackCount);  
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\nSEXP VECTOR mapped at: %20x", sexpVector);  
-  }    
   performanceSize = adjEventSize * _forestSize;
   ensembleSize = adjEventSize * _sortedTimeInterestSize * obsSize;
   PROTECT(sexpVector[RSF_OUTP_ID] = allocVector(VECSXP, *stackCount));
@@ -1723,12 +1322,6 @@ uint stackDefinedOutputObjects(char      mode,
   sexpIndex = 0;
   if (_opt & OPT_FENS) {
     PROTECT(sexpVector[RSF_FENS_ID] = NEW_NUMERIC(ensembleSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nFENS memory mapped at: %20x", sexpVector + RSF_FENS_ID);  
-      Rprintf("\nFENS memory:           %20x", sexpVector[RSF_FENS_ID]);  
-      Rprintf("\nFENS memory sized:     %20d", ensembleSize);
-      Rprintf("\nFENS SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_FENS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_FENS_ID]));
     *p_fullEnsemble = NUMERIC_POINTER(sexpVector[RSF_FENS_ID]);
@@ -1741,21 +1334,6 @@ uint stackDefinedOutputObjects(char      mode,
         _fullEnsemblePtr[j][k]  = (*p_fullEnsemble) + ((j-1) * _sortedTimeInterestSize * obsSize) + ((k-1) * obsSize) - 1;
       }
     }
-    if (getTraceFlag() & TURN_OFF_TRACE) {
-      Rprintf("\nFENS Numerator Address Map for sub-matrix [1][][]: \n");
-      Rprintf("          ");
-      for (i=1; i <= obsSize; i++) {
-        Rprintf("%20d", i);
-      }
-      Rprintf("\n");
-      for (k=1; k <= _sortedTimeInterestSize; k++) {
-        Rprintf("%10d", k);
-        for (i=1; i <= obsSize; i++) {
-          Rprintf("%20x", &_fullEnsemblePtr[1][k][i]);
-        }
-        Rprintf("\n");
-      }
-    }
     for (i = 1; i <= obsSize; i++) {
       for (j = 1; j <= adjEventSize; j++) {
         for (k = 1; k <= _sortedTimeInterestSize; k++) {
@@ -1766,12 +1344,6 @@ uint stackDefinedOutputObjects(char      mode,
     }
     if (_eventTypeSize > 1) {
       PROTECT(sexpVector[RSF_FPOE_ID] = NEW_NUMERIC(_eventTypeSize * obsSize));
-      if (getTraceFlag() & SUMM_MED_TRACE) {
-        Rprintf("\nFPOE memory mapped at: %20x", sexpVector + RSF_FPOE_ID);  
-        Rprintf("\nFPOE memory:           %20x", sexpVector[RSF_FPOE_ID]);  
-        Rprintf("\nFPOE memory sized:     %20d", _eventTypeSize * obsSize);
-        Rprintf("\nFPOE SEXP index:       %20d", sexpIndex);  
-      }
       SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_FPOE_ID]);
       SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_FPOE_ID]));
       *p_fullEnsemblePOE = NUMERIC_POINTER(sexpVector[RSF_FPOE_ID]);
@@ -1796,18 +1368,9 @@ uint stackDefinedOutputObjects(char      mode,
         }
       }
     }
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT FENS complete.");  
-    }
   }
   if (_opt & OPT_OENS) {
     PROTECT(sexpVector[RSF_OENS_ID] = NEW_NUMERIC(ensembleSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nOENS memory mapped at: %20x", sexpVector + RSF_OENS_ID);  
-      Rprintf("\nOENS memory:           %20x", sexpVector[RSF_OENS_ID]);  
-      Rprintf("\nOENS memory sized:     %20d", ensembleSize);
-      Rprintf("\nOENS SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_OENS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_OENS_ID]));
     *p_oobEnsemble = NUMERIC_POINTER(sexpVector[RSF_OENS_ID]);
@@ -1830,12 +1393,6 @@ uint stackDefinedOutputObjects(char      mode,
     }
     if (_eventTypeSize > 1) {
       PROTECT(sexpVector[RSF_OPOE_ID] = NEW_NUMERIC(_eventTypeSize * obsSize));
-      if (getTraceFlag() & SUMM_MED_TRACE) {
-        Rprintf("\nOPOE memory mapped at: %20x", sexpVector + RSF_OPOE_ID);  
-        Rprintf("\nOPOE memory:           %20x", sexpVector[RSF_OPOE_ID]);  
-        Rprintf("\nOPOE memory sized:     %20d", _eventTypeSize * obsSize);
-        Rprintf("\nOPOE SEXP index:       %20d", sexpIndex);  
-      }
       SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_OPOE_ID]);
       SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_OPOE_ID]));
       *p_oobEnsemblePOE = NUMERIC_POINTER(sexpVector[RSF_OPOE_ID]);
@@ -1860,18 +1417,9 @@ uint stackDefinedOutputObjects(char      mode,
         }
       }
     }  
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT OENS complete.");  
-    }
   }
   if (_opt & OPT_PERF) {
     PROTECT(sexpVector[RSF_PERF_ID] = NEW_NUMERIC(performanceSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nPERF memory mapped at: %20x", sexpVector + RSF_PERF_ID);  
-      Rprintf("\nPERF memory:           %20x", sexpVector[RSF_PERF_ID]);  
-      Rprintf("\nPERF memory sized:     %20d", performanceSize);  
-      Rprintf("\nPERF SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_PERF_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_PERF_ID]));
     *p_performance = NUMERIC_POINTER(sexpVector[RSF_PERF_ID]);
@@ -1884,34 +1432,10 @@ uint stackDefinedOutputObjects(char      mode,
         _performancePtr[j][k] = NA_REAL;
       }
     }
-    if (getTraceFlag() & TURN_OFF_TRACE) {
-      Rprintf("\nPERF Address Map for matrix [][]: \n");
-      Rprintf("          ");
-      for (j = 1; j <= _forestSize; j++) {
-        Rprintf("%20d", j);
-      }
-      Rprintf("\n");
-      for (i = 1; i <= adjEventSize; i++) {
-        Rprintf("%10d", i);
-        for (j = 1; j <= _forestSize; j++) {
-          Rprintf("%20x", &_performancePtr[i][j]);
-        }
-        Rprintf("\n");
-      }
-    }
     sexpIndex ++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT PERF complete.");  
-    }
   }
   if (_opt & OPT_PROX) {
     PROTECT(sexpVector[RSF_PROX_ID] = NEW_INTEGER(proximitySize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nPROX memory mapped at: %20x", sexpVector + RSF_PROX_ID);  
-      Rprintf("\nPROX memory:           %20x", sexpVector[RSF_PROX_ID]);  
-      Rprintf("\nPROX memory sized:     %20d", proximitySize);  
-      Rprintf("\nPROX SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_PROX_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_PROX_ID]));
     *p_proximity = (uint*) INTEGER_POINTER(sexpVector[RSF_PROX_ID]);
@@ -1920,18 +1444,9 @@ uint stackDefinedOutputObjects(char      mode,
       (*p_proximity)[i] = 0;
     }
     sexpIndex++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT PROX complete.");  
-    }
   }
   if (_opt & OPT_LEAF) {
     PROTECT(sexpVector[RSF_LEAF_ID] = NEW_INTEGER(_forestSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nLEAF memory mapped at: %20x", sexpVector + RSF_LEAF_ID);  
-      Rprintf("\nLEAF memory:           %20x", sexpVector[RSF_LEAF_ID]);  
-      Rprintf("\nLEAF memory sized:     %20d", _forestSize);  
-      Rprintf("\nLEAF SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_LEAF_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_LEAF_ID]));
     *p_leafCount    = (uint*) INTEGER_POINTER(sexpVector[RSF_LEAF_ID]);
@@ -1940,43 +1455,22 @@ uint stackDefinedOutputObjects(char      mode,
       (*p_leafCount)[i] = 0;
     }
     sexpIndex ++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT LEAF complete.");  
-    }
   }
   if (_opt & OPT_SEED) {
     PROTECT(sexpVector[RSF_SEED_ID] = NEW_INTEGER(1));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nSEED memory mapped at: %20x", sexpVector + RSF_SEED_ID);  
-      Rprintf("\nSEED memory:           %20x", sexpVector[RSF_SEED_ID]);  
-      Rprintf("\nSEED memory sized:     %20d", 1);  
-      Rprintf("\nSEED SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_SEED_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_SEED_ID]));
     *p_seed = INTEGER_POINTER(sexpVector[RSF_SEED_ID]);
     sexpIndex++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT SEED complete.");  
-    }
   }
   if (_opt & OPT_TREE) {
     *p_root = nodePtrVector(1, _forestSize);
     for (i = 1; i <= _forestSize; i++) {
       (*p_root)[i] = NULL;
     }
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT TREE complete.");  
-    }
   }
   if (_opt & OPT_MISS) {
     PROTECT(sexpVector[RSF_MISS_ID] = NEW_NUMERIC(imputationSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nMISS memory mapped at: %20x", sexpVector + RSF_MISS_ID);  
-      Rprintf("\nMISS memory:           %20x", sexpVector[RSF_MISS_ID]);  
-      Rprintf("\nMISS memory sized:     %20d", imputationSize);  
-      Rprintf("\nMISS SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_MISS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_MISS_ID]));
     *p_imputation = NUMERIC_POINTER(sexpVector[RSF_MISS_ID]);
@@ -1995,18 +1489,9 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     sexpIndex++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT MISS complete.");  
-    }
   }
   if (_opt & OPT_OMIS) {
     PROTECT(sexpVector[RSF_OMIS_ID] = NEW_NUMERIC(imputationSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nOMIS memory mapped at: %20x", sexpVector + RSF_OMIS_ID);  
-      Rprintf("\nOMIS memory:           %20x", sexpVector[RSF_OMIS_ID]);  
-      Rprintf("\nOMIS memory sized:     %20d", imputationSize);  
-      Rprintf("\nOMIS SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_OMIS_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_OMIS_ID]));
     *p_oobImputation = NUMERIC_POINTER(sexpVector[RSF_OMIS_ID]);
@@ -2025,18 +1510,9 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     sexpIndex++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT OMIS complete.");  
-    }
   }
   if (_opt & OPT_VIMP) {
     PROTECT(sexpVector[RSF_VIMP_ID] = NEW_NUMERIC(importanceSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nVIMP memory mapped at: %20x", sexpVector + RSF_VIMP_ID);  
-      Rprintf("\nVIMP memory:           %20x", sexpVector[RSF_VIMP_ID]);  
-      Rprintf("\nVIMP memory sized:     %20d", importanceSize);  
-      Rprintf("\nVIMP SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_VIMP_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_VIMP_ID]));
     *p_importance = NUMERIC_POINTER(sexpVector[RSF_VIMP_ID]);
@@ -2078,18 +1554,9 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     sexpIndex++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT VIMP complete.");  
-    }
   }  
   if (_opt & OPT_VUSE) {
     PROTECT(sexpVector[RSF_VUSE_ID] = NEW_INTEGER(varUsedSize * _xSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nVUSE memory mapped at: %20x", sexpVector + RSF_VUSE_ID);  
-      Rprintf("\nVUSE memory:           %20x", sexpVector[RSF_VUSE_ID]);  
-      Rprintf("\nVUSE memory sized:     %20d", varUsedSize * _xSize);  
-      Rprintf("\nVUSE SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_VUSE_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_VUSE_ID]));
     *p_varUsed = (uint*) INTEGER_POINTER(sexpVector[RSF_VUSE_ID]);
@@ -2103,18 +1570,9 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     sexpIndex++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT VUSE complete.");  
-    }
   }
   if (_opt & OPT_SPLT_DPTH) {
     PROTECT(sexpVector[RSF_DPTH_ID] = NEW_NUMERIC(_xSize * _observationSize));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nDPTH memory mapped at: %20x", sexpVector + RSF_DPTH_ID);  
-      Rprintf("\nDPTH memory:           %20x", sexpVector[RSF_DPTH_ID]);  
-      Rprintf("\nDPTH memory sized:     %20d", _xSize * _observationSize);
-      Rprintf("\nDPTH SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_DPTH_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex, mkChar(sexpString[RSF_DPTH_ID]));
     *p_splitDepth = NUMERIC_POINTER(sexpVector[RSF_DPTH_ID]);
@@ -2129,35 +1587,6 @@ uint stackDefinedOutputObjects(char      mode,
     }
     *localSplitDepthPtr = dvector(1, _xSize);
     sexpIndex ++;
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nAllocating for OPT DPTH complete.");  
-    }
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Allocation of defined output objects complete:  %10d", sexpIndex);  
-  }
-  if (getTraceFlag() & MISS_LOW_TRACE) {
-    if (_opt & OPT_MISS) {
-      Rprintf("\nImputed Data Output Object:  (at initialization)");
-      Rprintf("\n       index   imputation -> \n");
-      Rprintf(  "             %12d %12d", CENS_IDX, TIME_IDX);
-      for (p=1; p <= _xSize; p++) {
-        Rprintf(" %12d", p);
-      }
-      Rprintf("\n");
-      for (i = 1; i <= mRecordSize; i++) {
-        Rprintf("%12d", mRecordIndex[i]);
-        Rprintf(" %12.4f", (*p_sImputeStatusPtr)[i]);
-        Rprintf(" %12.4f", (*p_sImputeTimePtr)[i]);
-        for (p = 1; p <= _xSize; p++) {
-          Rprintf(" %12.4f", (*p_sImputePredictorPtr)[p][i]);
-        }
-        Rprintf("\n");
-      }
-    }
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackDefinedOutputObjects() EXIT ...\n");
   }
   return (sexpIndex);
 }
@@ -2171,9 +1600,6 @@ void unstackDefinedOutputObjects(char      mode,
   uint varUsedSize;
   uint adjEventSize;
   uint i, j;
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackDefinedOutputObjects() ENTRY ...\n");
-  }
   obsSize        = 0;  
   mRecordSize    = 0;  
   importanceSize = 0;  
@@ -2255,9 +1681,6 @@ void unstackDefinedOutputObjects(char      mode,
       free_dmatrix3(_fullSubSurvivalPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
       free_dmatrix3(_fullSubDistributionPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
     }
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT FENS complete.");  
-    }
   }
   if (_opt & OPT_OENS) {
     for (j = 1; j <= adjEventSize; j++) {
@@ -2270,39 +1693,21 @@ void unstackDefinedOutputObjects(char      mode,
       free_dmatrix3(_oobSubSurvivalPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
       free_dmatrix3(_oobSubDistributionPtr, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
     }
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT OENS complete.");  
-    }
   }
   if (_opt & OPT_PERF) {
     free_pdvector(_performancePtr, 1, adjEventSize);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT PERF complete.");  
-    }
   }
   if (_opt & OPT_TREE) {
     for (i = 1; i <= _forestSize; i++) {
-      if (getTraceFlag() & FORK_DEF_TRACE) {
-        Rprintf("\nDe-allocating treeID:  %10d", i);          
-      }
       freeTree(root[i]);
     }
     free_nodePtrVector(root, 1, _forestSize);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT TREE complete.");  
-    }
   }
   if (_opt & OPT_MISS) {
     free_pdvector(_sImputePredictorPtr, 1, _xSize);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT MISS complete.");  
-    }
   }
   if (_opt & OPT_OMIS) {
     free_pdvector(_sOOBImputePredictorPtr, 1, _xSize);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT OMIS complete.");  
-    }
   }
   if (_opt & OPT_VIMP) {
     free_pdvector(_importancePtr, 1, adjEventSize);
@@ -2314,26 +1719,14 @@ void unstackDefinedOutputObjects(char      mode,
       free_dmatrix4(_crVimpEnsemble, 1, importanceMult, 1, _eventTypeSize, 1, _sortedTimeInterestSize, 1, obsSize);
       free_dmatrix3(_crVimpPOE, 1, importanceMult, 1, _eventTypeSize, 1, obsSize);
     }
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT VIMP complete.");  
-    }
   }
   if (_opt & OPT_VUSE) {
     free_puivector(_varUsedPtr, 1, varUsedSize);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT VUSE complete.");  
-    }
   }  
   if (_opt & OPT_SPLT_DPTH) {
     free_pdvector(_splitDepthPtr, 1, _xSize);
     free_dvector(localSplitDepthPtr, 1, _xSize);
-    if (getTraceFlag() & SUMM_LOW_TRACE) {
-      Rprintf("\nDe-allocating for OPT DPTH complete.");  
-    }
   }  
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nunstackDefinedOutputObjects() EXIT ...\n");
-  }
 }
 uint stackVariableOutputObjects(uint     totalNodeCount,
                                 uint     totalMWCPCount,
@@ -2346,9 +1739,6 @@ uint stackVariableOutputObjects(uint     totalNodeCount,
                                 uint     sexpIndex,
                                 char   **sexpString,
                                 SEXP    *sexpVector) {
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackVariableOutputObjects() ENTRY ...\n");
-  }
   if (_opt & OPT_TREE) {
     PROTECT(sexpVector[RSF_TREE_ID] = NEW_INTEGER(totalNodeCount));
     PROTECT(sexpVector[RSF_NODE_ID] = NEW_INTEGER(totalNodeCount));
@@ -2362,52 +1752,16 @@ uint stackVariableOutputObjects(uint     totalNodeCount,
     *p_contPT = NUMERIC_POINTER(sexpVector[RSF_CONT_PT]);
     *p_mwcpSZ = (uint*) INTEGER_POINTER(sexpVector[RSF_MWCP_SZ]);
     *p_mwcpPT = (uint*) INTEGER_POINTER(sexpVector[RSF_MWCP_PT]);
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nTREE memory mapped at: %20x", sexpVector + RSF_TREE_ID);  
-      Rprintf("\nTREE memory:           %20x", sexpVector[RSF_TREE_ID]);  
-      Rprintf("\nTREE memory sized:     %20d", totalNodeCount);  
-      Rprintf("\nTREE SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_TREE_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex++, mkChar(sexpString[RSF_TREE_ID]));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nNODE memory mapped at: %20x", sexpVector + RSF_NODE_ID);  
-      Rprintf("\nNODE memory:           %20x", sexpVector[RSF_NODE_ID]);  
-      Rprintf("\nNODE memory sized:     %20d", totalNodeCount);  
-      Rprintf("\nNODE SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_NODE_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex++, mkChar(sexpString[RSF_NODE_ID]));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nPARM memory mapped at: %20x", sexpVector + RSF_PARM_ID);  
-      Rprintf("\nPARM memory:           %20x", sexpVector[RSF_PARM_ID]);  
-      Rprintf("\nPARM memory sized:     %20d", totalNodeCount);  
-      Rprintf("\nPARM SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_PARM_ID]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex++, mkChar(sexpString[RSF_PARM_ID]));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nCONT memory mapped at: %20x", sexpVector + RSF_CONT_PT);  
-      Rprintf("\nCONT memory:           %20x", sexpVector[RSF_CONT_PT]);  
-      Rprintf("\nCONT memory sized:     %20d", totalNodeCount);  
-      Rprintf("\nCONT SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_CONT_PT]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex++, mkChar(sexpString[RSF_CONT_PT]));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nMWSZ memory mapped at: %20x", sexpVector + RSF_MWCP_SZ);  
-      Rprintf("\nMWSZ memory:           %20x", sexpVector[RSF_MWCP_SZ]);  
-      Rprintf("\nMWSZ memory sized:     %20d", totalNodeCount);  
-      Rprintf("\nMWSZ SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_MWCP_SZ]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex++, mkChar(sexpString[RSF_MWCP_SZ]));
-    if (getTraceFlag() & SUMM_MED_TRACE) {
-      Rprintf("\nMWPT memory mapped at: %20x", sexpVector + RSF_MWCP_PT);  
-      Rprintf("\nMWPT memory:           %20x", sexpVector[RSF_MWCP_PT]);  
-      Rprintf("\nMWPT memory sized:     %20d", totalMWCPCount);  
-      Rprintf("\nMWPT SEXP index:       %20d", sexpIndex);  
-    }
     SET_VECTOR_ELT(sexpVector[RSF_OUTP_ID], sexpIndex, sexpVector[RSF_MWCP_PT]);
     SET_STRING_ELT(sexpVector[RSF_STRG_ID], sexpIndex++, mkChar(sexpString[RSF_MWCP_PT]));
     (*p_treeID) --;
@@ -2416,12 +1770,6 @@ uint stackVariableOutputObjects(uint     totalNodeCount,
     (*p_contPT) --;
     (*p_mwcpSZ) --;
     (*p_mwcpPT) --;
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Allocation of variable output objects complete:  %10d", sexpIndex);  
-  }
-  if (getTraceFlag() & SUMM_LOW_TRACE) {
-    Rprintf("\nstackVariableOutputObjects() EXIT ...\n");
   }
   return (sexpIndex);
 }

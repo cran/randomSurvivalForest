@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.1
+####  RANDOM SURVIVAL FOREST 3.6.2
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -90,19 +90,26 @@ competing.risk <- function (x, plot = TRUE, ...) {
   if (sum(inherits(x, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rsf, grow)' or '(rsf, predict)'.")
-
+  if (sum(inherits(x, c("rsf", "predict"), TRUE) == c(1, 2)) == 2) {
+      rsfPred <- TRUE
+    }
+    else {
+      rsfPred <- FALSE
+  }
+  
   # number of event types
   if (length(dim(x$ensemble)) == 2) {
-    ensb <- array(x$ensemble, dim = c(nrow(x$ensemble), ncol(x$ensemble), 1), 1)
+    if (rsfPred) {
+      ensb <- array(x$ensemble, dim = c(nrow(x$ensemble), ncol(x$ensemble), 1), 1)
+    }
+    else {
+      ensb <- array(x$oob.ensemble, dim = c(nrow(x$oob.ensemble), ncol(x$oob.ensemble), 1), 1)
+    }
     n.event <- 1
-    surv.names <- c("surv")
-    legend.names <- c("ensemble DF  ")
   }
   else {
-    ensb <- x$ensemble
+    if (rsfPred) ensb <- x$ensemble else ensb <- x$oob.ensemble 
     n.event <- dim(ensb)[3]
-    surv.names <- c("dist", paste("subdist", 1:(n.event-1)))
-    legend.names <- c("ensemble Surv  ", paste("ensemble subSurv ", 1:(n.event-1), "  "))
   }
 
   # ensemble CIF 
@@ -112,36 +119,48 @@ competing.risk <- function (x, plot = TRUE, ...) {
   surv.ensb.avg <- apply(exp(-ensb[,, 1]), 2, mean, na.rm = TRUE)
   if (n.event > 1) {
     cif.ensb <- sub.ensb <- array(0, dim = c(dim(ensb)[c(1,2)], n.event - 1))
+    cond.mort <- matrix(0, n.event - 1, dim(ensb)[1])
     cif.ensb.avg <- sub.ensb.avg <- csurv.ensb.avg <- NULL
     for (j in 1:(n.event-1)) {
-      poe.j <- c(x$poe[j, ])
-      h.j   <- ensb[,, 1+j]
+      poe.j <- if (rsfPred) c(x$poe[j, ]) else c(x$oob.poe[j, ]) 
+      h.j   <- ensb[,, 1 + j]
       S.j   <- poe.j*exp(-h.j)
       cif.ensb[,, j]   <- poe.j - S.j
       sub.ensb[,, j]   <- S.j
+      cond.mort[j, ] <- apply(h.j, 1, sum, na.rm = TRUE)
       cif.ensb.avg    <- cbind(cif.ensb.avg, apply(cif.ensb[,,j], 2, mean, na.rm = TRUE))
       sub.ensb.avg    <- cbind(sub.ensb.avg, apply(S.j, 2, mean, na.rm = TRUE))
       csurv.ensb.avg  <- cbind(csurv.ensb.avg, apply(exp(-h.j), 2, mean, na.rm = TRUE))
     }
+    dimnames(cif.ensb)[[3]] <- paste("CIF.", 1:(n.event-1), sep = "")
+    dimnames(sub.ensb)[[3]] <- paste("subS.", 1:(n.event-1), sep = "")
+    rownames(cond.mort) <- paste("event.", 1:(n.event-1), sep = "")
   }
     
   # plots
-  matPlot <- function(M, ylab = "Survival (%)", legend = "ensemble survival", pos = 1) {
+  matPlot <- function(M, ylab = "Survival (%)", legend = "ensemble survival", pos = 2) {
      m <- dim(cbind(M))[2]
+     if (!rsfPred) legend <- paste("oob", legend)     
      if (m > 1) legend <- paste(legend, 1:m, "  ")
      matplot(x$timeInterest, 100*M, xlab = "Time", ylab = ylab, type = "l",
-             col = (1:m), lty = 1, lwd = 3)
-    legend(c("topright", "bottomright")[pos], legend = legend, col = (1:m), lty = 1, lwd = 3)
+             col = (1:m), lty = 1,
+             lwd = c(3, 1.5)[1 + 1 * (m > 10)])
+    legend(c("topleft", "topright")[pos], legend = legend, col = (1:m), lty = 1,
+           xjust = c(0, 1)[pos],
+           lwd = c(3, 1.5)[1 + 1 * (m > 10)],
+           cex = c(0.75, 0.65)[1 + 1 * (m > 10)])
   }
   if (plot) {
     if (n.event == 1) {
+      old.par <- par(no.readonly = TRUE)#save par settings
       matPlot(surv.ensb.avg)
+      par(old.par)#restore par 
       return(NULL)
     }
     else {
       old.par <- par(no.readonly = TRUE)#save par settings
       par(mfrow = c(2,2))
-      matPlot(cif.ensb.avg,   "Probability (%)", "ensemble CIF", 2)
+      matPlot(cif.ensb.avg,   "Probability (%)", "ensemble CIF", 1)
       matPlot(sub.ensb.avg,   "Probability (%)", "ensemble subsurvival")
       matPlot(csurv.ensb.avg, "Survival (%)", "ensemble cond. surv.")
       matPlot(surv.ensb.avg)
@@ -150,6 +169,8 @@ competing.risk <- function (x, plot = TRUE, ...) {
   }
     
   # return the goodies
-  invisible(list(cif.ensb = cif.ensb, sub.ensb = sub.ensb))
-  
+  if (n.event > 1) {
+    invisible(list(cif.ensb = cif.ensb, sub.ensb = sub.ensb, cond.mortality = cond.mort))
+  } 
+
 }

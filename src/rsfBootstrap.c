@@ -1,7 +1,7 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.1
+////  RANDOM SURVIVAL FOREST 3.6.2
 ////
 ////  Copyright 2009, Cleveland Clinic Foundation
 ////
@@ -99,18 +99,8 @@ char bootstrap (uint     mode,
   uint ibgSampleSize;
   char result;
   uint i,k;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nbootstrap() ENTRY ...\n");
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Bootstrap sample:  %10d ", b);  
-  }
   result = TRUE;
   mOutcomeFlag = FALSE;
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nBootstrap random seed chain ran1():  ");
-    Rprintf("\n%10d %20d ", b, *_seed1Ptr);
-  }
   for (i=1; i <= _observationSize; i++) {
     _bootMembershipFlag[i] = FALSE;
   }
@@ -118,13 +108,6 @@ char bootstrap (uint     mode,
     k = (uint) ceil(ran1(_seed1Ptr)*((_observationSize)*1.0));
     _bootMembershipFlag[k] = TRUE;
     _bootMembershipIndex[i] = k;
-  }
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\n\nIn-Bag Membership:  ");
-    Rprintf("\n bootIndex   orgIndex (in original data) \n");
-    for (i=1; i <=  _observationSize; i++) {
-      Rprintf("%10d %10d \n", i, _bootMembershipIndex[i]);
-    } 
   }
   for (i=1; i <= _observationSize; i++) {
     _nodeMembership[i] = rootPtr;
@@ -137,18 +120,8 @@ char bootstrap (uint     mode,
     }
   }
   ibgSampleSize = _observationSize - _oobSampleSize[b];
-  if (getTraceFlag() & SUMM_MED_TRACE) {
-    Rprintf("\n\nIBG Size:  %10d ", ibgSampleSize);
-    Rprintf(  "\nOOB Size:  %10d ", _oobSampleSize[b]);
-  }
   result = getForestSign(mode, b);
   if (result == FALSE) {
-    if (getTraceFlag() & SUMM_USR_TRACE) {
-      Rprintf("\nRSF:  Status or Time values are all missing in the sample.  Bootstrap sample has been discarded.");  
-    }
-  }
-  if (getTraceFlag() & SUMM_USR_TRACE) {
-    Rprintf("\nRSF:  Bootstrapping and all mode initialization complete.");  
   }
   if (result == TRUE) {
     if (mode == RSF_GROW) {
@@ -178,9 +151,6 @@ char bootstrap (uint     mode,
           _foobSampleSize[b] ++;
         }
       }
-      if (getTraceFlag() & SUMM_HGH_TRACE) {
-        Rprintf(  "\nINTR OOB Size:  %10d ", _foobSampleSize[b]);
-      }
       if (_fmRecordSize > 0) {
         for (i = 1; i <= _fmRecordSize; i++) {
           if (_bootMembershipFlag[_intrIndividual[_fmRecordIndex[i]]] == TRUE) {
@@ -194,12 +164,6 @@ char bootstrap (uint     mode,
     }
   }  
   else {
-    if (getTraceFlag() & SUMM_HGH_TRACE) {
-      Rprintf("\nBootstrap sample is invalid:  %10d \n", b);      
-    }
-  }
-  if (getTraceFlag() & SUMM_HGH_TRACE) {
-    Rprintf("\nbootstrap() EXIT ...\n");
   }
   return result;
 }
