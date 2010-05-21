@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -86,15 +86,15 @@
 ####**********************************************************************
 
 predict.rsf <- function(
-    object = NULL,
-    test = NULL,
-    importance = c("randomsplit", "permute", "none")[1],
-    na.action = c("na.omit", "na.impute")[1],
-    outcome = c("train", "test")[1],
-    proximity = FALSE,
-    split.depth = FALSE,
-    seed = NULL,
-    do.trace = FALSE,
+    object = NULL,#
+    test = NULL,#
+    importance = c("randomsplit", "permute", "none")[1],#
+    na.action = c("na.omit", "na.impute")[1],#
+    outcome = c("train", "test")[1],#
+    proximity = FALSE,#
+    split.depth = FALSE,#
+    seed = NULL,#
+    do.trace = FALSE,#
     ...)
 {
 

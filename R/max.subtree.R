@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -93,10 +93,7 @@
 
 ### User callable function:
 
-max.subtree <- function(object,
-                        max.order=2,
-                        sub.order=FALSE,
-                        ...) {
+max.subtree <- function(object, max.order=2, sub.order=FALSE, ...) {
 
   ## Incoming parameter checks.  All are fatal.
   if (is.null(object)) stop("Object is empty!")

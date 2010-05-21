@@ -1,6 +1,6 @@
 \name{plot.ensemble}
 \alias{plot.ensemble}
-\title{Plot of Ensemble Estimates}
+\title{Plot Ensemble Estimates}
 \description{
     Plot ensemble survival curves and ensemble estimates of mortality.
 }
@@ -10,8 +10,7 @@
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
 	predict)}.}
-    \item{plots.one.page}{Logical.  Should plots be placed on one page?
-        Default is TRUE.}
+    \item{plots.one.page}{Should plots be placed on one page?}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{  
@@ -31,16 +30,16 @@
   Note that when \code{x} is of class \code{(rsf, predict)} not all
   plots will be produced.
 
-  For competing risk analyses plots correspond to unconditional values
-  (i.e., they are non-event specific).  Use \code{competing.risk} for
-  event-specific curves and for a more comprehensive analysis in such
-  cases.
+  Applies to competing risk analyses but plots are non-event specific.
+  Use \code{competing.risk} for event-specific curves and for a more
+  comprehensive analysis in such cases.
 
   Whenever possible, out-of-bag (OOB) values are used.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
     Gerds T.A., Cai T. and Schumacher M. (2008).  The performance of
@@ -50,23 +49,18 @@
     Assessment and comparison of prognostic classification
     schemes for survival data, \emph{Statist. in Med.},
     18:2529-2545.
-
-    Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,
-    \emph{Rnews}, 7/2:25-31.
 }
 \seealso{
-  \code{competing.risk},
   \code{rsf},
   \code{predict.rsf}.
 }
 \examples{
 data(veteran, package = "randomSurvivalForest") 
-v.out <- rsf(Survrsf(time, status)~., veteran, ntree = 1000)
+v.out <- rsf(Surv(time, status) ~ ., veteran, ntree = 1000)
 plot.ensemble(v.out)
 
 # plot of ensemble survival for a single individual
 surv.ensb <- t(exp(-v.out$oob.ensemble))
 plot(v.out$timeInterest, surv.ensb[, 1])
-
 }
 \keyword{file}

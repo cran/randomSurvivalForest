@@ -36,7 +36,6 @@
 }
 \examples{
 \dontrun{
-#----------------------------------------------------------------------------------------------
 # WIHS analysis
 # CIF for HAART and AIDS stratified by IDU
 
@@ -46,15 +45,17 @@ wihs.cr  <- competing.risk(wihs.out)
 cif <- wihs.cr$cif
 Time <- wihs.out$timeInterest
 idu <- wihs$idu
-cif.haart <- cbind(apply(cif[,,1][idu == 0,], 2, mean), apply(cif[,,1][idu == 1,], 2, mean))
-cif.aids  <- cbind(apply(cif[,,2][idu == 0,], 2, mean), apply(cif[,,2][idu == 1,], 2, mean))
+cif.haart <- cbind(apply(cif[,,1][idu == 0,], 2, mean),
+                   apply(cif[,,1][idu == 1,], 2, mean))
+cif.aids  <- cbind(apply(cif[,,2][idu == 0,], 2, mean),
+                   apply(cif[,,2][idu == 1,], 2, mean))
 matplot(Time, cbind(cif.haart, cif.aids), type = "l", 
         lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3,
         ylab = "Cumulative Incidence")  
 legend("topleft",
-       legend = c("HAART (Non-IDU)", "HAART (IDU)", "AIDS (Non-IDU)", "AIDS (IDU)"),
-       lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3, cex = 1.5)
-#----------------------------------------------------------------------------------------------
+   legend = c("HAART (Non-IDU)", "HAART (IDU)",
+              "AIDS  (Non-IDU)", "AIDS  (IDU)"),
+   lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3, cex = 1.5)
 }
 }
 \keyword{datasets}

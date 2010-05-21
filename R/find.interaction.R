@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -86,17 +86,17 @@
 ####**********************************************************************
 
 find.interaction <- function (
-    object, 
-    predictorNames = NULL,
-    method = c("maxsubtree", "vimp")[1],
-    sorted = TRUE,
-    npred = NULL, 
-    subset = NULL,                              
-    nrep  = 1,
-    rough = FALSE,
-    importance = c("randomsplit", "permute")[1],
-    seed = NULL,
-    do.trace = FALSE,
+    object,# 
+    predictorNames = NULL,#
+    method = c("maxsubtree", "vimp")[1],#
+    sorted = TRUE,#
+    npred = NULL,#
+    subset = NULL,#                              
+    nrep  = 1,#
+    rough = FALSE,#
+    importance = c("randomsplit", "permute")[1],#
+    seed = NULL,#
+    do.trace = FALSE,#
     ...) {
  
     ## Check that 'object' is of the appropriate type.
@@ -137,8 +137,6 @@ find.interaction <- function (
       if (length(predictorNames) == 1)
         stop("Pairwise comparisons require more than one candidate variable.")
       cov.names <- predictorNames
-      sorted <- F
-      npred <- NULL
       n.interact <- length(predictorNames)
     }
     if (sorted) {
@@ -202,6 +200,7 @@ find.interaction <- function (
         }
         names(interact.imp) <- c("CHF", paste("condCHF.", 1:(n.event - 1), sep = ""))
       }
+      n.pairs <- length(rownames.interact.imp)
 
       ### output table
       cat("\n")
@@ -209,7 +208,7 @@ find.interaction <- function (
       cat("                    No. of variables: ", n.cov,               "\n", sep="")
       cat("           Variables sorted by VIMP?: ", sorted,              "\n", sep="")
       cat("   No. of variables used for pairing: ", n.interact,          "\n", sep="")
-      cat("    Total no. of paired interactions: ", dim(interact.imp)[1],"\n", sep="")
+      cat("    Total no. of paired interactions: ", n.pairs,             "\n", sep="")
       cat("            Monte Carlo replications: ", nrep,                "\n", sep="")
       cat("    Type of noising up used for VIMP: ", importance,          "\n", sep="")
       cat("                  Fast approximation: ", rough,               "\n", sep="")

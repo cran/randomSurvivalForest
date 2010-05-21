@@ -1,12 +1,12 @@
 \name{competing.risk}
 \alias{competing.risk}
 \alias{competing.risk}
-\title{Summary values for Competing Risks}
+\title{Summary Plots for Competing Risks}
 \description{
   Plot the ensemble cumulative incidence function (CIF), ensemble
   subsurvival function, ensemble conditional survival function, and
-  ensemble unconditional survival function from a RSF competing risk
-  analysis.
+  ensemble unconditional survival function from a random survival
+  forests competing risk analysis (Ishwaran et al., 2010).
 }
 \usage{
     competing.risk(x, plot = TRUE, ...)
@@ -14,7 +14,7 @@
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
 	predict)}.}
-    \item{plot}{Logical.  If TRUE, proximity is plotted.}
+    \item{plot}{Should curves be plotted?}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -31,23 +31,22 @@
 \value{
    Invisibly, the ensemble CIF, ensemble subsurvival function and
    conditional mortality for each event type.  Whenever possible,
-   out-of-bag (OOB) values are returned.
+   OOB values are returned.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
     Gray R.J. (1988).  A class of k-sample tests for comparing the
     cumulative incidence of a competing risk, \emph{Ann. Statist.},
-    16: 1141-1154.
+    16:1141-1154.
 
-    Ishwaran H., Kogalur U.B. and Lau B.M. (2010).  Random survival
-    forests for competing risks.
+    Ishwaran H., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+    B.M. (2010).  Random survival forests for competing risks.
 }
 \seealso{
-  \code{find.interaction},
-  \code{predict.rsf},
   \code{rsf},
   \code{wihs}.
 }

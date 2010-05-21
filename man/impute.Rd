@@ -1,17 +1,17 @@
 \name{impute.rsf}
 \alias{impute.rsf}
-\title{Random Survival Forest Impute Only Mode}
+\title{Impute Only Mode}
 \description{
-  Imputation mode for right censored survival and competing risk data
-  using Random Survival Forests (RSF) (Ishwaran, Kogalur, Blackstone and
-  Lauer, 2008).  A random forest (Breiman, 2001) of survival trees is
-  grown and used to impute missing data.  No ensemble estimates or error
-  rates are calculated.
+  Imputation for right censored survival and competing risk data.  A
+  random survival forest is grown and used to impute missing data.  No
+  ensemble estimates or error rates are calculated.  This is a fast way
+  to impute data.
 }
 \usage{
 impute.rsf(formula, data = NULL, ntree = 1000, mtry = NULL,
     nodesize = NULL, splitrule = NULL, nsplit = 0, big.data = FALSE,
-    nimpute = 1, predictorWt = NULL, seed = NULL, do.trace = FALSE, ...)
+    nimpute = 1, predictorWt = NULL, seed = NULL, do.trace = FALSE,
+    ...)
 }
 \arguments{
     \item{formula}{A symbolic description of the model to be fit.}
@@ -29,20 +29,21 @@ impute.rsf(formula, data = NULL, ntree = 1000, mtry = NULL,
     \item{...}{Further arguments passed to or from other methods.}
   }
 \details{
-  Grows a RSF and uses this to impute data.  All external calculations
-  such as ensemble calculations, error rates, etc. are turned off.  Use
-  this function if your only interest is imputing the data.
+  Grows a RSF and uses this to impute missing data.  All external
+  calculations such as ensemble calculations, error rates, etc. are
+  turned off.  Use this function if your only interest is imputing the
+  data.
 
-  All options are the same as \code{rsf} and the user should consult the
-  help file for \code{rsf} for details.
+  All options are the same as for \code{rsf}.
 }   
 \value{
   Invisibly, the data frame containing the orginal data with imputed
   data overlayed.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
     Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
@@ -53,13 +54,8 @@ impute.rsf(formula, data = NULL, ntree = 1000, mtry = NULL,
 }
 \examples{
 \dontrun{
-#------------------------------------------------------------
-# Example 1:  Veteran's Administration lung cancer data
-# Randomized trial of two treatment regimens for lung cancer
-# See Kalbfleisch & Prentice
-
 data(pbc, package = "randomSurvivalForest")
-imputed.data <- impute.rsf(Survrsf(days, status) ~ ., data = pbc, nsplit = 3)
+imputed.data <- impute.rsf(Surv(days, status) ~ ., data = pbc, nsplit = 3)
 }
 }
 \keyword{survival}

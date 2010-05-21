@@ -6,14 +6,14 @@
   variables.
 }
 \usage{
-  vimp(object, predictorNames = NULL, subset = NULL, joint = TRUE,
-       rough = FALSE, importance = c("randomsplit", "permute", "none")[1], 
+  vimp(object, predictorNames = NULL, subset = NULL,
+       joint = TRUE, rough = FALSE,
+       importance = c("randomsplit", "permute", "none")[1], 
        seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
-      forest)}. Requires \code{forest}=TRUE in the original \code{rsf}
-      call.}
+      forest)}.}
     \item{predictorNames}{Character vector of x-variable names to be
       considered.  If NULL (the default) all variables are used.  Only
       x-variables listed in the object predictor matrix will be used.}
@@ -22,31 +22,31 @@
       predictor matrix, \code{predictors}).  Default is to use all rows.}
     \item{joint}{Should joint-VIMP or individual VIMP be calculated?
       See details below.}
-    \item{rough}{Logical value indicating whether fast approximation
-      should be used.  Default is FALSE.}
+    \item{rough}{Should fast approximation be used?}
     \item{importance}{Type of VIMP.}
-    \item{seed}{Seed for random number generator.  Must be a negative
-      integer (the R wrapper handles incorrectly set seed values).}
-    \item{do.trace}{Logical. Should trace output be enabled? Default is
-      FALSE. Integer values can also be passed.  A positive value
+    \item{seed}{Seed (negative integer) for random number generator.}
+    \item{do.trace}{Should trace output be enabled? 
+      Integer values can also be passed.  A positive value
       causes output to be printed each \code{do.trace} iteration.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
     Using a previously grown forest, and restricting the data to that
     indicated by \code{subset}, calculate the VIMP for variables listed
-    in \code{predictorNames}.  If \code{joint}=TRUE, a joint-VIMP is
-    calculated.  The joint-VIMP is the importance for a group of
-    variables, when the group is perturbed simultaneously.  If
-    \code{joint}=FALSE, the VIMP for each variable considered separately
-    is calculated.
-
-    Depending upon the option \code{importance}, VIMP is calculated
-    either by random daugther assignment, by random permutation of
-    the variable(s), or without perturbation (none).
+    in \code{predictorNames}.  If \code{joint}=TRUE, then joint-VIMP for
+    the group of variables is calculated.  This equals the amount that
+    prediction error changes when the group of variables are
+    simultaneously "noised-up" (perturbed).  If \code{joint}=FALSE, the VIMP for
+    each variable is calculated separately.
+    
+    Depending upon the setting for \code{importance}, VIMP is determined
+    by using either random daughter assignment ("\code{randomsplit}") or
+    random permutation ("\code{permute}") noising-up of the variable(s).
+    A NULL value is returned if \code{importance}="\code{none}".
 
     For competing risk data, VIMP and error rates are given for the
     ensemble CHF and the conditional CHF (CCHF) for each event type.
+    For more details see Ishwaran et al. (2010).
 }
 \value{
     A list with the following components:
@@ -59,15 +59,19 @@
       upon the option \code{joint}.} 
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
     Ishwaran H. (2007).  Variable importance in binary regression
     trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+
+    Ishwaran H., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+    B.M. (2010).  Random survival forests for competing risks.
 }
 \seealso{
-  \code{vimp}.
+  \code{find.interaction}.
 }
 \examples{
 #------------------------------------------------------------------------
@@ -75,7 +79,7 @@
 # Veteran data.
 
 data(veteran, package = "randomSurvivalForest") 
-v.out <- rsf(Survrsf(time,status)~., veteran, ntree = 1000, forest = TRUE)
+v.out <- rsf(Survrsf(time,status) ~ ., veteran, ntree = 1000)
 vimp(v.out, c("karno","celltype"))$importance
 
 \dontrun{
@@ -84,8 +88,7 @@ vimp(v.out, c("karno","celltype"))$importance
 # PBC data.
 
 data(pbc, package = "randomSurvivalForest") 
-rsf.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000,
-               forest = TRUE, nsplit = 3)
+rsf.out <- rsf(Surv(days,status) ~ ., pbc, ntree = 1000, nsplit = 3)
 o.r <- rev(order(rsf.out$importance))
 imp <- rsf.out$importance[o.r]
 imp.events <- rep(0, length(imp))
@@ -101,8 +104,7 @@ print(round(imp.all, 3))
 # (ii) Bootstrap:    Estimates statistical variability
 
 data(pbc, package = "randomSurvivalForest") 
-rsf.out <- rsf(Survrsf(days,status)~., pbc, ntree = 1000,
-               nsplit = 3, forest = TRUE)
+rsf.out <- rsf(Surv(days,status) ~ ., pbc, ntree = 1000, nsplit = 3)
 o.r <- rev(order(rsf.out$importance))
 imp.names <- names(rsf.out$importance[o.r])
 subset.index <- 1:nrow(rsf.out$predictors)

@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -111,15 +111,17 @@ plot.proximity <- function (x, plot = TRUE, ...) {
     old.par <- par(no.readonly = TRUE)
     par(mfrow = c(1,1))
     plot(loc[,1], -loc[,2], type="n", xlab="", ylab="", main="cmdscale(Ensemble Mortality)")
-    if (sum(x$Cens == 1) > 1 & sum(x$Cens == 0) > 1) {
+    if (sum(x$cens == 1) > 1 & sum(x$cens == 0) > 1) {
       text(loc[,1], -loc[,2],
-           pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
-           col = 3*x$Cens+1,
+           pmax(1, ceiling(100*(x$mortality -
+                      min(x$mortality, na.rm = TRUE))/diff(range(x$mortality, na.rm = TRUE)))),
+           col = 3*x$cens+1,
            cex = 0.8)
     }
     else {
       text(loc[,1], -loc[,2],
-           pmax(1, ceiling(100*(x$mortality-min(x$mortality))/diff(range(x$mortality)))),
+           pmax(1, ceiling(100*(x$mortality -
+                      min(x$mortality, na.rm = TRUE))/diff(range(x$mortality, na.rm = TRUE)))),
            cex = 0.8)
     }
     par(old.par)

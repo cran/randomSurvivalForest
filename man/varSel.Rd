@@ -1,17 +1,23 @@
 \name{varSel}
 \alias{varSel}
-\title{Variable selection using RSF}
+\title{Variable Selection for Random Survival Forests}
 \description{
-    Variable selection using minimal depth theory for trees.
+    Variable selection for random survival forests using minimal depth (Ishwaran et al. 2010).
 }
 \usage{
-    varSel(formula = NULL, data = NULL, object = NULL, method = c("vh", "vhVIMP", "md")[3],
-           ntree = (if (method == "md") 1000 else 500),
-           mvars = (if (!is.null(data) & method != "md") min(1000, round(ncol(data)/5)) else NULL), 
-           mtry = (if (!is.null(data) & method == "md") max(sqrt(ncol(data)), ncol(data)/3) else NULL), 
-           nodesize = (if (method == "vh" | method == "vhVIMP") 2 else NULL), nsplit = 10, 
-           predictorWt = NULL, big.data = FALSE, na.action = c("na.omit", "na.impute")[1], 
-           do.trace = 0, always.use = NULL, nrep = 50, K = 5, nstep = 1, verbose = TRUE, ...  )
+    varSel(formula = NULL, data = NULL, object = NULL,
+           method = c("vh", "vhVIMP", "md")[3],
+           ntree=(if (method == "md") 1000 else 500),
+           mvars = (if (!is.null(data) & method!="md")
+                     min(1000,round(ncol(data)/5)) else NULL), 
+           mtry = (if (!is.null(data) & method == "md")
+                     max(sqrt(ncol(data)),ncol(data)/3) else NULL), 
+           nodesize = (if (method == "vh" | method == "vhVIMP")
+                     2 else NULL), 
+           nsplit = 10, predictorWt = NULL, big.data = FALSE,
+           na.action = c("na.omit", "na.impute")[1], 
+           do.trace = 0, always.use = NULL, nrep = 50, K = 5,
+           nstep = 1, verbose = TRUE, ...  )
 }
 \arguments{
    \item{formula}{A symbolic description of the model to be fit. 
@@ -19,12 +25,10 @@
    \item{data}{Data frame containing the data used in the formula.
        Missing values allowed. Must be specified unless \code{object}
        is given.}
-   \item{object}{An object of class \code{(rsf, grow)}.  Requires
-       \code{forest}=TRUE in the original \code{rsf} call.
-       Can be NULL.}
-   \item{method}{Variable selection method: vh=variable hunting;
-       vhVIMP=variable hunting with VIMP (variable importance);
-       md=minimal depth.  See details below.}
+   \item{object}{An object of class \code{(rsf, grow)}.}
+   \item{method}{Variable selection method: "\code{vh}"=variable hunting;
+       "\code{vhVIMP}" =variable hunting with VIMP; "\code{md}"=minimal
+       depth. See details below.}
    \item{ntree}{Number of trees to grow.}
    \item{mvars}{Number of randomly selected variables used in the
         variable hunting algorithm.}  
@@ -59,61 +63,64 @@
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-    Variable selection using minimal depth theory for trees (Ishwaran et
-    al., 2009).  The option \code{method} allows for two different
-    approaches: (1) minimal depth: uses all data and all variables
-    simultaenously; and (2) variable hunting: uses K-fold Monte Carlo
-    validation, random selection of variables, and regularized forward
-    selection.
+    Variable selection using minimal depth.  The option \code{method}
+    allows for two different approaches: (1) minimal depth: uses all
+    data and all variables simultaenously; and (2) variable hunting:
+    uses K-fold Monte Carlo validation, random selection of variables,
+    and regularized forward selection.
 
-    ---> Minimal Depth variable selection (\code{method}="md")
+    The following is a brief description of the two methods.  For
+    complete details, one should see Ishwaran et al. (2010).
 
-    The maximal subtree (Ishwaran et al., 2009) for a variable \code{x}
-    is the largest subtree whose root node splits on \code{x} (all
-    parent nodes of \code{x}'s maximal subtree have nodes that split on
-    variables other than \code{x}).  The minimal depth of a maximal
-    subtree equals the shortest distance (the depth) from the root node
-    to the parent node of the maximal subtree (zero is the smallest
-    value possible).  The smaller the minimal depth, the more impact
-    \code{x} has on prediction.
+    ---> Minimal Depth variable selection (\code{method}="\code{md}")
+
+    The maximal subtree for a variable \code{x} is the largest subtree
+    whose root node splits on \code{x} (all parent nodes of \code{x}'s
+    maximal subtree have nodes that split on variables other than
+    \code{x}).  The minimal depth of a maximal subtree equals the
+    shortest distance (the depth) from the root node to the parent node
+    of the maximal subtree (zero is the smallest value possible).  The
+    smaller the minimal depth, the more impact \code{x} has on
+    prediction.
 
     Variables are selected using an adaptive threshold based on minimal
-    depth (Ishwaran et al., 2009) coupled with minor supervision using
-    VIMP.
+    depth coupled with minor supervision using VIMP (variable
+    importance).
 
     Set \code{mtry} to larger values when the number of variables is
     high.
-    
 
-    ---> Variable Hunting (\code{method}="vh" or \code{method}="vhVIMP")
+
+    ---> Variable Hunting (\code{method}="\code{vh}" or \code{method}="\code{vhVIMP}")
+    
 
     Variable hunting is used for problems where the number of variables
     is magnitudes larger than the sample size and the sample size is
     reasonably small.  Microarray data is a good example.
 
     Using training data from random K-fold subsampling, a forest is fit
-    to a randomly selected set of variables of size \code{mvars}
-    (variables are chosen with probability proportional to weights
-    determined using an initial forest fit on the training data).  The
+    to a randomly selected set of variables of size \code{mvars} where
+    variables are chosen with probability proportional to weights
+    determined using an initial forest fit on the training data.  The
     subset of variables are ordered by increasing minimal depth and
     added sequentially (starting from a minimal model) until joint VIMP
-    no longer increases (signifying the final model; Ishwaran et al.,
-    2009).  A forest is refit with these variables and applied to test
-    data to estimate prediction error and VIMP.  The process is repeated
-    \code{nrep} times.  Final selected variables are the top P ranked
-    variables, where P is the average model size and variables are
-    ranked by average minimal depth.
+    no longer increases (signifying the final model).  A forest is refit
+    with these variables and applied to test data to estimate prediction
+    error and VIMP.  The process is repeated \code{nrep} times.  Final
+    selected variables are the top P ranked variables, where P is the
+    average model size and variables are ranked by average minimal
+    depth.
 
     A rough rule for choosing \code{mvars} is to set it equal to some
     fraction of the number of variables.
 
-    The same algorithm is used when \code{method}="vhVIMP", but
+    The same algorithm is used when \code{method}="\code{vhVIMP}", but
     variables are ordered using VIMP (including the final model).  This
     is faster, but not as accurate.
 
-    If \code{method}="vh", and the number of variables is large, set
-    \code{nsplit} to a fairly large number, such as 10, to ensure that
-    tree splitting is not overly influenced by noisy variables.  
+    If \code{method}="\code{vh}", and the number of variables is large,
+    set \code{nsplit} to a fairly large number, such as 10, to ensure
+    that tree splitting is not overly influenced by noisy variables.
 
     ---> Miscellanea
 
@@ -140,13 +147,14 @@
       NULL if \code{big.data}=TRUE.}
 }
 \author{
-    Hemant Ishwaran  \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran  \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
     Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
     Lauer M.S. (2010).  High-dimensional variable selection for survival
-    data.  \emph{J. Amer. Statist. Assoc. (in press)}.
+    data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
 
     Ishwaran H., Kogalur U.B., Chen X. and Minn A.J. (2010).  Random
     survival forests for high-dimensional data.  
@@ -173,10 +181,11 @@ vs.bigp <- varSel(Surv(days, status) ~ ., pbc.noise, mtry = 100)
 # Note: nrep is small for illustration; typical values are nrep = 100
 
 data(vdv, package = "randomSurvivalForest")
-vh <- varSel(Surv(Time, Censoring) ~ ., vdv, method = "vh", nrep = 10, nstep = 5)
+vh <- varSel(Surv(Time, Censoring) ~ ., vdv, method = "vh",
+            nrep = 10, nstep = 5)
 
 # Same analysis, but using predefined weights for selecting a gene 
-# for node splitting.  We illustrate this using univarate cox p-values.
+# for node splitting.  We illustrate this using univariate cox p-values.
 
 if (library("survival", logical.return = TRUE) 
     & library("Hmisc", logical.return = TRUE))

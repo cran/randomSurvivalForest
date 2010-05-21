@@ -14,7 +14,8 @@
     None.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \keyword{documentation}

@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -86,17 +86,17 @@
 ####**********************************************************************
 
 plot.variable <- function(
-    x, 
-    plots.per.page = 4,
-    granule = 5,
-    sorted = TRUE,
-    type = c("mort", "rel.freq", "surv", "time")[1],
-    partial = FALSE,
-    predictorNames = NULL,
-    npred = NULL,                           
-    npts = 25,
-    subset = NULL,
-    percentile = 50,
+    x,# 
+    plots.per.page = 4,#
+    granule = 5,#
+    sorted = TRUE,#
+    type = c("mort", "rel.freq", "surv", "time")[1],#
+    partial = FALSE,#
+    predictorNames = NULL,#
+    npred = NULL,#                 
+    npts = 25,#
+    subset = NULL,#
+    percentile = 50,#
     ...) {
 
     ### don't want to use x for object 
@@ -149,7 +149,6 @@ plot.variable <- function(
         stop("Coefficient list does not match available predictors:\n", object$predictorNames)
       }
       cov.names <- unique(cov.names[is.element(cov.names, object$predictorNames)])
-      npred <- NULL
     }
     n.cov <- length(cov.names)
     if (sorted) {

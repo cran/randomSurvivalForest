@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -85,15 +85,16 @@
 ####**********************************************************************
 ####**********************************************************************
 
-vimp <- function(object = NULL,
-                 predictorNames = NULL,
-                 subset = NULL,
-                 joint = TRUE,
-                 rough = FALSE,                            
-                 importance = c("randomsplit", "permute", "none")[1],
-                 seed = NULL,
-                 do.trace = FALSE,
-                 ...) {
+vimp <- function(object = NULL,#
+                 predictorNames = NULL,#
+                 subset = NULL,#
+                 joint = TRUE,#
+                 rough = FALSE,#                            
+                 importance = c("randomsplit", "permute", "none")[1],#
+                 seed = NULL,#
+                 do.trace = FALSE,#
+                 ...)
+{
 
   ## Check that 'object' is of the appropriate type.
   if (is.null(object)) stop("Object is empty!")

@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -92,18 +92,18 @@
 #
 ########################################################################
 
-impute.rsf <- function(formula,
-                       data = NULL,
-                       ntree = 1000,
-                       mtry = NULL,
-                       nodesize = NULL,
-                       splitrule = NULL,
-                       nsplit = 0,
-                       big.data = FALSE,
-                       nimpute = 1,
-                       predictorWt = NULL,
-                       seed = NULL,
-                       do.trace = FALSE,
+impute.rsf <- function(formula,#
+                       data = NULL,#
+                       ntree = 1000,#
+                       mtry = NULL,#
+                       nodesize = NULL,#
+                       splitrule = NULL,#
+                       nsplit = 0,#
+                       big.data = FALSE,#
+                       nimpute = 1,#
+                       predictorWt = NULL,#
+                       seed = NULL,#
+                       do.trace = FALSE,#
                        ...)
 {
 

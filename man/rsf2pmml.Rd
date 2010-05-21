@@ -1,6 +1,6 @@
 \name{rsf2pmml}
 \alias{rsf2pmml}
-\title{Save Random Survival Forest As PMML}
+\title{Save Random Survival Forest as PMML}
 \description{
     \code{rsf2pmml} implements the Predictive Model Markup
     Language specification for a \pkg{randomSurvivalForest} forest
@@ -12,8 +12,7 @@
 }
 \arguments{
     \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
-	forest)}. Note that \code{forest}=TRUE must be used in the
-        original \code{rsf} call.}
+	forest)}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -51,14 +50,11 @@
   warrant release in this version of the product.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{ubk2101@columbia.edu}
+  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
+
+  Udaya B. Kogalur \email{kogalurshear@gmail.com}
 }
 \references{
-    H. Ishwaran, Udaya B. Kogalur, Eugene H. Blackstone and Michael S. Lauer
-    (2007).  Random Survival Forests. \emph{Cleveland Clinic Technical
-    Report}.
-
     http://www.dmg.org
 }	
 
@@ -66,39 +62,34 @@
   \code{xmlTreeParse},
   \code{xmlRoot},
   \code{saveXML},
-  \code{rsf},
-  \code{predict.rsf},
   \code{pmml2rsf}.
 }
 \examples{
-  # Example 1:  Growing a forest, saving it as a PMML document,
-  # restoring the forest from the PMML document, and using this forest to
-  # perform prediction.
-
   \dontrun{
-  library("XML")
+# Example 1:  Growing a forest, saving it as a PMML document,
+# restoring the forest from the PMML document, and using this forest to
+# perform prediction.
 
-  data(veteran, package = "randomSurvivalForest")
-  veteran.out <- rsf(Survrsf(time, status)~.,
-        data = veteran,
-        ntree = 5,
-        forest = TRUE)
-  veteran.forest <- veteran.out$forest
-  veteran.pmml <- rsf2pmml(veteran.forest)
+library("XML")
 
-  # Save the document to disk.
-  userFile = file("veteran.forest.xml")
-  saveXML(veteran.pmml, userFile)
-  close(userFile)
+data(veteran, package = "randomSurvivalForest")
+veteran.out <- rsf(Surv(time, status)~., data = veteran, ntree = 5)
+veteran.forest <- veteran.out$forest
+veteran.pmml <- rsf2pmml(veteran.forest)
 
-  # Read the just written document.
-  veteran.pmml <- xmlRoot(xmlTreeParse("veteran.forest.xml"))
+# Save the document to disk.
+userFile = file("veteran.forest.xml")
+saveXML(veteran.pmml, userFile)
+close(userFile)
 
-  partial.forest <- pmml2rsf(veteran.pmml)
+# Read the just written document.
+veteran.pmml <- xmlRoot(xmlTreeParse("veteran.forest.xml"))
 
-  # The PMML forest object must be massaged before it can be used
-  # for prediction as follows:
-  veteran.restored.forest <- list(
+partial.forest <- pmml2rsf(veteran.pmml)
+
+# The PMML forest object must be massaged before it can be used
+# for prediction as follows:
+veteran.restored.forest <- list(
                       nativeArray=partial.forest$nativeArray, 
                       nativeFactorArray=partial.forest$nativeFactorArray,
                       timeInterest=partial.forest$timeInterest, 
@@ -109,18 +100,16 @@
                       time=veteran.forest$time,
                       cens=veteran.forest$cens)
 
-  # The actual time, censoring and prediction values of the data set
-  # used to grow the forest are not contained in the PMML
-  # representation of the forest.  If the user has access to the original
-  # datafile that was used to grow the forest, this information can be
-  # easily recovered.  The names corresponding to the time, censoring and
-  # prediction data are all retained in the PMML representation of the forest.
+# The actual time, censoring and prediction values of the data set
+# used to grow the forest are not contained in the PMML
+# representation of the forest.  If the user has access to the original
+# datafile that was used to grow the forest, this information can be
+# easily recovered.  The names corresponding to the time, censoring and
+# prediction data are all retained in the PMML representation of the forest.
 
-  class(veteran.restored.forest) <- c("rsf", "forest")
-  veteran.restored.out <- predict.rsf(veteran.restored.forest, test=veteran)
-
+class(veteran.restored.forest) <- c("rsf", "forest")
+veteran.restored.out <- predict.rsf(veteran.restored.forest, test=veteran)
 }
 }
-
 \keyword{survival}
 \keyword{tree}

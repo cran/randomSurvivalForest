@@ -3,7 +3,6 @@ useDynLib(randomSurvivalForest)
 export(rsf.news, 
        rsf,
        randomSurvivalForest,
-       Survrsf,
        predict.rsf,
        vimp,
        rsf2pmml,
@@ -21,7 +20,6 @@ export(rsf.news,
        varSel,
        impute.rsf)
 
-S3method(rsf, default)
 S3method(print, rsf)
 S3method(plot, rsf)
 S3method(predict, rsf)

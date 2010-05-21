@@ -1,7 +1,7 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.2
+####  RANDOM SURVIVAL FOREST 3.6.3
 ####
 ####  Copyright 2009, Cleveland Clinic Foundation
 ####
@@ -86,26 +86,26 @@
 ####**********************************************************************
 
 varSel <-
-  function(formula = NULL,          
-           data = NULL,
-           object = NULL,      
-           method = c("vh", "vhVIMP", "md")[3],
-           ntree = (if (method == "md") 1000 else 500),
-           mvars = (if (!is.null(data) & method != "md") min(1000, round(ncol(data)/5)) else NULL),
-           mtry = (if (!is.null(data) & method == "md") max(sqrt(ncol(data)), ncol(data)/3) else NULL),
-           nodesize = (if (method == "vh" | method == "vhVIMP") 2 else NULL),
-           nsplit = 10,
-           predictorWt = NULL,
-           big.data = FALSE,
-           na.action = c("na.omit", "na.impute")[1],
-           do.trace = 0,       
-           always.use = NULL,  
-           nrep = 50,        
-           K = 5,             
-           nstep = 1,         
-           verbose = TRUE,
-           ...
-           )
+  function(
+           formula = NULL,#          
+           data = NULL,#
+           object = NULL,#      
+           method = c("vh", "vhVIMP", "md")[3],#
+           ntree = (if (method == "md") 1000 else 500),#
+           mvars = (if (!is.null(data) & method != "md") min(1000, round(ncol(data)/5)) else NULL),#
+           mtry = (if (!is.null(data) & method == "md") max(sqrt(ncol(data)), ncol(data)/3) else NULL),#
+           nodesize = (if (method == "vh" | method == "vhVIMP") 2 else NULL),#
+           nsplit = 10,#
+           predictorWt = NULL,#
+           big.data = FALSE,#
+           na.action = c("na.omit", "na.impute")[1],#
+           do.trace = 0,#
+           always.use = NULL,#  
+           nrep = 50,#        
+           K = 5,#             
+           nstep = 1,#         
+           verbose = TRUE,#
+           ...)
 
 {
 
