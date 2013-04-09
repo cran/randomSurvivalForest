@@ -1,9 +1,9 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.3
+####  RANDOM SURVIVAL FOREST 3.6.4
 ####
-####  Copyright 2009, Cleveland Clinic Foundation
+####  Copyright 2013, Cleveland Clinic Foundation
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -20,72 +20,34 @@
 ####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ####  Boston, MA  02110-1301, USA.
 ####
-####  ----------------------------------------------------------------
-####  Project Partially Funded By:
-####    --------------------------------------------------------------
-####    National Institutes of Health,  Grant HHSN268200800026C/0001
-####
-####    Michael S. Lauer, M.D., FACC, FAHA 
-####    National Heart, Lung, and Blood Institute
-####    6701 Rockledge Dr, Room 10122
-####    Bethesda, MD 20892
-####
-####    email:  lauerm@nhlbi.nih.gov
-####
-####    --------------------------------------------------------------
-####    Case Western Reserve University/Cleveland Clinic  
-####    CTSA Grant:  UL1 RR024989, National Center for
-####    Research Resources (NCRR), NIH
-####
-####    --------------------------------------------------------------
-####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-####    Andy Minn, M.D., Ph.D.
-####    Department of Radiation and Cellular Oncology, and
-####    Ludwig Center for Metastasis Research
-####    The University of Chicago, Jules F. Knapp Center, 
-####    924 East 57th Street, Room R318
-####    Chicago, IL 60637
-#### 
-####    email:  aminn@radonc.uchicago.edu
-####
-####    --------------------------------------------------------------
-####    Bryan Lau, Ph.D.
-####    Department of Medicine, Johns Hopkins School of Medicine,
-####    Baltimore, Maryland 21287
-####
-####    email:  blau1@jhmi.edu
-####
-####  ----------------------------------------------------------------
 ####  Written by:
-####    --------------------------------------------------------------
 ####    Hemant Ishwaran, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
-####    Cleveland Clinic Foundation
-####    9500 Euclid Avenue
-####    Cleveland, OH 44195
+####    Director of Statistical Methodology
+####    Professor, Division of Biostatistics
+####    Clinical Research Building, Room 1058
+####    1120 NW 14th Street
+####    University of Miami, Miami FL 33136
 ####
 ####    email:  hemant.ishwaran@gmail.com
-####    phone:  216-444-9932
-####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-####
+####    URL:    http://web.ccs.miami.edu/~hishwaran
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
+####    Adjunct Staff
+####    Dept of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
-####    Kogalur Shear Corporation
+####    Kogalur & Company, Inc.
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk2101@columbia.edu
-####    phone:  919-824-9825
-####    URL:    www.kogalur-shear.com
+####    email:  commerce@kogalur.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
 ####**********************************************************************
 
-plot.variable <- function(
+plot.variable.rsf <- function(
     x,# 
     plots.per.page = 4,#
     granule = 5,#
@@ -98,9 +60,6 @@ plot.variable <- function(
     subset = NULL,#
     percentile = 50,#
     ...) {
-
-    ### don't want to use x for object 
-    ### check that object is interpretable
     object <- x
     rm(x)
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2 &
@@ -109,13 +68,8 @@ plot.variable <- function(
     if (type != "mort" & type != "rel.freq" & type != "surv" & type != "time")
       stop("Invalid choice for 'type:  ", type)
     if (!partial & type == "time") stop("Type 'time' can only be used for partial plots.")
-
-    # number of event types
     n.event  <- length(unique(na.omit(object$cens)[na.omit(object$cens) > 0]))
     if (n.event > 1) object$ensemble <- object$ensemble[,,1]
-    
-
-    ### subset the data?
     if (!is.null(subset) & length(unique(subset)) != 0) {
       subset <- subset[subset >=1 & subset <= dim(object$predictors)[1]]
       subset <- unique(subset)
@@ -134,10 +88,6 @@ plot.variable <- function(
         object$ensemble <- t(as.matrix(object$ensemble[subset, ]))
       }
     }
-   
-    ### get predictor matrix (use imputed values if available)
-    ### extract predictor names to be plotted
-    ### should predictors be sorted by importance?
     predictors <- object$predictors
     if (!is.null(object$imputedIndv)) predictors[object$imputedIndv, ] <- object$imputedData[, -c(1:2)]
     if (is.null(predictorNames)) {
@@ -168,13 +118,7 @@ plot.variable <- function(
       cov.names <- cov.names[1:n.cov]
     }
     n <- dim(predictors)[1]
-    
-
-    ## Save par settings
     old.par <- par(no.readonly = TRUE)
-
-
-    ## nice y-label
     if (type == "mort") {
       ylabel <- "mortality"
     }
@@ -187,14 +131,8 @@ plot.variable <- function(
     else {
       ylabel <- "predicted survival time"
     }
-
-    ## ensure percentile value is set correctly
     if (percentile > 1) percentile <- percentile/100
     if (percentile < 0 || percentile > 1) percentile = 0.5
-
-    ##--------------------------------------------------------------------------------
-    ## Marginal plots
-    ##--------------------------------------------------------------------------------
     if (!partial) {
       if (n > 500) cex <- 0.5 else cex <- 0.75
       plots.per.page <- max(round(min(plots.per.page,n.cov)), 1)
@@ -249,9 +187,6 @@ plot.variable <- function(
         }
       }
     }
-    ##--------------------------------------------------------------------------------
-    ## Partial plots
-    ##--------------------------------------------------------------------------------
     else {
       if (is.null(object$forest)) {
         stop("Forest is empty!  Re-run rsf (grow) analysis with forest set to 'TRUE'.")
@@ -361,9 +296,6 @@ plot.variable <- function(
         }
       }
     }
-
-    ## Restore par settings
     par(old.par)
-
-
   }
+plot.variable <- plot.variable.rsf

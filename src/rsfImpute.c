@@ -1,9 +1,9 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.3
+////  RANDOM SURVIVAL FOREST 3.6.4
 ////
-////  Copyright 2009, Cleveland Clinic Foundation
+////  Copyright 2013, Cleveland Clinic Foundation
 ////
 ////  This program is free software; you can redistribute it and/or
 ////  modify it under the terms of the GNU General Public License
@@ -20,66 +20,28 @@
 ////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ////  Boston, MA  02110-1301, USA.
 ////
-////  ----------------------------------------------------------------
-////  Project Partially Funded By:
-////    --------------------------------------------------------------
-////    National Institutes of Health,  Grant HHSN268200800026C/0001
-////
-////    Michael S. Lauer, M.D., FACC, FAHA 
-////    National Heart, Lung, and Blood Institute
-////    6701 Rockledge Dr, Room 10122
-////    Bethesda, MD 20892
-////
-////    email:  lauerm@nhlbi.nih.gov
-////
-////    --------------------------------------------------------------
-////    Case Western Reserve University/Cleveland Clinic  
-////    CTSA Grant:  UL1 RR024989, National Center for
-////    Research Resources (NCRR), NIH
-////
-////    --------------------------------------------------------------
-////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-////    Andy Minn, M.D., Ph.D.
-////    Department of Radiation and Cellular Oncology, and
-////    Ludwig Center for Metastasis Research
-////    The University of Chicago, Jules F. Knapp Center, 
-////    924 East 57th Street, Room R318
-////    Chicago, IL 60637
-//// 
-////    email:  aminn@radonc.uchicago.edu
-////
-////    --------------------------------------------------------------
-////    Bryan Lau, Ph.D.
-////    Department of Medicine, Johns Hopkins School of Medicine,
-////    Baltimore, Maryland 21287
-////
-////    email:  blau1@jhmi.edu
-////
-////  ----------------------------------------------------------------
 ////  Written by:
-////    --------------------------------------------------------------
 ////    Hemant Ishwaran, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
-////    Cleveland Clinic Foundation
-////    9500 Euclid Avenue
-////    Cleveland, OH 44195
+////    Director of Statistical Methodology
+////    Professor, Division of Biostatistics
+////    Clinical Research Building, Room 1058
+////    1120 NW 14th Street
+////    University of Miami, Miami FL 33136
 ////
 ////    email:  hemant.ishwaran@gmail.com
-////    phone:  216-444-9932
-////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-////
+////    URL:    http://web.ccs.miami.edu/~hishwaran
 ////    --------------------------------------------------------------
 ////    Udaya B. Kogalur, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
+////    Adjunct Staff
+////    Dept of Quantitative Health Sciences
 ////    Cleveland Clinic Foundation
 ////    
-////    Kogalur Shear Corporation
+////    Kogalur & Company, Inc.
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk2101@columbia.edu
-////    phone:  919-824-9825
-////    URL:    www.kogalur-shear.com
+////    email:  commerce@kogalur.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -100,8 +62,7 @@ void imputeInteraction (uint treeID, Node *parent) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to impute interaction with no missingness.  ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   for (p = 1; p <= _fmvSize; p++) {
     if (_fmvForestSign[treeID][p] != -1) {
@@ -139,17 +100,15 @@ char imputeNode (uint     type,
                  uint     treeID, 
                  Node    *parent) {
   uint     obsSize;
-  double  *status;
-  double  *time;
-  double **predictor;
+  double  *status = NULL;
+  double  *time = NULL;
+  double **predictor = NULL;
   Node   **nodeMembership;
-  uint    *mRecordMap;
-  uint     mRecordSize;
-  uint    *mRecordIndex;
-  uint     mvSize;
-  int    **mvSign;
-  int     *mvIndex;
-  int    **mvForestSign;
+  uint    *mRecordMap = NULL;
+  uint     mvSize = 0;
+  int    **mvSign = NULL;
+  int     *mvIndex = NULL;
+  int    **mvForestSign = NULL;
   double *valuePtr, *imputePtr;
   char mPredictorFlag;
   uint unsignedIndex;
@@ -166,8 +125,6 @@ char imputeNode (uint     type,
       predictor = _fobservation;
       nodeMembership = _fnodeMembership;
       mRecordMap = _fmRecordMap;
-      mRecordSize = _fmRecordSize;
-      mRecordIndex = _fmRecordIndex;
       mvSize = _fmvSize;
       mvSign = _fmvSign;
       mvIndex = _fmvIndex;
@@ -183,8 +140,6 @@ char imputeNode (uint     type,
       predictor = _observation;
       nodeMembership = _nodeMembership;
       mRecordMap = _mRecordMap;
-      mRecordSize = _mRecordSize;
-      mRecordIndex = _mRecordIndex;
       mvSize = _mvSize;
       mvSign = _mvSign;
       mvIndex = _mvIndex;
@@ -197,8 +152,7 @@ char imputeNode (uint     type,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to impute node with no missingness in type:  %10d", type);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   double *localDistribution = dvector(1, _observationSize);
   for (p = 1; p <= mvSize; p++) {
@@ -263,8 +217,7 @@ void imputeTree(uint mode, uint b, Node *parent, char rootFlag) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unused GROW case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   case RSF_PRED:
     if (_mRecordSize > 0) {
@@ -317,8 +270,7 @@ void imputeTree(uint mode, uint b, Node *parent, char rootFlag) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
@@ -372,15 +324,14 @@ void imputeUpdateSummary (uint      mode,
                           double **predictorPtr, 
                           uint treeID, 
                           double ***dmvImputationPtr) {
-  uint     mRecordSize;
-  uint    *mRecordIndex;
-  uint     mvSize;
-  int    **mvSign;
-  int     *mvIndex;
-  int    **mvForestSign;
+  uint     mRecordSize = 0;
+  uint    *mRecordIndex = NULL;
+  uint     mvSize = 0;
+  int    **mvSign = NULL;
+  int     *mvIndex = NULL;
+  int    **mvForestSign = NULL;
   double  *valuePtr;
   uint     unsignedIndex;
-  uint     obsSize;
   char result;
   uint i, p;
   result = FALSE;
@@ -392,7 +343,6 @@ void imputeUpdateSummary (uint      mode,
       mvSign = _mvSign;
       mvIndex = _mvIndex;
       mvForestSign = _mvForestSign;
-      obsSize = _observationSize;
       result = TRUE;
     }
   }
@@ -404,7 +354,6 @@ void imputeUpdateSummary (uint      mode,
       mvSign = _fmvSign;
       mvIndex = _fmvIndex;
       mvForestSign = _fmvForestSign;
-      obsSize = _fobservationSize;
       result = TRUE;
     }
   }
@@ -412,8 +361,7 @@ void imputeUpdateSummary (uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to update forest impute data with no missingness in mode:  %10d", mode);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   for (p = 1; p <= mvSize; p++) {
     if (mvForestSign[treeID][p] != -1) {
@@ -438,7 +386,6 @@ void imputeUpdateSummary (uint      mode,
             Rprintf("\nRSF:  Attempt to update forest impute data with invalid shadowed value, NA. ");
             Rprintf("\nRSF:  Invalid value for:  [indv][outcome/predictor] = [%10d][%10d] ", mRecordIndex[i], mvIndex[p]);
             Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
             Rprintf("\nDiagnostic Trace of Shadowed Data:  ");
             Rprintf("\n       index   imputation -> \n");
             Rprintf(  "            ");
@@ -464,7 +411,7 @@ void imputeUpdateSummary (uint      mode,
               }
               Rprintf("\n");
             }
-            exit(TRUE);
+            error("\nRSF:  The application will now exit.\n");
           }  
           else {
             dmvImputationPtr[treeID][i][p] = valuePtr[mRecordIndex[i]];
@@ -547,8 +494,7 @@ void imputeUpdateShadow (uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to update shadow data with no missingness in mode:  %10d", mode);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   outcomeFlag = TRUE;
   for (p = 1; p <= mvSize; p++) {
@@ -647,8 +593,7 @@ void imputeConcordance(uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
 }
@@ -662,21 +607,21 @@ void imputeCommon(uint      mode,
   uint q,s;
   char mPredictorFlag;
   char outcomeFlag;
-  uint     mRecordSize;
-  uint    *mRecordIndex;
-  uint     mvSize;
-  int    **mvSign;
-  int     *mvIndex;
-  int    **mvForestSign;
-  double  *outTime;
-  double  *outStatus;
-  double **outPredictor;
+  uint     mRecordSize = 0;
+  uint    *mRecordIndex = NULL;
+  uint     mvSize = 0;
+  int    **mvSign = NULL;
+  int     *mvIndex = NULL;
+  int    **mvForestSign = NULL;
+  double  *outTime = NULL;
+  double  *outStatus = NULL;
+  double **outPredictor = NULL;
   double *valuePtr;
   double *naivePtr;
   uint    unsignedIndex;
   double imputedValue;
   uint localDistributionSize;
-  uint maxDistributionSize;
+  uint maxDistributionSize = 0;
   char result;
   valuePtr      = NULL;  
   naivePtr      = NULL;  
@@ -685,15 +630,13 @@ void imputeCommon(uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Invalid tree count in imputeCommon():  %10d", b);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   if ((selectionFlag != TRUE) && (selectionFlag != FALSE) && (selectionFlag != ACTIVE)) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Invalid selectionFlag in imputeCommon():  %10d", selectionFlag);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   result = FALSE;
   switch (mode) {
@@ -754,8 +697,7 @@ void imputeCommon(uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to impute in imputeCommon() with no missingness in mode:  %10d", mode);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   imputedValue = 0.0;  
   double *localDistribution = dvector(1, maxDistributionSize);
@@ -796,7 +738,6 @@ void imputeCommon(uint      mode,
                     Rprintf("\nRSF:  *** ERROR *** ");
                     Rprintf("\nRSF:  Invalid imputed value, NA:  [tree][i][p] = [%10d][%10d][%10d] ", tree, i, p);
                     Rprintf("\nRSF:  Please Contact Technical Support.");
-                    Rprintf("\nRSF:  The application will now exit.\n");
                     Rprintf("\nDiagnostic Trace of (tree, outcome/predictor) pairs for [indv, outcome/predictor] = [%10d][%10d] ", mRecordIndex[i], mvIndex[p]);
                     Rprintf("\n      tree   imputation -> \n");
                     Rprintf(  "          ");
@@ -811,7 +752,7 @@ void imputeCommon(uint      mode,
                       }
                       Rprintf("\n");
                     }
-                    exit(TRUE);
+                    error("\nRSF:  The application will now exit.\n");
                   }  
                 }  
               }  
@@ -916,9 +857,7 @@ void unImpute (uint mode) {
   int    *mvIndex;
   double *valuePtr;
   uint unsignedIndex;
-  char result;
   uint p, i;
-  result = FALSE;
   if (_mRecordSize > 0) {
     statusPtr = _status;
     timePtr = _time;
@@ -986,7 +925,6 @@ void unImpute (uint mode) {
 }
 void imputeMultipleTime (char selectionFlag) {
   double  *outTime;
-  double  *outStatus;
   double meanValue;
   double leftDistance, rightDistance;
   uint minimumIndex;
@@ -1000,11 +938,9 @@ void imputeMultipleTime (char selectionFlag) {
   }
   if (selectionFlag == FALSE) {
     outTime   = _sOOBImputeTimePtr;
-    outStatus = _sOOBImputeStatusPtr;
   }
   else {
     outTime  = _sImputeTimePtr;
-    outStatus  = _sImputeStatusPtr;
   }    
   for (i=1; i <= _mRecordSize; i++) {
     if(_mvSign[abs(TIME_IDX)][i] == 1) { 
@@ -1012,8 +948,7 @@ void imputeMultipleTime (char selectionFlag) {
       if ((meanValue < _masterTime[1]) || (meanValue > _masterTime[_masterTimeSize])) {
         Rprintf("\nRSF:  *** ERROR *** ");
         Rprintf("\nRSF:  The summary mean value for time is out of range:  indv %10d, value %12.4f", _mRecordIndex[i], meanValue);
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
+        error("\nRSF:  The application will now exit.\n");
       }
       leftDistance = rightDistance = minimumIndex = 0;
       for (j = 1; j <= _masterTimeSize; j++) {
@@ -1092,7 +1027,6 @@ double getMaximalValue(double *value, uint size) {
 double getMedianValue(double *value, uint size) {
   double result;
   uint medianIndex;
-  uint j;
   hpsort(value, size);
   if (size > 1) {
     medianIndex = (uint) ceil(size/2);
@@ -1115,7 +1049,6 @@ double getMeanValue(double *value, uint size) {
 }
 double getSampleValue(double *value, uint size, char chainFlag) {
   uint randomIndex;
-  uint j;
   if (chainFlag) {
     randomIndex = (uint) ceil(ran1(_seed1Ptr)*((size)*1.0));
   }
@@ -1320,8 +1253,7 @@ void updateTimeIndexArray(Node *parent) {
         Rprintf("\nRSF:  *** ERROR *** ");
         Rprintf("\nRSF:  Invalid event time encountered:  %12.4f", _time[i]);
         Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
+        error("\nRSF:  The application will now exit.\n");
       }
       if (idxFoundFlag == FALSE) {
         _masterTimeIndex[i] = 0;
@@ -1333,12 +1265,11 @@ void updateEventTypeSubsets(double *summaryStatus,
                             uint    mRecordSize,
                             int   **mvSign,
                             uint   *mRecordIndex) {
-  uint i, j, n;
+  uint i, j;
   if (_eventTypeSize == 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to update event type subsets in a non-CR analysis.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   if (_mStatusSize > 0) {
     uint *eventCounter = uivector(1, _eventTypeSize);

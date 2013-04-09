@@ -1,9 +1,9 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.3
+////  RANDOM SURVIVAL FOREST 3.6.4
 ////
-////  Copyright 2009, Cleveland Clinic Foundation
+////  Copyright 2013, Cleveland Clinic Foundation
 ////
 ////  This program is free software; you can redistribute it and/or
 ////  modify it under the terms of the GNU General Public License
@@ -20,66 +20,28 @@
 ////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ////  Boston, MA  02110-1301, USA.
 ////
-////  ----------------------------------------------------------------
-////  Project Partially Funded By:
-////    --------------------------------------------------------------
-////    National Institutes of Health,  Grant HHSN268200800026C/0001
-////
-////    Michael S. Lauer, M.D., FACC, FAHA 
-////    National Heart, Lung, and Blood Institute
-////    6701 Rockledge Dr, Room 10122
-////    Bethesda, MD 20892
-////
-////    email:  lauerm@nhlbi.nih.gov
-////
-////    --------------------------------------------------------------
-////    Case Western Reserve University/Cleveland Clinic  
-////    CTSA Grant:  UL1 RR024989, National Center for
-////    Research Resources (NCRR), NIH
-////
-////    --------------------------------------------------------------
-////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-////    Andy Minn, M.D., Ph.D.
-////    Department of Radiation and Cellular Oncology, and
-////    Ludwig Center for Metastasis Research
-////    The University of Chicago, Jules F. Knapp Center, 
-////    924 East 57th Street, Room R318
-////    Chicago, IL 60637
-//// 
-////    email:  aminn@radonc.uchicago.edu
-////
-////    --------------------------------------------------------------
-////    Bryan Lau, Ph.D.
-////    Department of Medicine, Johns Hopkins School of Medicine,
-////    Baltimore, Maryland 21287
-////
-////    email:  blau1@jhmi.edu
-////
-////  ----------------------------------------------------------------
 ////  Written by:
-////    --------------------------------------------------------------
 ////    Hemant Ishwaran, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
-////    Cleveland Clinic Foundation
-////    9500 Euclid Avenue
-////    Cleveland, OH 44195
+////    Director of Statistical Methodology
+////    Professor, Division of Biostatistics
+////    Clinical Research Building, Room 1058
+////    1120 NW 14th Street
+////    University of Miami, Miami FL 33136
 ////
 ////    email:  hemant.ishwaran@gmail.com
-////    phone:  216-444-9932
-////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-////
+////    URL:    http://web.ccs.miami.edu/~hishwaran
 ////    --------------------------------------------------------------
 ////    Udaya B. Kogalur, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
+////    Adjunct Staff
+////    Dept of Quantitative Health Sciences
 ////    Cleveland Clinic Foundation
 ////    
-////    Kogalur Shear Corporation
+////    Kogalur & Company, Inc.
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk2101@columbia.edu
-////    phone:  919-824-9825
-////    URL:    www.kogalur-shear.com
+////    email:  commerce@kogalur.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -108,7 +70,6 @@ Node *getTerminalNode(uint mode, uint leaf) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Proxy member for node %12d not found.", leaf);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
     Rprintf("\nDiagnostic Trace of (individual, boot, node, leaf) vectors in data set:  ");
     Rprintf("\n        index         boot         node         leaf \n");
     for (i = 1; i <= _observationSize; i++) {
@@ -116,7 +77,7 @@ Node *getTerminalNode(uint mode, uint leaf) {
               _bootMembershipFlag[i], _nodeMembership[i], 
               _nodeMembership[i] -> leafCount);
     }
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   return parent;
 }
@@ -189,8 +150,7 @@ char forkAndUpdate(uint  *leafCount,
             Rprintf("\nRSF:  *** ERROR *** ");
             Rprintf("\nRSF:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", i, splitParameterMax);
             Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
-            exit(TRUE);
+            error("\nRSF:  The application will now exit.\n");
           }
         }
         else {
@@ -203,8 +163,7 @@ char forkAndUpdate(uint  *leafCount,
             Rprintf("\nRSF:  *** ERROR *** ");
             Rprintf("\nRSF:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", i, splitParameterMax);
             Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
-            exit(TRUE);
+            error("\nRSF:  The application will now exit.\n");
           }
         }
         if (daughterFlag == LEFT) {
@@ -222,8 +181,7 @@ char forkAndUpdate(uint  *leafCount,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  forkNode() failed.");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   return result;
 }
@@ -277,8 +235,7 @@ char makeTree (char     multipleImputeFlag,
         Rprintf("\nRSF:  *** ERROR *** ");
         Rprintf("\nRSF:  forkAndUpdate() failed.");
         Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
+        error("\nRSF:  The application will now exit.\n");
       }
     }  
     else {
@@ -306,8 +263,7 @@ char makeTree (char     multipleImputeFlag,
           Rprintf("\nRSF:  *** ERROR *** ");
           Rprintf("\nRSF:  Reverse parsing of tree failed in forkAndUpdate().");
           Rprintf("\nRSF:  Please Contact Technical Support.");
-          Rprintf("\nRSF:  The application will now exit.\n");
-          exit(TRUE);
+          error("\nRSF:  The application will now exit.\n");
         }
         (parent -> splitDepth)[depth - i + 1] = (reversePtr -> parent) -> splitParameter;
         reversePtr = reversePtr -> parent;
@@ -335,11 +291,10 @@ char restoreTree(uint    b,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Invalid forest input record at line:  %10d", b);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
     Rprintf("\nDiagnostic Trace of Tree Record:  \n");
     Rprintf("\n    treeID     nodeID     parmID       spltPT     mwcpSZ \n");
     Rprintf("%10d %10d %10d %12.4f %10d \n", treeID[*offset], nodeID[*offset], parmID[*offset], contPT[*offset], mwcpSZ[*offset]);
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   parent -> depth = depth;
   parent -> left  = NULL;
@@ -428,8 +383,7 @@ char restoreTree(uint    b,
           Rprintf("\nRSF:  *** ERROR *** ");
           Rprintf("\nRSF:  Reverse parsing of tree failed in restoreTree().");
           Rprintf("\nRSF:  Please Contact Technical Support.");
-          Rprintf("\nRSF:  The application will now exit.\n");
-          exit(TRUE);
+          error("\nRSF:  The application will now exit.\n");
         }
         (parent -> splitDepth)[depth - i + 1] = (reversePtr -> parent) -> splitParameter;
         reversePtr = reversePtr -> parent;

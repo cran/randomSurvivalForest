@@ -41,9 +41,8 @@ impute.rsf(formula, data = NULL, ntree = 1000, mtry = NULL,
   data overlayed.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.

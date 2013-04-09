@@ -355,9 +355,8 @@ rsf(formula, data = NULL, ntree = 1000, mtry = NULL,
   Different R-wrappers are provided to aid in parsing the ensemble.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.

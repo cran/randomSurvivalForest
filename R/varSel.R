@@ -1,9 +1,9 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.3
+####  RANDOM SURVIVAL FOREST 3.6.4
 ####
-####  Copyright 2009, Cleveland Clinic Foundation
+####  Copyright 2013, Cleveland Clinic Foundation
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -20,66 +20,28 @@
 ####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ####  Boston, MA  02110-1301, USA.
 ####
-####  ----------------------------------------------------------------
-####  Project Partially Funded By:
-####    --------------------------------------------------------------
-####    National Institutes of Health,  Grant HHSN268200800026C/0001
-####
-####    Michael S. Lauer, M.D., FACC, FAHA 
-####    National Heart, Lung, and Blood Institute
-####    6701 Rockledge Dr, Room 10122
-####    Bethesda, MD 20892
-####
-####    email:  lauerm@nhlbi.nih.gov
-####
-####    --------------------------------------------------------------
-####    Case Western Reserve University/Cleveland Clinic  
-####    CTSA Grant:  UL1 RR024989, National Center for
-####    Research Resources (NCRR), NIH
-####
-####    --------------------------------------------------------------
-####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-####    Andy Minn, M.D., Ph.D.
-####    Department of Radiation and Cellular Oncology, and
-####    Ludwig Center for Metastasis Research
-####    The University of Chicago, Jules F. Knapp Center, 
-####    924 East 57th Street, Room R318
-####    Chicago, IL 60637
-#### 
-####    email:  aminn@radonc.uchicago.edu
-####
-####    --------------------------------------------------------------
-####    Bryan Lau, Ph.D.
-####    Department of Medicine, Johns Hopkins School of Medicine,
-####    Baltimore, Maryland 21287
-####
-####    email:  blau1@jhmi.edu
-####
-####  ----------------------------------------------------------------
 ####  Written by:
-####    --------------------------------------------------------------
 ####    Hemant Ishwaran, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
-####    Cleveland Clinic Foundation
-####    9500 Euclid Avenue
-####    Cleveland, OH 44195
+####    Director of Statistical Methodology
+####    Professor, Division of Biostatistics
+####    Clinical Research Building, Room 1058
+####    1120 NW 14th Street
+####    University of Miami, Miami FL 33136
 ####
 ####    email:  hemant.ishwaran@gmail.com
-####    phone:  216-444-9932
-####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-####
+####    URL:    http://web.ccs.miami.edu/~hishwaran
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
+####    Adjunct Staff
+####    Dept of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
-####    Kogalur Shear Corporation
+####    Kogalur & Company, Inc.
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk2101@columbia.edu
-####    phone:  919-824-9825
-####    URL:    www.kogalur-shear.com
+####    email:  commerce@kogalur.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -106,26 +68,10 @@ varSel <-
            nstep = 1,#         
            verbose = TRUE,#
            ...)
-
 {
-
-###--------------------------------------------------------------
-###  
-###  global paramters (do not touch!!!!!)
-###
-###--------------------------------------------------------------
-  
   n.vimp     <- 3      #add top positive n.vimp variables for MD 
   very.big.P <- 5000   #max no. genes in prefiltering for VH
-
-###--------------------------------------------------------------
-###  
-###  useful functions
-###
-###--------------------------------------------------------------
-
   get.imp <- function(f.o) {
-    #note that CR can revert to right-censoring due to subsampling
     if (!is.null(dim(f.o$importance))) {
       c(cbind(f.o$importance)[1, ])
     }
@@ -133,10 +79,8 @@ varSel <-
       c(f.o$importance)
     }
   }
-
   get.imp.all <- function(f.o, pretty = TRUE) {
     if (cr.flag) {
-      #note that CR can revert to right-censoring due to subsampling
       if (is.null(dim(f.o$importance))) {
         warning("subsampling is coercing a right-censored analysis for CR data\n")
         NA
@@ -153,10 +97,8 @@ varSel <-
       imp.all
     }
   }
-
   get.err <- function(f.o) {
     ntree <- f.o$ntree
-    #note that CR can revert to right-censoring due to subsampling
     if (!is.null(dim(f.o$err.rate))) {
         cbind(f.o$err.rate)[1, ntree]
     }
@@ -164,7 +106,6 @@ varSel <-
       f.o$err.rate[ntree]
     }
   }
-
   SD <- function(x) {
     if (all(is.na(x))) {
       NA
@@ -173,16 +114,13 @@ varSel <-
       sd(x, na.rm = TRUE)
     }
   }
-
   LENGTH <- function(x, y) {
     (length(x) > 0 & length(y) > 0)
   }
-
   Mtry <- function(x, y) {
     mty <- round((length(x) - length(y))/3)
     if (mty == 0) round(length(x)/3) else mty
   }
-  
   resample <- function(x, size, ...) {
     if(length(x) <= 1) {
       if(!missing(size) && size == 0) x[FALSE] else x
@@ -191,18 +129,15 @@ varSel <-
       sample(x, size, ...)
     }
   }
-
  cv.folds <- function (n, folds = 10) {
    split(resample(1:n), rep(1:folds, length = n))
  }
-
  permute.rows <-function(x) {
    n <- nrow(x)
    p <- ncol(x)
    mm <- runif(length(x)) + rep(seq(n) * 10, rep(p, n))
    matrix(t(x)[order(mm)], n, p, byrow = TRUE)
  }
-
  balanced.folds <- function(y, nfolds = min(min(table(y)), 10)) {
    y[is.na(y)] <- resample(y[!is.na(y)], size = sum(is.na(y)), replace = TRUE)
    totals <- table(y)
@@ -219,7 +154,6 @@ varSel <-
      for(i in seq(totals)) {
        if(length(yids[[i]])>1){bigmat[seq(totals[i]), i] <- sample(yids[[i]])}
        if(length(yids[[i]])==1){bigmat[seq(totals[i]), i] <- yids[[i]]}
-
      }
      smallmat <- matrix(bigmat, nrow = nfolds)
      smallmat <- permute.rows(t(smallmat)) 
@@ -231,18 +165,12 @@ varSel <-
      return(res)
    }
  }
-
-  
-  
  rsf.var.hunting <- function(train.id, var.pt, nstep) {
-
-  ###------------------filtering step-----------------------
   if (verbose) cat("\t", paste("selecting variables using", mName), "...\n")
   drop.var.pt <- setdiff(var.columns, var.pt)
   if (sum(data[train.id, names(data) == all.vars(rsf.all.f)[2]], na.rm = TRUE) < 2) {
     stop("training data has insufficient deaths: K is probably set too high\n")
   }
-  # over-ride user mtry setting: use an aggressive value
   rsf.filter.out  <- rsf(rsf.all.f,
               data=(if (LENGTH(var.pt, drop.var.pt)) data[train.id, -drop.var.pt]
                     else data[train.id, ]),
@@ -258,14 +186,14 @@ varSel <-
    names(imp) <- rsf.filter.out$predictorNames
    if (method == "vhVIMP") {
      VarStrength <- sort(imp, decreasing = TRUE)
-     lower.VarStrength <- min(VarStrength) - 1 #need theoretical lower bound to vimp
-     n.lower <- min(2, length(VarStrength))    #n.lower cannot be > no. available variables
+     lower.VarStrength <- min(VarStrength) - 1 
+     n.lower <- min(2, length(VarStrength))    
      avg.depth <- m.depth <- NA
      sig.vars.old <- names(VarStrength)[1]
    }
    else {
      v <- max.subtree(rsf.filter.out)
-     if (is.null(v$order)) {#terminate if subtree analysis is NULL
+     if (is.null(v$order)) { 
        VarStrength <- lower.VarStrength <- 0
        avg.depth <- m.depth <- NA
        sig.vars.old <- names(sort(imp, decreasing = TRUE))[1]
@@ -275,19 +203,17 @@ varSel <-
        avg.depth <- floor(mean(apply(v$nodesAtDepth, 2, function(x){sum(!is.na(x))}), na.rm=TRUE))
        exact.threshold <- v$threshold
        top.vimp <- imp[order(imp, decreasing = TRUE)[min(length(imp), n.vimp)]]
-       n.lower <- max(min(2, length(VarStrength)),#n.lower cannot be > no. available variables
+       n.lower <- max(min(2, length(VarStrength)), 
                       sum(VarStrength <= exact.threshold | (imp >= top.vimp & imp > 0)))     
        VarStrength <- max(VarStrength) - VarStrength
        names(m.depth) <- names(VarStrength) <- rsf.filter.out$predictorNames
        VarStrength <- sort(VarStrength, decreasing = TRUE)
-       lower.VarStrength <- -1 #need theoretical upper bound to first order statistic
+       lower.VarStrength <- -1  
        sig.vars.old <- names(VarStrength)[1]
      }
    }
    nstep <- max(round(length(rsf.filter.out$predictorNames)/nstep), 1)
    imp.old <- 0
-  
-  ###------------------error loop-----------------------
   for (b in 1:nstep) {
     if (b == 1) {
       if (sum(VarStrength > lower.VarStrength) == 0) {
@@ -304,7 +230,7 @@ varSel <-
     if (!is.null(always.use)) {
       sig.vars <- unique(c(sig.vars, always.use))
     }
-    if (length(sig.vars) <= 1) {#break if there is only one variable
+    if (length(sig.vars) <= 1) { 
       sig.vars <- sig.vars.old
       break
     }
@@ -324,9 +250,6 @@ varSel <-
       imp.old <- imp
     }
   }
-  ###---------------refit forest and exit--------------------
-  ### Over-ride user specified nodesize, mtry settings as variables 
-  ### should now be filtered and default settings should therefore apply
   var.pt <- var.columns[match(sig.vars, predictorNames)]
   drop.var.pt <- setdiff(var.columns, var.pt)
   rsf.out  <- rsf(rsf.all.f,
@@ -339,18 +262,7 @@ varSel <-
               forest = TRUE,
               do.trace = do.trace)
   return(list(rsf.out=rsf.out, sig.vars=rsf.out$predictorNames, avg.depth=avg.depth, m.depth=m.depth))
-
  }
-
-
- ###--------------------------------------------------------------
- ###  
- ###  preliminary processing
- ###
- ###--------------------------------------------------------------
-
-
- ## Incoming parameter checks.  All are fatal.
  if (!is.null(object)) {
     if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2) {
        stop("This function only works for objects of class `(rsf, grow)'")
@@ -368,12 +280,8 @@ varSel <-
  if (length(method.idx) != 1) {
       stop("Invalid method:  ", method)
  }
-
- ## formula
  fNames <- all.vars(formula, max.names=1e7)
  rsf.all.f <- as.formula(paste("Surv(", fNames[1], ",", fNames[2], ") ~ .", sep=""))
-  
- ## extract data 
  if (!is.null(object)) {
    data <- as.data.frame(cbind(time = object$time, cens = object$cens, object$predictors))
    colnames(data)[c(1,2)] <- c(fNames[1], fNames[2])
@@ -382,8 +290,6 @@ varSel <-
  if (fNames[3] != ".") {
    data <- data[, is.element(names(data), fNames)]
  }
-
- ## pretty names for method
  if (method == "vh") {
    mName <- "Variable Hunting"
  }
@@ -393,10 +299,6 @@ varSel <-
  else {
    mName <- "Minimal Depth"
  }
-  
- ## initialize dimensions
- ## survival time/censoring status
- ## extract the unique event types
  n <- nrow(data)
  P <- ncol(data) - 2
  survival.time <- data[ , names(data) == fNames[1]]
@@ -413,8 +315,6 @@ varSel <-
  else {
    always.use.pt <- NULL
  }
-
- ## set predictor weight
  if (!is.null(predictorWt)) {
    if (any(predictorWt < 0) | length(predictorWt) != P | all(predictorWt == 0)) {
      predictorWt <- rep(1/P, P)
@@ -423,21 +323,10 @@ varSel <-
      predictorWt <-predictorWt/sum(predictorWt)
    }
  }
-
-
-  ## Final checks on option parameters  
   if (!is.null(mtry)) {
     mtry <- round(mtry)
     if (mtry < 1 | mtry > P) mtry <- max(1, min(mtry, P))
   }
-  
-
- ###--------------------------------------------------------------
- ###  
- ###  minimal depth analysis
- ###
- ###--------------------------------------------------------------
-  
  if (method == "md") {
    if (verbose) cat("minimal depth variable selection ...\n")
    if (!is.null(object)) {
@@ -479,9 +368,6 @@ varSel <-
    top.var.pt <- top.var.pt[o.r.m]
    varselect <- as.data.frame(cbind(depth = depth, vimp = imp.all))[o.r.m, ]
    topvars <- unique(c(always.use, rownames(varselect)[top.var.pt]))
-   
-   ### fit a forest to final variable list
-   ### resort default settings for nodesize, mtry due to dimension reduction
    if (!big.data) {
      if (verbose) cat("finalizing forests ...\n")
      var.pt <- var.columns[match(topvars, predictorNames)]
@@ -500,9 +386,6 @@ varSel <-
    else {
      rsf.out <- NULL
    }
-
-
-   ### output: all nicely packaged
    if (verbose) {
      cat("\n\n")
      cat("-----------------------------------------------------------\n")
@@ -518,13 +401,10 @@ varSel <-
      cat("model size     :", modelSize, "\n")
      cat("PE (full model):", round(mean(100*pe), 4), "\n")
      cat("\n\n")
-
      cat("Top variables:\n")
      print(round(varselect[top.var.pt, ], 3))
      cat("-----------------------------------------------------------\n")
    }
-   
-   ### Return the goodies
    return(list(err.rate=pe,
              modelSize=modelSize,
              topvars=topvars,
@@ -532,25 +412,11 @@ varSel <-
              rsf.out=rsf.out
        ))
  }  
-
- ###--------------------------------------------------------------
- ###  
- ###  VH algorithm
- ###
- ###--------------------------------------------------------------
- 
-
- ### vectors/matrices etc.
  pred.results <- dim.results <- forest.depth <- rep(0, nrep)
  var.signature <- NULL
  var.depth <- matrix(NA, nrep, P)
  var.vimp <- array(NA, c(nrep, P, 1 + (cr.flag)*length(eventType)))
  very.big  <- (P > very.big.P)
-
- ###------------------------------------------------
- ## pre-weight variables if P very big
- ## resort to default settings as much as possible
-
  if (mvars < P & very.big & is.null(predictorWt)) {
      if (verbose) cat("Determining selection weights for variables...\n")
      rsf.wts.out  <- rsf(rsf.all.f,
@@ -561,17 +427,8 @@ varSel <-
               na.action = na.action,
               big.data = TRUE)
  }
-
-  
- ###------------------------------------------------
- ## loop
-
  for (m in 1:nrep) {
-
    if (verbose & nrep>1) cat("---------------------  Iteration:", m, "  ---------------------\n")
-  
-   ### select train-testing subgroups
-   ### use balanced sampling on eventTypes to avoid issues under CR
    all.folds <- balanced.folds(censoring.status, K)
    if (big.data) {
      train.id <- all.folds[[1]]
@@ -581,9 +438,6 @@ varSel <-
      test.id <- all.folds[[1]]
      train.id <- setdiff(1:n, test.id)
    }
-
-   ### random gene selection
-   ### over-ride user nodesize setting
    if (mvars < P & is.null(predictorWt)) {
      if (!very.big) {
         rsf.wts.out  <- rsf(rsf.all.f,
@@ -605,18 +459,12 @@ varSel <-
    else {
      var.pt <- var.columns[1:P]
    }
-
-   ### pre-guided gene selection
    if (!is.null(predictorWt)) {
      var.pt <- unique(resample(var.columns, mvars, replace = TRUE, prob = predictorWt))
    }
-   
-   ### always.use variables 
    if (!is.null(always.use)) {
      var.pt <- unique(c(var.pt, always.use.pt))
    }
-       
-   ### RSF gene hunting call
    object <- rsf.var.hunting(train.id = train.id, var.pt = var.pt, nstep = nstep)
    rsf.out <- object$rsf.out
    sig.vars <- object$sig.vars
@@ -624,13 +472,11 @@ varSel <-
      forest.depth[m] <- object$avg.depth
      var.depth[m, match(names(object$m.depth), predictorNames)] <- object$m.depth
    }
-
    #RSF-predictor
    pred.out <- predict(rsf.out,  data[test.id, ])
    pred.results[m] <- get.err(pred.out)
    dim.results[m] <- length(sig.vars)
    var.signature <- c(var.signature, sig.vars)
-
    #test set vimp
    test.var.pt <- match(pred.out$predictorNames, predictorNames)
    if (m < nrep) {
@@ -638,46 +484,26 @@ varSel <-
    }
    else {
      imp.all.temp <- get.imp.all(pred.out, TRUE)
-     if (!all(is.na(imp.all.temp))) {#cannot acquire pretty labels 
+     if (!all(is.na(imp.all.temp))) { 
        dimnames(var.vimp) <- list(NULL, NULL, colnames(imp.all.temp))
      }
      var.vimp[m, test.var.pt, ] <- imp.all.temp
    }
- 
    if (verbose) {
      cat("\t                                                                \r")
      cat("\t PE:", round(pred.results[m], 4), "     dim:", dim.results[m], "\n")
    }
-
  }
-
- ###--------------------------------------------------------------
- ###  finalize details
-
- 
- ### nodesize
  if (is.null(nodesize)) nodesize <- min(3, round(0.632*sum(censoring.status == 1)))
-
- ### remove na's in PE 
- ### occurs (rarely) when test data has no concordant pairs
  pred.results <- c(na.omit(pred.results))
-
- ### frequency
  var.freq.all.temp <- 100*tapply(var.signature, var.signature, length)/nrep
  freq.pt <- match(names(var.freq.all.temp), predictorNames)
  var.freq.all <- rep(0, P)
  var.freq.all[freq.pt] <- var.freq.all.temp
-
- ### minimal depth
  if (method == "vh") {
    var.depth.all <- apply(var.depth, 2, mean, na.rm = T)
  }
-
- ### vimp
  var.vimp.all <- apply(var.vimp, c(2, 3), mean, na.rm = T)
-
-
- ###  package it up for output
  if (method == "vh") {
    varselect <- cbind(depth = var.depth.all, vimp = var.vimp.all, rel.freq = var.freq.all)
  }
@@ -689,8 +515,6 @@ varSel <-
  varselect <- varselect[o.r.f,, drop = FALSE]
  modelSize <- round(mean(dim.results))  
  topvars <- unique(c(always.use, rownames(varselect)[1:modelSize]))
-  
- ### fit a forest to final variable list
  if (!big.data) {
    if (verbose) cat("finalizing forests ...\n")
    var.pt <- var.columns[match(rownames(varselect)[1:modelSize], predictorNames)]
@@ -709,8 +533,6 @@ varSel <-
  else {
    rsf.out <- NULL
  }
- 
- ### output: all nicely packaged
  if (verbose) {
    cat("\n\n")
    cat("-----------------------------------------------------------\n")
@@ -733,20 +555,14 @@ varSel <-
    cat("model size      :", round(mean(dim.results), 4), "+/-", round(SD(dim.results), 4), "\n")
    cat("PE              :", round(mean(100*pred.results), 4), "+/-", round(SD(100*pred.results), 4), "\n")
    cat("\n\n")
-  
    cat("Top variables:\n")
    print(round(varselect[1:modelSize,, drop = FALSE], 3))
    cat("-----------------------------------------------------------\n")
  }
-
- ### return the goodies 
  return(list(err.rate=pred.results,
              modelSize=modelSize,
              topvars=topvars,
              varselect=varselect,
              rsf.out=rsf.out
        ))
-            
-
 }
-

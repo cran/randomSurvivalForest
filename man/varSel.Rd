@@ -147,9 +147,8 @@
       NULL if \code{big.data}=TRUE.}
 }
 \author{
-  Hemant Ishwaran  \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 

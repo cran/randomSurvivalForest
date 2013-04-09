@@ -1,5 +1,6 @@
 \name{plot.variable}
 \alias{plot.variable}
+\alias{plot.variable.rsf}
 \title{Plot Survival Effect of Variables}
 \description{
   Plot of ensemble mortality, predicted survival, or predicted survival
@@ -7,7 +8,7 @@
   and partial plots.
 }
 \usage{
-    plot.variable(x, plots.per.page = 4, granule = 5, sorted = TRUE,
+    \method{plot}{variable}(x, plots.per.page = 4, granule = 5, sorted = TRUE,
                   type = c("mort", "rel.freq", "surv", "time")[1],
                   partial = FALSE, predictorNames = NULL, npred = NULL,
                   npts = 25, subset = NULL, percentile = 50, ...)
@@ -87,9 +88,8 @@
     cases.
 }
 \author{
-  Hemant Ishwaran  \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,

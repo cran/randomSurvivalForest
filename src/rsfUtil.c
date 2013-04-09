@@ -1,9 +1,9 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.3
+////  RANDOM SURVIVAL FOREST 3.6.4
 ////
-////  Copyright 2009, Cleveland Clinic Foundation
+////  Copyright 2013, Cleveland Clinic Foundation
 ////
 ////  This program is free software; you can redistribute it and/or
 ////  modify it under the terms of the GNU General Public License
@@ -20,66 +20,28 @@
 ////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ////  Boston, MA  02110-1301, USA.
 ////
-////  ----------------------------------------------------------------
-////  Project Partially Funded By:
-////    --------------------------------------------------------------
-////    National Institutes of Health,  Grant HHSN268200800026C/0001
-////
-////    Michael S. Lauer, M.D., FACC, FAHA 
-////    National Heart, Lung, and Blood Institute
-////    6701 Rockledge Dr, Room 10122
-////    Bethesda, MD 20892
-////
-////    email:  lauerm@nhlbi.nih.gov
-////
-////    --------------------------------------------------------------
-////    Case Western Reserve University/Cleveland Clinic  
-////    CTSA Grant:  UL1 RR024989, National Center for
-////    Research Resources (NCRR), NIH
-////
-////    --------------------------------------------------------------
-////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-////    Andy Minn, M.D., Ph.D.
-////    Department of Radiation and Cellular Oncology, and
-////    Ludwig Center for Metastasis Research
-////    The University of Chicago, Jules F. Knapp Center, 
-////    924 East 57th Street, Room R318
-////    Chicago, IL 60637
-//// 
-////    email:  aminn@radonc.uchicago.edu
-////
-////    --------------------------------------------------------------
-////    Bryan Lau, Ph.D.
-////    Department of Medicine, Johns Hopkins School of Medicine,
-////    Baltimore, Maryland 21287
-////
-////    email:  blau1@jhmi.edu
-////
-////  ----------------------------------------------------------------
 ////  Written by:
-////    --------------------------------------------------------------
 ////    Hemant Ishwaran, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
-////    Cleveland Clinic Foundation
-////    9500 Euclid Avenue
-////    Cleveland, OH 44195
+////    Director of Statistical Methodology
+////    Professor, Division of Biostatistics
+////    Clinical Research Building, Room 1058
+////    1120 NW 14th Street
+////    University of Miami, Miami FL 33136
 ////
 ////    email:  hemant.ishwaran@gmail.com
-////    phone:  216-444-9932
-////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-////
+////    URL:    http://web.ccs.miami.edu/~hishwaran
 ////    --------------------------------------------------------------
 ////    Udaya B. Kogalur, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
+////    Adjunct Staff
+////    Dept of Quantitative Health Sciences
 ////    Cleveland Clinic Foundation
 ////    
-////    Kogalur Shear Corporation
+////    Kogalur & Company, Inc.
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk2101@columbia.edu
-////    phone:  919-824-9825
-////    URL:    www.kogalur-shear.com
+////    email:  commerce@kogalur.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -210,12 +172,13 @@ void updateEnsembleCHF(uint      mode,
                        uint      treeID,
                        double  **cumulativeHazard,
                        double   *mortality) {
-  uint obsSize;
+  uint obsSize = 0;
   unsigned char oobFlag, fullFlag, selectionFlag, mortalityFlag;
-  double ***ensemblePtr;
-  uint     *ensembleDenPtr;  
-  Node    **nodeMembershipPtr;
-  uint i, j, k, p, n;
+  double ***ensemblePtr = NULL;
+  uint     *ensembleDenPtr = 0;  
+  Node    **nodeMembershipPtr = NULL;
+  uint i, k, p;
+  oobFlag = fullFlag = selectionFlag = mortalityFlag = FALSE;
   switch (mode) {
   case RSF_GROW:
     obsSize = _observationSize;
@@ -252,8 +215,7 @@ void updateEnsembleCHF(uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
@@ -272,8 +234,7 @@ void updateEnsembleCHF(uint      mode,
         Rprintf("\nRSF:  *** ERROR *** ");
         Rprintf("\nRSF:  Unknown case in switch encountered. ");
         Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
+        error("\nRSF:  The application will now exit.\n");
       }
     }
     if (mortalityFlag == TRUE) {
@@ -321,8 +282,7 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
       Rprintf("\nRSF:  *** ERROR *** ");
       Rprintf("\nRSF:  Illegal sub-survival function call.");
       Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
+      error("\nRSF:  The application will now exit.\n");
   }
   uint *nodeParentDeath  = uivector(1, _masterTimeSize);
   uint *nodeParentAtRisk = uivector(1, _masterTimeSize);
@@ -434,8 +394,7 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
               Rprintf("\nRSF:  *** ERROR *** ");
               Rprintf("\nRSF:  Negative sub-survival value at (event, time, leaf, subSurvival) = (%4d, %12.4f, %4d, %12.4f).", j, _timeInterest[k], leaf, (parent -> subSurvival)[j][k]);
               Rprintf("\nRSF:  Please Contact Technical Support.");
-              Rprintf("\nRSF:  The application will now exit.\n");
-              exit(TRUE);
+              error("\nRSF:  The application will now exit.\n");
             }
           }
         }
@@ -468,20 +427,20 @@ void getTreeSpecificSubSurvivalAndDistribution(uint mode, uint treeID) {
 void updateEnsembleSubSurvivalAndDistribution(uint      mode, 
                                               uint      treeID,
                                               double  **conditionalMortality) {
-  uint obsSize;
+  uint obsSize = 0;
   unsigned char oobFlag, fullFlag, selectionFlag, mortalityFlag;
   double  **poePtr;
   double ***ensSubSurvivalPtr;
   double ***ensemblePtr;
-  Node    **nodeMembershipPtr;
+  Node    **nodeMembershipPtr = NULL;
   double  value;
-  uint i, j, k, n, p;
+  uint i, j, k;
+  oobFlag = fullFlag = selectionFlag = mortalityFlag= FALSE;
   if (_eventTypeSize == 1) {
       Rprintf("\nRSF:  *** ERROR *** ");
       Rprintf("\nRSF:  Illegal ensemble sub-survival call.");
       Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
+      error("\nRSF:  The application will now exit.\n");
   }
   poePtr            = NULL;  
   ensSubSurvivalPtr = NULL;  
@@ -522,8 +481,7 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
@@ -554,7 +512,6 @@ void updateEnsembleSubSurvivalAndDistribution(uint      mode,
       }
     }
     for (i=1; i <= obsSize; i++) {
-      p = nodeMembershipPtr[_individualIndex[i]] -> leafCount;
       selectionFlag = TRUE;
       if (oobFlag == TRUE) {
         if (_bootMembershipFlag[_individualIndex[i]] == FALSE) {
@@ -637,8 +594,7 @@ void getConditionalConcordanceArrays(uint     j,
   if (_eventTypeSize == 1) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to update event type subsets in a non-CR analysis.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   for (i = 1; i <= _meIndividualSize[j]; i++) {
     subsettedStatus[i]      = statusPtr[_eIndividual[j][i]];
@@ -673,8 +629,7 @@ void getMeanSurvivalTime(uint mode, double *meanSurvivalTime, uint treeID) {
         Rprintf("\nRSF:  *** ERROR *** ");
         Rprintf("\nRSF:  Zero death count encountered in node:  %10d", leaf);
         Rprintf("\nRSF:  Please Contact Technical Support.");
-        Rprintf("\nRSF:  The application will now exit.\n");
-        exit(TRUE);
+        error("\nRSF:  The application will now exit.\n");
       }
     }
     else {
@@ -685,9 +640,7 @@ void updateEnsembleSurvivalTime(uint     mode,
                                 uint     treeID, 
                                 double  *meanSurvivalTime,
                                 double *mortality) {
-  uint i, j, k, p;
-  uint obsSize;
-  uint *genericEnsembleDenPtr;
+  uint i, p;
   switch (mode) {
   case RSF_GROW:
     for (i=1; i <= _observationSize; i++) {
@@ -745,8 +698,7 @@ void updateEnsembleSurvivalTime(uint     mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
 }
@@ -791,8 +743,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to compute performance on a rejected tree:  %10d", b);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   switch (mode) {
   case RSF_GROW:
@@ -811,8 +762,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   mortality = dvector(1, obsSize);
@@ -944,8 +894,7 @@ void getConditionalPerformance (uint     mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt at conditional performance updates in a non-CR analysis.");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   if (_mStatusSize > 0) {
     if (mode == RSF_GROW) {

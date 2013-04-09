@@ -1,9 +1,9 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.3
+####  RANDOM SURVIVAL FOREST 3.6.4
 ####
-####  Copyright 2009, Cleveland Clinic Foundation
+####  Copyright 2013, Cleveland Clinic Foundation
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -20,148 +20,130 @@
 ####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ####  Boston, MA  02110-1301, USA.
 ####
-####  ----------------------------------------------------------------
-####  Project Partially Funded By:
-####    --------------------------------------------------------------
-####    National Institutes of Health,  Grant HHSN268200800026C/0001
-####
-####    Michael S. Lauer, M.D., FACC, FAHA 
-####    National Heart, Lung, and Blood Institute
-####    6701 Rockledge Dr, Room 10122
-####    Bethesda, MD 20892
-####
-####    email:  lauerm@nhlbi.nih.gov
-####
-####    --------------------------------------------------------------
-####    Case Western Reserve University/Cleveland Clinic  
-####    CTSA Grant:  UL1 RR024989, National Center for
-####    Research Resources (NCRR), NIH
-####
-####    --------------------------------------------------------------
-####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-####    Andy Minn, M.D., Ph.D.
-####    Department of Radiation and Cellular Oncology, and
-####    Ludwig Center for Metastasis Research
-####    The University of Chicago, Jules F. Knapp Center, 
-####    924 East 57th Street, Room R318
-####    Chicago, IL 60637
-#### 
-####    email:  aminn@radonc.uchicago.edu
-####
-####    --------------------------------------------------------------
-####    Bryan Lau, Ph.D.
-####    Department of Medicine, Johns Hopkins School of Medicine,
-####    Baltimore, Maryland 21287
-####
-####    email:  blau1@jhmi.edu
-####
-####  ----------------------------------------------------------------
 ####  Written by:
-####    --------------------------------------------------------------
 ####    Hemant Ishwaran, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
-####    Cleveland Clinic Foundation
-####    9500 Euclid Avenue
-####    Cleveland, OH 44195
+####    Director of Statistical Methodology
+####    Professor, Division of Biostatistics
+####    Clinical Research Building, Room 1058
+####    1120 NW 14th Street
+####    University of Miami, Miami FL 33136
 ####
 ####    email:  hemant.ishwaran@gmail.com
-####    phone:  216-444-9932
-####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-####
+####    URL:    http://web.ccs.miami.edu/~hishwaran
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
+####    Adjunct Staff
+####    Dept of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
-####    Kogalur Shear Corporation
+####    Kogalur & Company, Inc.
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk2101@columbia.edu
-####    phone:  919-824-9825
-####    URL:    www.kogalur-shear.com
+####    email:  commerce@kogalur.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
 ####**********************************************************************
 
 rsf2rfz <- function(object, forestName = NULL, ...) {
-
-  ## Ensure the forest object is coherent.
   rsfForest <- checkForestObject(object)
-
   if (is.null(forestName)) {
     stop("RSF forest name is NULL.  Please provide a valid name for the forest .rfz file.")
   }
-
-  ## If the user has already provided the .rfz extension, remove it.
   if (nchar(forestName) > 4) {
     if (substr(forestName, nchar(forestName)-3, nchar(forestName)) == ".rfz") {
       forestName <- substr(forestName, 1, nchar(forestName)-4)
     }
   }
-  
-  ## Initialize the local variables extracted from the forest object.
   nativeArray <- rsfForest$nativeArray
   timeInterest <- rsfForest$timeInterest
   formula <- rsfForest$formula
   forestSeed <- rsfForest$seed
   predictorNames <- rsfForest$predictorNames
-
-  ## Extract the predictor types.
   get.factor <- extract.factor(rsfForest$predictors, predictorNames)
   predictorTypes <- get.factor$predictorType
-
-  ## This may be null in the absence of factors.
   nativeFactorArray <- rsfForest$nativeFactorArray
-        
-  ## Count the number of trees in the forest.
   numTrees <- length(as.vector(unique(nativeArray$treeID)))
-
-  ## Define the root elements of the PMML file.  This is a quick work-around for an issue
-  ## with this version of the XML package, and the inablility to add namespace information
-  ## and attributes concurrently. 
   rootString <- getRootString()
-
-  ## Define the document and the root node.
   pmmlDoc <- xmlTreeParse(rootString, asText=TRUE)
   pmmlRoot <- xmlRoot(pmmlDoc)
-
-  ## Add the DataDictionary to the root node.
   pmmlRoot <- append.XMLNode(pmmlRoot, getDataDictNode(predictorNames=predictorNames, predictorTypes=predictorTypes))
-
-  ## Write the native array information.
   write.table(nativeArray, 
               paste(forestName, ".txt", sep=""), quote = FALSE)
-
-  ## Write the native factor array information if it exists.
-  ## *** WARNING ***  *** WARNING ***  *** WARNING *** 
-  ## In 32-bit and 64-bit systems, the integer value 0x8000000 is
-  ## interpreted as NA by R as it output from the native code SEXP
-  ## object.  Thus write.table will contain NA's.  These need to be
-  ## handled specially in the JUNG code that parses the .rfz file.
-  ## *** WARNING ***  *** WARNING ***  *** WARNING ***   
   write.table(nativeFactorArray, 
                 paste(forestName, ".factor.txt", sep=""), col.names=FALSE, quote = FALSE)
-
-
-  ## Write the predictor names and types.
   xmlFile <- file(paste(forestName, ".xml", sep=""), open="w")
   saveXML(pmmlRoot, xmlFile)
   close(xmlFile)
-
   zipCommand <- paste("zip", sep=" ",
     paste(forestName, ".rfz", sep=""),
     paste(forestName, ".txt", sep=""),
     paste(forestName, ".factor.txt", sep=""),
     paste(forestName, ".xml", sep="")) 
-
   system(command = zipCommand)
-
   unlink(paste(forestName, ".txt", sep=""))
   unlink(paste(forestName, ".factor.txt", sep=""))
   unlink(paste(forestName, ".xml", sep=""))
-
 }
-
-
+checkForestObject <- function(object) {
+  if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2    &
+      sum(inherits(object, c("rsf", "forest"), TRUE) == c(1, 2)) != 2) {
+    stop("This function only works for objects of class `(rsf, grow)' or '(rsf, forest)'")
+  }
+  if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) == 2) {
+    if (is.null(object$forest)) {
+      stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
+    }
+    rsfForest <- object$forest
+  }
+  else {
+    rsfForest <- object
+  }
+  if (is.null(rsfForest$nativeArray)) {
+    stop("RSF nativeArray content is NULL.  Please ensure the object is valid.")
+  }
+  if (is.null(rsfForest$timeInterest)) {
+    stop("RSF timeInterest content is NULL.  Please ensure the object is valid.")
+  }
+  if (is.null(rsfForest$formula)) {
+    stop("RSF formula content is NULL.  Please ensure the object is valid.")
+  }
+  if (is.null(rsfForest$seed)) {
+    stop("RSF forestSeed content is NULL.  Please ensure the object is valid.")
+  }
+  if (is.null(rsfForest$predictorNames)) {
+    stop("RSF predictorNames content is NULL.  Please ensure the object is valid.")
+  }
+  if (is.null(rsfForest$predictors)) {
+    stop("RSF predictors content is NULL.  Please ensure the object is valid.")
+  }
+  return (rsfForest)
+}
+getRootString <- function() {
+  rootString <- 
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+         <PMML version=\"3.1\" xmlns=\"http://www.dmg.org/PMML-3_1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">
+           <Header copyright=\"Copyright 2008, Cleveland Clinic\" description=\"Random Survival Forest Tree Model\">
+              <Application name=\"Random Survival Forest\" version=\"3.0\"/>
+           </Header>
+         </PMML>
+       "
+  return (rootString)
+}
+getDataDictNode <-  function(predictorNames, predictorTypes) {
+  dataDictNode <- xmlNode("DataDictionary", attrs=c(numberOfFields=length(predictorNames)))
+  for (k in 1:length(predictorNames)) {
+    if (predictorTypes[k] == "C") {
+      dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=predictorNames[k], optype="categorical", dataType="string")))
+    }
+    if (predictorTypes[k] == "I") {
+      dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=predictorNames[k], optype="ordinal", dataType="integer")))
+    }
+    if (predictorTypes[k] == "R") {
+      dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=predictorNames[k], optype="continuous", dataType="double")))
+    }
+  }
+  return (dataDictNode)
+}

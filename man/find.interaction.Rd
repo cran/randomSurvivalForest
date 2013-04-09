@@ -80,9 +80,8 @@
     the maximal subtree matrix.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Ishwaran H. (2007).  Variable importance in binary regression

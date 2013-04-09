@@ -1,12 +1,13 @@
 \name{max.subtree}
 \alias{max.subtree}
+\alias{max.subtree.rsf}
 \title{Extract Maximal Subtree Information}
 \description{
     Extract maximal subtree information from a forest.  Used for
     variable selection and identifying interactions between variables.
 }
 \usage{
-    max.subtree(object, max.order = 2, sub.order = FALSE, ...)
+    \method{max}{subtree}(object, max.order = 2, sub.order = FALSE, ...)
 }
 \arguments{
    \item{object}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -75,9 +76,8 @@
         whose minimal depth exceeds this value are considered to be noise.}
 }
 \author{
-  Hemant Ishwaran  \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 

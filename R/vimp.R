@@ -1,9 +1,9 @@
 ####**********************************************************************
 ####**********************************************************************
 ####
-####  RANDOM SURVIVAL FOREST 3.6.3
+####  RANDOM SURVIVAL FOREST 3.6.4
 ####
-####  Copyright 2009, Cleveland Clinic Foundation
+####  Copyright 2013, Cleveland Clinic Foundation
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -20,66 +20,28 @@
 ####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ####  Boston, MA  02110-1301, USA.
 ####
-####  ----------------------------------------------------------------
-####  Project Partially Funded By:
-####    --------------------------------------------------------------
-####    National Institutes of Health,  Grant HHSN268200800026C/0001
-####
-####    Michael S. Lauer, M.D., FACC, FAHA 
-####    National Heart, Lung, and Blood Institute
-####    6701 Rockledge Dr, Room 10122
-####    Bethesda, MD 20892
-####
-####    email:  lauerm@nhlbi.nih.gov
-####
-####    --------------------------------------------------------------
-####    Case Western Reserve University/Cleveland Clinic  
-####    CTSA Grant:  UL1 RR024989, National Center for
-####    Research Resources (NCRR), NIH
-####
-####    --------------------------------------------------------------
-####    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-####    Andy Minn, M.D., Ph.D.
-####    Department of Radiation and Cellular Oncology, and
-####    Ludwig Center for Metastasis Research
-####    The University of Chicago, Jules F. Knapp Center, 
-####    924 East 57th Street, Room R318
-####    Chicago, IL 60637
-#### 
-####    email:  aminn@radonc.uchicago.edu
-####
-####    --------------------------------------------------------------
-####    Bryan Lau, Ph.D.
-####    Department of Medicine, Johns Hopkins School of Medicine,
-####    Baltimore, Maryland 21287
-####
-####    email:  blau1@jhmi.edu
-####
-####  ----------------------------------------------------------------
 ####  Written by:
-####    --------------------------------------------------------------
 ####    Hemant Ishwaran, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
-####    Cleveland Clinic Foundation
-####    9500 Euclid Avenue
-####    Cleveland, OH 44195
+####    Director of Statistical Methodology
+####    Professor, Division of Biostatistics
+####    Clinical Research Building, Room 1058
+####    1120 NW 14th Street
+####    University of Miami, Miami FL 33136
 ####
 ####    email:  hemant.ishwaran@gmail.com
-####    phone:  216-444-9932
-####    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-####
+####    URL:    http://web.ccs.miami.edu/~hishwaran
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
-####    Dept of Quantitative Health Sciences/Wb4
+####    Adjunct Staff
+####    Dept of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
-####    Kogalur Shear Corporation
+####    Kogalur & Company, Inc.
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk2101@columbia.edu
-####    phone:  919-824-9825
-####    URL:    www.kogalur-shear.com
+####    email:  commerce@kogalur.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -95,8 +57,6 @@ vimp <- function(object = NULL,#
                  do.trace = FALSE,#
                  ...)
 {
-
-  ## Check that 'object' is of the appropriate type.
   if (is.null(object)) stop("Object is empty!")
   if (sum(inherits(object, c("rsf", "grow"), TRUE) == c(1, 2)) != 2    &
       sum(inherits(object, c("rsf", "forest"), TRUE) == c(1, 2)) != 2)
@@ -106,9 +66,6 @@ vimp <- function(object = NULL,#
       stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
     object <- object$forest
   }
-
-  ## Map interaction names to columns of GROW predictor matrix
-  ## Ensure interaction names are coherent
   predictorNames <- unique(predictorNames)
   if (is.null(predictorNames)) {
     predictorNames <- object$predictorNames
@@ -120,9 +77,6 @@ vimp <- function(object = NULL,#
     stop("predictor names do not match object predictor matrix")
   predictorNames <- apply(cbind(1:length(predictorNames)), 1, function(i) {
                    which(is.element(object$predictorNames, predictorNames[i]))})
-
-  ## The user has not specified a subset of the GROW data.
-  ## Assume the entire data set is to be used.
   if (is.null(subset)) {
     subset <- 1:nrow(object$predictors)
   }
@@ -131,11 +85,6 @@ vimp <- function(object = NULL,#
                          & subset <= nrow(object$predictors)])
     if (length(subset) == 0) stop("'subset' not set properly.")
   }
-  
-  ## Get information from the grow object
-  ## Identify unordered/ordered factors
-  ## Determine predictor types
-  ## Data conversion to numeric
   ntree <- length(unique(object$nativeArray[,1]))
   get.factor <- extract.factor(object$predictors, object$predictorNames)
   xfactor <- get.factor$xfactor
@@ -143,12 +92,8 @@ vimp <- function(object = NULL,#
   predictorType <- get.factor$predictorType
   object$predictors <- as.matrix(data.matrix(object$predictors))
   rownames(object$predictors) <- colnames(object$predictors) <- NULL
-  
-  ## Generate the random seed
   if (is.null(seed) || abs(seed)<1) seed <- runif(1,1,1e6)
   seed <- -round(abs(seed))
-  
-  ## Set the trace level
   if (!is.logical(do.trace)) {
     if (do.trace >= 1){
       do.trace <- 2^24 * round(do.trace) + 1
@@ -160,8 +105,6 @@ vimp <- function(object = NULL,#
   else {
     do.trace <- 1 * do.trace
   }
-
-  ## Convert importance option into native code parameter
   if (importance == "none") {
     importanceBits <- 0
   }
@@ -178,25 +121,19 @@ vimp <- function(object = NULL,#
     importanceBits <- importanceBits + 2^10
   }
   else if (joint == FALSE) {
-    ## Do nothing.  All is well.
   }
   else {
     stop("Invalid choice for 'joint' option:  ", joint)
   }
   if (rough == TRUE) {
-    ## Use the mean survival time as predicted outcome
     predictedOutcomeBits <- 2^14
   }
   else if (rough == FALSE) {
-    ## Use the CHF as predicted outcome
     predictedOutcomeBits <- 0    
   }
   else {
     stop("Invalid choice for 'rough' option:  ", rough)
   }
-
-
-  ## convert outcome (if it is present) into opt bit
   if (is.null(object$outcome)) {
     outcomeBits <- 0
   }
@@ -208,55 +145,6 @@ vimp <- function(object = NULL,#
       outcomeBits <- 0
     }
   }
-
-  ########################################################################
-  ## rsfInteraction(...)
-  ##
-  ## Parameters passed:
-  ## #####################################################################
-  ## 00 - C function call
-  ##
-  ## 01 - trace output flag 
-  ##        0 = no trace output
-  ##       !0 = various levels of trace output
-  ##
-  ## 02 - option protocol for output objects.
-  ##    - see primary GROW call for details
-  ##
-  ## 03 - random seed for repeatability, integer < 0 
-  ## 04 - number of trees in the forest, integer > 0
-  ## 05 - number of individuals in GROW data set, integer > 1
-  ## 06 - vector of GROW observed times of death, doubles > 0 
-  ## 07 - vector of GROW observed event types
-  ##        0 = censored
-  ##        1 = death
-  ## 08 - number of GROW predictors, integer > 0
-  ## 09 - [p x n] matrix of GROW predictor observations
-  ## 10 - number of time points of interest, integer > 0
-  ## 11 - vector of time points of interest, doubles
-  ## 12 - vector representing treeID
-  ## 13 - vector representing nodeID
-  ## 14 - vector representing parmID
-  ## 15 - vector representing contPT
-  ## 16 - vector representing mwcpSZ
-  ## 17 - vector representing mwcpPT  
-  ## 18 - head of seed chain, integer < 0
-  ## 19 - vector of predictor types
-  ##        "R" - real value
-  ##        "I" - integer value 
-  ##        "C" - categorical
-  ## 20 - number of predictors in interaction, integer > 0
-  ## 21 - vector of predictors in interaction, integers > 0
-  ## 22 - number of individuals in the (potentially proper)
-  ##      subsetted GROW data set, integer > 1
-  ## 23 - index of individuals in the subsetted GROW data set,
-  ##      integers > 1
-  ## ###########################################################
-
-  ## ###########################################################
-  ##  SEXP outputs:  See parameter 2 above and note "*".
-  ## ###########################################################    
-
   nativeOutput <- .Call("rsfInteraction",
                         as.integer(do.trace),
                         as.integer(predictedOutcomeBits +
@@ -283,14 +171,9 @@ vimp <- function(object = NULL,#
                         as.integer(predictorNames),
                         as.integer(length(subset)),
                         as.integer(subset))
-  
-  ## Check for error return condition in the native code.
   if(is.null(nativeOutput)) {
     stop("Error occurred in algorithm.  Please turn trace on for further analysis.")
   }
-
-  # number of event types
-  # pretty names
   n.event <- length(unique(na.omit(object$cens)[na.omit(object$cens) > 0]))
   if (n.event > 1) n.event <- n.event + 1
   if (joint) j.names <- "joint" else j.names <- object$predictorNames[predictorNames]
@@ -302,8 +185,6 @@ vimp <- function(object = NULL,#
     err.names <- list(NULL, NULL)
     vimp.names <- list(NULL, j.names)
   }
-
-  # error rates
   err.rate <- matrix(nativeOutput$performance, ncol=ntree, byrow=T,
                       dimnames=err.names)[1:n.event, ntree, drop = FALSE]
   colnames(err.rate) <- "all.vars"
@@ -315,8 +196,6 @@ vimp <- function(object = NULL,#
   else {
     err.perturb.rate <- importance <- NULL
   }
-
-  ## for pretty output
   make.vec <- function(x) {
     if (!is.null(dim(x)) && nrow(x) == 1) {
       x.names <- colnames(x)
@@ -328,14 +207,10 @@ vimp <- function(object = NULL,#
       x
     }
   }
-  # make.vec <- function(x) {if (!is.null(dim(x)) && nrow(x) == 1) c(x) else x}
-  
   rsfOutput <- list(
                     err.rate = make.vec(err.rate),
                     err.perturb.rate = make.vec(err.perturb.rate),
                     importance = make.vec(importance)
                     )
-
  return(rsfOutput)
-
 }

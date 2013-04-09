@@ -6,7 +6,7 @@
     Note that this is the default print method for the package.
 }
 \usage{
-    print.rsf(x, ...)
+    \method{print}{rsf}(x, ...)
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -14,9 +14,8 @@
     \item{...}{Further arguments passed to or from other methods.}
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \seealso{
   \code{rsf},

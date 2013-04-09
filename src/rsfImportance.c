@@ -1,9 +1,9 @@
 ////**********************************************************************
 ////**********************************************************************
 ////
-////  RANDOM SURVIVAL FOREST 3.6.3
+////  RANDOM SURVIVAL FOREST 3.6.4
 ////
-////  Copyright 2009, Cleveland Clinic Foundation
+////  Copyright 2013, Cleveland Clinic Foundation
 ////
 ////  This program is free software; you can redistribute it and/or
 ////  modify it under the terms of the GNU General Public License
@@ -20,66 +20,28 @@
 ////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ////  Boston, MA  02110-1301, USA.
 ////
-////  ----------------------------------------------------------------
-////  Project Partially Funded By:
-////    --------------------------------------------------------------
-////    National Institutes of Health,  Grant HHSN268200800026C/0001
-////
-////    Michael S. Lauer, M.D., FACC, FAHA 
-////    National Heart, Lung, and Blood Institute
-////    6701 Rockledge Dr, Room 10122
-////    Bethesda, MD 20892
-////
-////    email:  lauerm@nhlbi.nih.gov
-////
-////    --------------------------------------------------------------
-////    Case Western Reserve University/Cleveland Clinic  
-////    CTSA Grant:  UL1 RR024989, National Center for
-////    Research Resources (NCRR), NIH
-////
-////    --------------------------------------------------------------
-////    Dept of Defense Era of Hope Scholar Award, Grant W81XWH0910339
-////    Andy Minn, M.D., Ph.D.
-////    Department of Radiation and Cellular Oncology, and
-////    Ludwig Center for Metastasis Research
-////    The University of Chicago, Jules F. Knapp Center, 
-////    924 East 57th Street, Room R318
-////    Chicago, IL 60637
-//// 
-////    email:  aminn@radonc.uchicago.edu
-////
-////    --------------------------------------------------------------
-////    Bryan Lau, Ph.D.
-////    Department of Medicine, Johns Hopkins School of Medicine,
-////    Baltimore, Maryland 21287
-////
-////    email:  blau1@jhmi.edu
-////
-////  ----------------------------------------------------------------
 ////  Written by:
-////    --------------------------------------------------------------
 ////    Hemant Ishwaran, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
-////    Cleveland Clinic Foundation
-////    9500 Euclid Avenue
-////    Cleveland, OH 44195
+////    Director of Statistical Methodology
+////    Professor, Division of Biostatistics
+////    Clinical Research Building, Room 1058
+////    1120 NW 14th Street
+////    University of Miami, Miami FL 33136
 ////
 ////    email:  hemant.ishwaran@gmail.com
-////    phone:  216-444-9932
-////    URL:    www.bio.ri.ccf.org/Resume/Pages/Ishwaran/ishwaran.html
-////
+////    URL:    http://web.ccs.miami.edu/~hishwaran
 ////    --------------------------------------------------------------
 ////    Udaya B. Kogalur, Ph.D.
-////    Dept of Quantitative Health Sciences/Wb4
+////    Adjunct Staff
+////    Dept of Quantitative Health Sciences
 ////    Cleveland Clinic Foundation
 ////    
-////    Kogalur Shear Corporation
+////    Kogalur & Company, Inc.
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk2101@columbia.edu
-////    phone:  919-824-9825
-////    URL:    www.kogalur-shear.com
+////    email:  commerce@kogalur.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -97,7 +59,6 @@ Node *getProxyMember(Node    *parent,
                      double **predictor, 
                      uint     index) {
   char daughterFlag;
-  uint i;
   Node *result = parent;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     daughterFlag = RIGHT;
@@ -185,18 +146,16 @@ void getVariableImportance (uint      mode,
                             uint      leafCount,
                             Node     *rootPtr,
                             uint      b) {
-  uint j, k, n, p;
-  uint obsSize;
-  uint varCount;
-  double **predictorPtr;
+  uint obsSize = 0;
+  uint varCount = 0;
+  double **predictorPtr = NULL;
   char selectionFlag;
   char result;
   if (!(_opt & OPT_VIMP)) {
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Attempt to compute variable importance though not requested.");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   selectionFlag = ACTIVE;  
   result = TRUE;
@@ -230,8 +189,7 @@ void getVariableImportance (uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   if (result == TRUE) {    
@@ -246,8 +204,7 @@ void getVariableImportance (uint      mode,
       Rprintf("\nRSF:  Unknown VIMP perturbation type encountered. ");
       Rprintf("\nRSF:  Option flag is:  %10x", _opt);
       Rprintf("\nRSF:  Please Contact Technical Support.");
-      Rprintf("\nRSF:  The application will now exit.\n");
-      exit(TRUE);
+      error("\nRSF:  The application will now exit.\n");
     } 
   }  
   else {
@@ -285,8 +242,7 @@ void getVimpRandom (uint      mode,
               Rprintf("\nRSF:  *** ERROR *** ");
               Rprintf("\nRSF:  NA encountered for mortality in VIMP.");
               Rprintf("\nRSF:  Please Contact Technical Support.");
-              Rprintf("\nRSF:  The application will now exit.\n");
-              exit(TRUE);
+              error("\nRSF:  The application will now exit.\n");
             }
           }
         }
@@ -316,8 +272,7 @@ void getVimpRandom (uint      mode,
             Rprintf("\nRSF:  *** ERROR *** ");
             Rprintf("\nRSF:  NA encountered for mortality in VIMP.");
             Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
-            exit(TRUE);
+            error("\nRSF:  The application will now exit.\n");
           }
         }
       }
@@ -332,7 +287,7 @@ void getVimpPermute(uint      mode,
                     uint      varCount,
                     char      selectionFlag) {
   Node *terminalNode;
-  uint permuteObsSize;
+  uint permuteObsSize = 0;
   uint    *indexVIMP;
   uint    *permuteVIMP;
   uint i, j, k, p;
@@ -350,8 +305,7 @@ void getVimpPermute(uint      mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   indexVIMP = uivector(1, permuteObsSize);
@@ -368,8 +322,7 @@ void getVimpPermute(uint      mode,
     Rprintf("\nRSF:  VIMP candidate selection failed.");
     Rprintf("\nRSF:  %10d available, %10d selected.", permuteObsSize, k);
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
   }
   if (!(_opt & (~OPT_VIMP) & OPT_VIMP_JOIN)) {
     double  *originalVIMP = dvector(1, permuteObsSize);
@@ -403,8 +356,7 @@ void getVimpPermute(uint      mode,
               Rprintf("\nRSF:  *** ERROR *** ");
               Rprintf("\nRSF:  NA encountered for mortality in VIMP.");
               Rprintf("\nRSF:  Please Contact Technical Support.");
-              Rprintf("\nRSF:  The application will now exit.\n");
-              exit(TRUE);
+              error("\nRSF:  The application will now exit.\n");
             }
           }
         }
@@ -448,8 +400,7 @@ void getVimpPermute(uint      mode,
             Rprintf("\nRSF:  *** ERROR *** ");
             Rprintf("\nRSF:  NA encountered for mortality in VIMP.");
             Rprintf("\nRSF:  Please Contact Technical Support.");
-            Rprintf("\nRSF:  The application will now exit.\n");
-            exit(TRUE);
+            error("\nRSF:  The application will now exit.\n");
           }
         }
       }
@@ -468,12 +419,11 @@ void finalizeVariableImportance(uint       mode,
                                 uint       rejectedTreeCount, 
                                 char     **dmRecordBootFlag,
                                 double  ***dmvImputation) {
-  uint      obsSize;
-  uint      varCount;
-  double   *statusPtr;
-  double   *timePtr;
-  uint     *ensembleDenPtr;
-  double  **poePtr;
+  uint      obsSize = 0;
+  uint      varCount = 0;
+  double   *statusPtr = NULL;
+  double   *timePtr = NULL;
+  uint     *ensembleDenPtr = NULL;
   double    concordanceIndex;
   int       concordancePolarity;
   char      concordanceImputeFlag;  
@@ -481,7 +431,7 @@ void finalizeVariableImportance(uint       mode,
   double ***crVimpMortality;
   double    value;
   uint     *denominatorCount;
-  uint i, j, k, n, p;
+  uint i, j, k, p;
   if (!(rejectedTreeCount < _forestSize)) {
     Rprintf("\nRSF:  *** WARNING *** ");
     Rprintf("\nRSF:  Insufficient trees for VIMP analysis.  \n");
@@ -508,7 +458,6 @@ void finalizeVariableImportance(uint       mode,
     statusPtr = _status;
     timePtr = _time;
     ensembleDenPtr = _oobEnsembleDen;
-    poePtr = _oobPOEPtr;
     if (_mRecordSize > 0) {
       concordanceImputeFlag = TRUE;
     }
@@ -519,7 +468,6 @@ void finalizeVariableImportance(uint       mode,
     statusPtr = _fstatus;
     timePtr = rsf_ftime;
     ensembleDenPtr = _fullEnsembleDen;
-    poePtr = _fullPOEPtr;
     if (_fmRecordSize > 0) {
       concordanceImputeFlag = TRUE;
     }
@@ -535,7 +483,6 @@ void finalizeVariableImportance(uint       mode,
     statusPtr = _fstatus;
     timePtr = rsf_ftime;
     ensembleDenPtr = _oobEnsembleDen;
-    poePtr = _oobPOEPtr;
     if (_fmRecordSize > 0) {
       concordanceImputeFlag = TRUE;
     }
@@ -544,8 +491,7 @@ void finalizeVariableImportance(uint       mode,
     Rprintf("\nRSF:  *** ERROR *** ");
     Rprintf("\nRSF:  Unknown case in switch encountered. ");
     Rprintf("\nRSF:  Please Contact Technical Support.");
-    Rprintf("\nRSF:  The application will now exit.\n");
-    exit(TRUE);
+    error("\nRSF:  The application will now exit.\n");
     break;
   }
   if (_opt & OPT_VOUT_TYPE) {

@@ -5,7 +5,7 @@
     Prediction on test data using Random Survival Forests.  
 }
 \usage{
-  predict.rsf(object = NULL, test = NULL,
+  \method{predict}{rsf}(object = NULL, test = NULL,
               importance = c("randomsplit", "permute", "none")[1],
               na.action = c("na.omit", "na.impute")[1],
               outcome = c("train", "test")[1],
@@ -116,9 +116,8 @@
 	 variable selection (see \code{max.subtree}).  Can be NULL.}
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.

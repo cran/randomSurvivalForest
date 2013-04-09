@@ -1,8 +1,17 @@
 Package: randomSurvivalForest
-Version: 3.6.3
-BUILD: bld20100520
+Version: 3.6.4
+BUILD: bld20130409
 
 ---------------------------------------------------------------------------------
+CHANGES TO RELEASE 3.6.4
+
+RELEASE 3.6.4 was updated to comply with CRAN packaging
+protocols and to prevent archiving of the package.  It is recommended
+that users not use this package and instead upgrade to the package
+"randomForestSRC", Random Forests for Survival, Regression, and
+Classification.
+---------------------------------------------------------------------------------
+
 CHANGES TO RELEASE 3.6.3
 
 RELEASE 3.6.3 represents a minor update of the product, and

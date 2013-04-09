@@ -1,5 +1,6 @@
 \name{plot.error}
 \alias{plot.error}
+\alias{plot.error.rsf}
 \alias{plot.rsf}
 \title{Plot Error Rate and Variable Importance}
 \description{
@@ -8,8 +9,8 @@
   method for the package.
 }
 \usage{
-    plot.error(x, sorted = TRUE, ...)
-    plot.rsf(x, sorted = TRUE, ...)
+    \method{plot}{error}(x, sorted = TRUE, ...)
+    \method{plot}{rsf}(x, sorted = TRUE, ...)
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -35,9 +36,8 @@
   more details see Ishwaran et al. (2010).
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.

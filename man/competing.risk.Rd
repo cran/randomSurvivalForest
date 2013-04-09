@@ -34,9 +34,8 @@
    OOB values are returned.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Gray R.J. (1988).  A class of k-sample tests for comparing the

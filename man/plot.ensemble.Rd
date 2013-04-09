@@ -1,11 +1,12 @@
 \name{plot.ensemble}
 \alias{plot.ensemble}
+\alias{plot.ensemble.rsf}
 \title{Plot Ensemble Estimates}
 \description{
     Plot ensemble survival curves and ensemble estimates of mortality.
 }
 \usage{
-    plot.ensemble(x, plots.one.page = TRUE, ...)
+    \method{plot}{ensemble}(x, plots.one.page = TRUE, ...)
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -37,9 +38,8 @@
   Whenever possible, out-of-bag (OOB) values are used.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \references{
     Gerds T.A., Cai T. and Schumacher M. (2008).  The performance of

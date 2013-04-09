@@ -1,11 +1,12 @@
 \name{plot.proximity}
 \alias{plot.proximity}
+\alias{plot.proximity.rsf}
 \title{Extract and Plot the Proximity Matrix}
 \description{
     Multidimensional scaling plot of the proximity matrix.
 }
 \usage{
-    plot.proximity(x, plot = TRUE, ...)
+    \method{plot}{proximity}(x, plot = TRUE, ...)
 }
 \arguments{
     \item{x}{An object of class \code{(rsf, grow)} or \code{(rsf,
@@ -28,9 +29,8 @@
    frequencies.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com}
-
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran
+  Udaya B. Kogalur
 }
 \seealso{
   \code{rsf},
